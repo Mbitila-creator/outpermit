@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Workflow Details</title>
+
+    <style>
+    body{font-family:Arial,sans-serif;background:#f5f7fb;padding:24px;margin:0}
+    .card{background:white;max-width:1200px;margin:auto;padding:20px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    h2{margin-top:0;margin-bottom:8px}
+    .subtitle{color:#6b7280;margin-bottom:14px;font-size:14px}
+    .menu{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px}
+    .menu a,.btn{display:inline-block;padding:6px 10px;background:#0b5ed7;color:white;text-decoration:none;border-radius:6px;font-size:11px;font-weight:bold}
+    .btn-secondary{background:#6c757d}
+
+    .valid-box{background:#d1e7dd;color:#0f5132;padding:9px 11px;border-radius:8px;margin-bottom:12px;font-weight:bold;font-size:13px}
+    .invalid-box{background:#f8d7da;color:#842029;padding:9px 11px;border-radius:8px;margin-bottom:12px;font-weight:bold;font-size:13px}
+
+    .workflow-box{background:#f8f9fa;border-radius:10px;padding:14px;margin-bottom:18px}
+    .workflow-box h3{margin:0 0 10px;color:#0b5ed7;font-size:16px}
+
+    .flow-horizontal{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .flow-step{background:#0b5ed7;color:white;padding:7px 11px;border-radius:999px;font-weight:bold;font-size:12px}
+    .flow-arrow{font-size:18px;color:#0b5ed7;font-weight:bold}
+
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th,td{padding:6px 8px;border-bottom:1px solid #eee;text-align:left;line-height:1.2}
+    th{background:#f8f9fa;font-size:12px}
+
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:bold}
+    .badge-required{background:#d1e7dd;color:#0f5132}
+    .badge-optional{background:#fff3cd;color:#856404}
+    .badge-active{background:#d1e7dd;color:#0f5132}
+    .badge-inactive{background:#f8d7da;color:#842029}
+</style>
+
+</head>
+
+<body>
+<div class="card">
+
+    <h2>Workflow Details</h2>
+
+    <div class="subtitle">
+        Department: <strong>{{ department.code }} - {{ department.name }}</strong>
+        &nbsp;&nbsp;|&nbsp;&nbsp;
+        Module: <strong>{{ module_code }}</strong>
+    </div>
+
+    {% if workflow_is_valid %}
+    <div class="valid-box">✅ {{ workflow_validation_message }}</div>
+    {% else %}
+    <div class="invalid-box">⚠️ {{ workflow_validation_message }}</div>
+    {% endif %}
+
+    <div class="menu">
+        <a href="{% url 'workflow_list' %}">Back</a>
+        <a href="{% url 'workflow_add_step' department.id module_code %}">+ Add Workflow Step</a>
+    </div>
+
+    <div class="workflow-box">
+        <h3>Approval Flow</h3>
+
+        <div class="flow-horizontal">
+            {% for w in workflows %}
+                <span class="flow-step">{{ w.approval_role.name }}</span>
+                {% if not forloop.last %}
+                    <span class="flow-arrow">→</span>
+                {% endif %}
+            {% empty %}
+                <span>No workflow steps configured.</span>
+            {% endfor %}
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Step</th>
+                <th>Role</th>
+                <th>Required</th>
+                <th>Active</th>
+                <th>Edit</th>
+                <th>Delete</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for w in workflows %}
+            <tr>
+                <td>{{ w.step_order }}</td>
+                <td>{{ w.approval_role.name }}</td>
+
+                <td>
+                    {% if w.is_required %}
+                        <span class="badge badge-required">Required</span>
+                    {% else %}
+                        <span class="badge badge-optional">Optional</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if w.is_active %}
+                        <span class="badge badge-active">Active</span>
+                    {% else %}
+                        <span class="badge badge-inactive">Inactive</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    <a class="btn" href="{% url 'workflow_edit' w.id %}">Edit</a>
+                </td>
+
+                <td>
+                    <a class="btn btn-secondary" href="{% url 'workflow_delete' w.id %}">Delete</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6">No workflow steps configured.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+</body>
+</html>

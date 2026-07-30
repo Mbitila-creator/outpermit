@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Start New Financial Year</title>
+</head>
+
+<body style="font-family:Arial; padding:30px;">
+
+    <h2>Start New Financial Year</h2>
+
+    <p>
+        You are about to start a new financial year:
+        <strong>{{ new_financial_year }}</strong>
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" style="background:green; color:white; padding:10px 15px; border:none;">
+            Confirm Start
+        </button>
+    </form>
+
+    <br>
+    <a href="{% url 'finance:dashboard' %}">Cancel</a>
+
+</body>
+
+</html>

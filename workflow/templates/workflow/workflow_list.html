@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Workflow Management</title>
+    <style>
+        body{font-family:Arial,sans-serif;background:#f5f7fb;padding:30px;margin:0}
+        .card{background:white;max-width:1300px;margin:auto;padding:25px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+        .menu{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+        .menu a,.btn{display:inline-block;padding:8px 12px;background:#0b5ed7;color:white;text-decoration:none;border-radius:6px;border:none;font-weight:700;font-size:12px}
+        .btn-secondary{background:#6c757d}
+        .filters{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;margin-bottom:18px}
+        select{padding:9px;border:1px solid #ddd;border-radius:8px;width:100%;box-sizing:border-box}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}
+        th{background:#f8f9fa}
+        .active{color:#198754;font-weight:700}
+        .inactive{color:#dc3545;font-weight:700}
+        @media(max-width:900px){.filters{grid-template-columns:1fr}.card{padding:16px}body{padding:15px}}
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>Workflow Management</h2>
+
+    <div class="menu">
+        <a href="{% url 'system_home' %}">Home</a>
+        <a href="{% url 'admin_dashboard' %}">Admin Dashboard</a>
+        <a href="{% url 'audit_log_list' %}">Audit Logs</a>
+        <a href="{% url 'logout' %}" class="btn-secondary">Logout</a>
+    </div>
+
+    <form method="get" class="filters">
+        <select name="department">
+            <option value="">All Departments</option>
+            {% for d in departments %}
+                <option value="{{ d.id }}" {% if selected_department == d.id|stringformat:"s" %}selected{% endif %}>
+                    {{ d.code }} - {{ d.name }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <select name="module">
+            <option value="">All Modules</option>
+            {% for m in modules %}
+                <option value="{{ m.code }}" {% if selected_module == m.code %}selected{% endif %}>
+                    {{ m.code }} - {{ m.name }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <select name="status">
+            <option value="">All Status</option>
+            <option value="active" {% if selected_status == "active" %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if selected_status == "inactive" %}selected{% endif %}>Inactive</option>
+        </select>
+
+        <button type="submit" class="btn">Filter</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Department</th>
+                <th>Module</th>
+                <th>Step</th>
+                <th>Approval Role</th>
+                <th>Required</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for w in workflows %}
+            <tr>
+                <td>{{ w.department.code }} - {{ w.department.name }}</td>
+                <td>{{ w.module }}</td>
+                <td>{{ w.step_order }}</td>
+                <td>{{ w.approval_role.name }}</td>
+                <td>{% if w.is_required %}Yes{% else %}No{% endif %}</td>
+                <td>
+                    {% if w.is_active %}
+                        <span class="active">Active</span>
+                    {% else %}
+                        <span class="inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'workflow_edit' w.id %}" class="btn">Edit</a>
+                    <a href="{% url 'workflow_delete' w.id %}" class="btn btn-secondary">Delete</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7">No workflow records found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

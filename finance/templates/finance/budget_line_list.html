@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Budget Lines</title>
+    {% load humanize %}
+
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+            color: #111827;
+        }
+
+        .topbar {
+            background: linear-gradient(90deg, #084298, #0b5ed7);
+            color: white;
+            padding: 16px 25px;
+        }
+
+        .topbar h1 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        .topbar p {
+            margin: 6px 0 0;
+            font-size: 13px;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        .btn {
+            display: inline-block;
+            background: #0b5ed7;
+            color: white;
+            padding: 7px 11px;
+            border-radius: 6px;
+            text-decoration: none;
+            margin: 4px 4px 12px 0;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-edit {
+            background: #198754;
+            padding: 4px 8px;
+            font-size: 12px;
+            margin: 0;
+        }
+
+        .btn-migrate {
+            background: #fd7e14;
+        }
+
+        .table-box {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+            overflow-x: auto;
+            border: 1px solid #dbe3ef;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            table-layout: auto;
+        }
+
+        th,
+        td {
+            padding: 4px 7px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 12.5px;
+            line-height: 1.2;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: #e9f1ff;
+            color: #0b2e59;
+            font-size: 12px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            border-bottom: 2px solid #c7d7f2;
+        }
+
+        td {
+            white-space: nowrap;
+        }
+
+        tr:hover td {
+            background: #f8fbff;
+        }
+
+        .col-no {
+            width: 40px;
+            text-align: center;
+        }
+
+        .col-task-mtef {
+            min-width: 280px;
+            max-width: 420px;
+            white-space: normal;
+            word-break: normal;
+            overflow-wrap: anywhere;
+        }
+
+        .num {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .messages {
+            color: green;
+            font-weight: bold;
+            margin: 6px 0 12px;
+        }
+
+        .empty-row {
+            text-align: center;
+            padding: 12px;
+            color: #6b7280;
+        }
+
+        .filter-box {
+            margin-bottom: 10px;
+        }
+
+        .filter-box label,
+        .filter-box select {
+            margin-right: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="topbar">
+        <h1>Budget Lines</h1>
+        <p>Role: {{ role }}</p>
+    </div>
+
+    <div class="container">
+
+        {% if messages %}
+        {% for message in messages %}
+        <p class="messages">{{ message }}</p>
+        {% endfor %}
+        {% endif %}
+
+        <a class="btn btn-secondary" href="{% url 'finance:dashboard' %}">Back to Finance Dashboard</a>
+        <a class="btn" href="{% url 'finance:budget_line_create' %}">Add New Budget Line</a>
+        <a class="btn btn-migrate" href="{% url 'finance:clone_month_to_next' %}?month={{ request.GET.month }}&financial_year={{ selected_financial_year }}" onclick="return confirm('Clone ALL budget lines of this month to the next month?');">
+            Clone Month → Next Month
+        </a>
+
+        <div class="table-box">
+            <form method="get" class="filter-box">
+                <label><strong>Financial Year:</strong></label>
+
+                <select name="financial_year" onchange="this.form.submit()">
+                    {% for fy in financial_years %}
+                    <option value="{{ fy }}" {% if fy == selected_financial_year %}selected{% endif %}>
+                        {{ fy }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <label><strong>Month:</strong></label>
+
+                <select name="month" onchange="this.form.submit()">
+                    <option value="">All</option>
+                    {% for m in months %}
+                    <option value="{{ m }}" {% if m == request.GET.month %}selected{% endif %}>
+                        {{ m }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            <table>
+                <tr>
+                    <th class="col-no">#</th>
+                    <th>Task Code</th>
+                    <th>Task in MTEF</th>
+                    <th>Financial Year</th>
+                    <th>Month</th>
+                    <th>Budgeted Amount</th>
+                    <th>Proposed Amount</th>
+                    <th>Approved Amount</th>
+                    <th>Action</th>
+                </tr>
+
+                {% for item in budget_lines %}
+                <tr>
+                    <td class="col-no">{{ forloop.counter }}</td>
+                    <td>{{ item.task_code }}</td>
+                    <td class="col-task-mtef">{{ item.task_in_mtef }}</td>
+                    <td>{{ item.financial_year }}</td>
+                    <td>{{ item.month }}</td>
+                    <td class="num">{{ item.budgeted_amount|floatformat:2|intcomma }}</td>
+                    <td class="num">{{ item.monthly_proposed_amount|default:0|floatformat:2|intcomma }}</td>
+                    <td class="num">{{ item.monthly_approved_amount|default:0|floatformat:2|intcomma }}</td>
+                    <td>
+                        <a class="btn btn-edit" href="{% url 'finance:budget_line_edit' item.pk %}">Edit</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="empty-row">No budget lines found.</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+    </div>
+
+</body>
+
+</html>

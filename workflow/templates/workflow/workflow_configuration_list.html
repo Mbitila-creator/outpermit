@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Workflow Configuration</title>
+    <style>
+        body{font-family:Arial,sans-serif;background:#f5f7fb;padding:30px;margin:0}
+        .card{background:white;max-width:1200px;margin:auto;padding:25px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+        h2{margin-top:0}
+        .subtitle{color:#6b7280;margin-bottom:18px}
+        .menu{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+        .menu a,.btn{display:inline-block;padding:6px 10px;background:#0b5ed7;color:white;text-decoration:none;border-radius:6px;border:none;font-weight:700;font-size:11px}
+        .btn-secondary{background:#6c757d}
+        .filters{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-bottom:18px}
+        select{padding:9px;border:1px solid #ddd;border-radius:8px;width:100%;box-sizing:border-box}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{padding:6px 8px;border-bottom:1px solid #eee;text-align:left;line-height:1.2}
+        th{background:#f8f9fa;font-size:12px}
+        @media(max-width:800px){.filters{grid-template-columns:1fr}body{padding:15px}.card{padding:18px}}
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>Workflow Configuration</h2>
+    <div class="subtitle">View and configure approval workflows by department and module.</div>
+
+    <div class="menu">
+        <a href="{% url 'system_home' %}">Home</a>
+        <a href="{% url 'admin_dashboard' %}">Admin Centre</a>
+        <a href="{% url 'audit_log_list' %}">Audit Logs</a>
+        <a href="{% url 'logout' %}" class="btn-secondary">Logout</a>
+    </div>
+
+    <form method="get" class="filters">
+        <select name="department">
+            <option value="">All Departments</option>
+            {% for d in departments %}
+            <option value="{{ d.id }}" {% if selected_department == d.id|stringformat:"s" %}selected{% endif %}>
+                {{ d.code }} - {{ d.name }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <select name="module">
+            <option value="">All Modules</option>
+            {% for m in modules %}
+            <option value="{{ m.code }}" {% if selected_module == m.code %}selected{% endif %}>
+                {{ m.code }} - {{ m.name }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <button type="submit" class="btn">Filter</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Department</th>
+                <th>Module</th>
+                <th>No. of Steps</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for w in workflows %}
+            <tr>
+                <td>{{ w.department__code }} - {{ w.department__name }}</td>
+                <td>{{ w.module }}</td>
+                <td>{{ w.step_count }}</td>
+                <td>
+                    <a class="btn" href="{% url 'workflow_details' w.department_id w.module %}">View Workflow</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4">No workflow configurations found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

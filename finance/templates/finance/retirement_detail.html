@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Retirement Details</title>
+    {% load humanize %}
+    <style>
+        body {font-family: Arial, Helvetica, sans-serif; background:#f5f7fb; margin:0; color:#111827;}
+        .topbar {background:#0b5ed7; color:white; padding:14px 25px;}
+        .topbar h2 {margin:0;}
+        .container {padding:25px; max-width:900px; margin:auto;}
+        .card,.approval-card {background:white; padding:22px; border-radius:10px; box-shadow:0 4px 14px rgba(0,0,0,.08); margin-bottom:15px;}
+        .row {margin-bottom:12px; font-size:15px;}
+        .label {font-weight:bold; color:#333;}
+        .status-badge {display:inline-block; padding:4px 9px; border-radius:999px; background:#eef2ff; font-weight:700; font-size:12px;}
+        .btn-back {display:inline-block; margin-bottom:15px; background:#6c757d; color:white; padding:8px 14px; border-radius:6px; text-decoration:none; font-size:14px;}
+        .attachment-list {padding-left:18px; margin-top:8px;}
+        .attachment-list li {margin-bottom:7px;}
+        .attachment-list a {color:#0b5ed7; font-weight:bold; text-decoration:none;}
+        .message {padding:9px 12px; margin-bottom:12px; border-radius:6px; background:#e8f5e9; color:#166534; font-weight:600;}
+        .notice {padding:10px 12px; border-radius:6px; background:#fff7ed; border-left:5px solid #f59e0b; margin-bottom:12px;}
+        label {display:block; font-weight:700; margin-bottom:5px;}
+        select,textarea {width:100%; box-sizing:border-box; padding:8px 9px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:12px; font-size:14px;}
+        textarea {min-height:85px; resize:vertical;}
+        .hidden {display:none;}
+        button {padding:8px 14px; border:none; border-radius:6px; color:white; font-weight:bold; cursor:pointer;}
+        .btn-primary {background:#0b5ed7;}
+        .btn-warning {background:#fd7e14;}
+        .btn-danger {background:#dc3545;}
+    </style>
+</head>
+<body>
+    <div class="topbar"><h2>Retirement Details</h2></div>
+    <div class="container">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="message">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <a class="btn-back" href="{% url 'finance:retirement_list' %}">← Back to Retirement List</a>
+
+        <div class="card">
+            <div class="row"><span class="label">Finance Request:</span> {{ retirement.finance_request.request_no }}</div>
+            <div class="row"><span class="label">Department:</span> {{ retirement.finance_request.department.name|default:"-" }}</div>
+            <div class="row"><span class="label">Amount Accounted:</span> {{ retirement.amount_accounted|floatformat:2|intcomma }} TZS</div>
+            <div class="row"><span class="label">Amount Unaccounted:</span> {{ retirement.amount_unaccounted|floatformat:2|intcomma }} TZS</div>
+            <div class="row"><span class="label">Refund Amount:</span> {{ retirement.refund_amount|floatformat:2|intcomma }} TZS</div>
+            <div class="row"><span class="label">Status:</span> <span class="status-badge">{{ retirement.get_status_display }}</span></div>
+            <hr>
+            <div class="row"><span class="label">Submitted By:</span> {{ retirement.submitted_by.get_full_name|default:retirement.submitted_by.username }}</div>
+            <div class="row"><span class="label">Submitted Date:</span> {% if retirement.submitted_at %}{{ retirement.submitted_at|date:"d M Y H:i" }}{% else %}-{% endif %}</div>
+            <hr>
+            <div class="row"><span class="label">Verified By Accountant:</span> {% if retirement.verified_by %}{{ retirement.verified_by.get_full_name|default:retirement.verified_by.username }}{% else %}Not yet verified{% endif %}</div>
+            <div class="row"><span class="label">Verified Date:</span> {% if retirement.verified_at %}{{ retirement.verified_at|date:"d M Y H:i" }}{% else %}-{% endif %}</div>
+            <div class="row"><span class="label">Approved By Director:</span> {% if retirement.approved_by %}{{ retirement.approved_by.get_full_name|default:retirement.approved_by.username }}{% else %}Not yet approved{% endif %}</div>
+            <div class="row"><span class="label">Approved Date:</span> {% if retirement.approved_at %}{{ retirement.approved_at|date:"d M Y H:i" }}{% else %}-{% endif %}</div>
+            <hr>
+            <h3>Attached Files</h3>
+            {% if retirement.documents.all %}
+                <ul class="attachment-list">
+                    {% for doc in retirement.documents.all %}
+                        <li>📎 <a href="{{ doc.file.url }}" target="_blank">View Attachment {{ forloop.counter }}</a></li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No attachments uploaded.</p>
+            {% endif %}
+        </div>
+
+        {% if can_accountant_review %}
+            <div class="approval-card">
+                <h3>Accountant Review</h3>
+                <form method="post" id="retirementReviewForm">
+                    {% csrf_token %}
+                    <label for="decision">Select Decision</label>
+                    <select name="action" id="decision" required>
+                        <option value="">-- Select Action --</option>
+                        <option value="verify">Verify and Forward to Director</option>
+                        <option value="return">Return for Correction</option>
+                        <option value="reject">Reject</option>
+                    </select>
+                    <div id="remarksBox" class="hidden">
+                        <label for="remarks">Remarks</label>
+                        <textarea name="remarks" id="remarks" placeholder="Enter remarks..."></textarea>
+                    </div>
+                    <button type="submit" id="submitDecision" class="btn-primary" style="display:none;" disabled>Submit Decision</button>
+                </form>
+            </div>
+        {% elif can_director_review %}
+            <div class="approval-card">
+                <h3>Director Approval</h3>
+                <form method="post" id="retirementReviewForm">
+                    {% csrf_token %}
+                    <label for="decision">Select Decision</label>
+                    <select name="action" id="decision" required>
+                        <option value="">-- Select Action --</option>
+                        <option value="approve">Approve Retirement</option>
+                        <option value="return">Return for Correction</option>
+                        <option value="reject">Reject</option>
+                    </select>
+                    <div id="remarksBox" class="hidden">
+                        <label for="remarks">Remarks</label>
+                        <textarea name="remarks" id="remarks" placeholder="Enter remarks..."></textarea>
+                    </div>
+                    <button type="submit" id="submitDecision" class="btn-primary" style="display:none;" disabled>Submit Decision</button>
+                </form>
+            </div>
+        {% elif retirement.status == "SUBMITTED" %}
+            <div class="notice">Waiting for Accountant verification.</div>
+        {% elif retirement.status == "VERIFIED" %}
+            <div class="notice">Accountant verification is complete. Waiting for Director approval.</div>
+        {% elif retirement.status == "ACCEPTED" %}
+            <div class="notice" style="background:#e9f7ef; border-left-color:#198754;">Retirement approval is complete.</div>
+        {% elif retirement.status == "RETURNED" %}
+            <div class="notice">This Retirement was returned for correction.</div>
+        {% elif retirement.status == "REJECTED" %}
+            <div class="notice" style="background:#fdecec; border-left-color:#dc3545;">This Retirement was rejected.</div>
+        {% endif %}
+    </div>
+
+    <script>
+        const decision = document.getElementById("decision");
+        const remarksBox = document.getElementById("remarksBox");
+        const remarks = document.getElementById("remarks");
+        const submitButton = document.getElementById("submitDecision");
+
+        function updateReviewForm() {
+            if (!decision || !submitButton) return;
+
+            const action = decision.value;
+            remarksBox.classList.add("hidden");
+            submitButton.style.display = "none";
+            submitButton.disabled = true;
+            submitButton.className = "btn-primary";
+
+            if (!action) return;
+
+            submitButton.style.display = "inline-block";
+            submitButton.disabled = false;
+
+            if (action === "verify") {
+                submitButton.textContent = "Verify and Forward";
+                remarks.required = false;
+            } else if (action === "approve") {
+                submitButton.textContent = "Approve Retirement";
+                remarks.required = false;
+            } else if (action === "return") {
+                remarksBox.classList.remove("hidden");
+                remarks.required = true;
+                submitButton.textContent = "Return for Correction";
+                submitButton.className = "btn-warning";
+            } else if (action === "reject") {
+                remarksBox.classList.remove("hidden");
+                remarks.required = true;
+                submitButton.textContent = "Reject";
+                submitButton.className = "btn-danger";
+            }
+        }
+
+        if (decision) decision.addEventListener("change", updateReviewForm);
+    </script>
+</body>
+</html>

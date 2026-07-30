@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Event Registration</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f7fb;
+            padding: 12px;
+            margin: 0;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            margin: auto;
+            padding: 18px;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+            box-sizing: border-box;
+        }
+
+        h2 {
+            text-align: center;
+            color: #1D5FA7;
+            font-size: 28px;
+        }
+
+        label {
+            font-weight: bold;
+            margin-top: 12px;
+            display: block;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin-top: 6px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        button {
+            margin-top: 20px;
+            width: 100%;
+            background: #1D5FA7;
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 6px;
+            font-size: 17px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #164b83;
+        }
+
+        .error-box {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .photo-note {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 6px;
+        }
+
+        @media (max-width: 600px) {
+            .card {
+                padding: 16px;
+            }
+
+            h2 {
+                font-size: 24px;
+            }
+
+            label {
+                font-size: 16px;
+            }
+
+            input, select, button {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>{{ event.name }}</h2>
+    <p style="text-align:center;color:#6b7280;font-weight:bold;">
+        Registration Form
+    </p>
+
+    {% if duplicate_message %}
+        <div class="error-box">
+            {{ duplicate_message }}
+        </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {% if form.errors %}
+            <div class="error-box">
+                {{ form.errors }}
+            </div>
+        {% endif %}
+
+        <p>
+            {{ form.title.label_tag }}
+            {{ form.title }}
+        </p>
+
+        <div id="other-title-box" style="display:none;">
+            <p>
+                {{ form.other_title.label_tag }}
+                {{ form.other_title }}
+            </p>
+        </div>
+
+        <p>
+            {{ form.full_name.label_tag }}
+            {{ form.full_name }}
+        </p>
+
+        <p>
+            {{ form.institution.label_tag }}
+            {{ form.institution }}
+        </p>
+
+        <p>
+            {{ form.designation.label_tag }}
+            {{ form.designation }}
+        </p>
+
+        <p>
+            {{ form.phone.label_tag }}
+            {{ form.phone }}
+        </p>
+
+        <p>
+            {{ form.email.label_tag }}
+            {{ form.email }}
+        </p>
+
+        <p>
+            {{ form.region.label_tag }}
+            {{ form.region }}
+        </p>
+
+        <p>
+            {{ form.attendance_type.label_tag }}
+            {{ form.attendance_type }}
+        </p>
+
+        <p>
+            {{ form.photo.label_tag }}
+            {{ form.photo }}
+            <div class="photo-note">
+                Optional: on mobile, this can open the camera for taking a participant photo.
+            </div>
+        </p>
+
+        <button type="submit">Submit Registration</button>
+    </form>
+</div>
+
+<script>
+    const titleField = document.getElementById("id_title");
+    const otherBox = document.getElementById("other-title-box");
+
+    function toggleOtherTitle() {
+        if (titleField.value === "Other") {
+            otherBox.style.display = "block";
+        } else {
+            otherBox.style.display = "none";
+        }
+    }
+
+    if (titleField) {
+        titleField.addEventListener("change", toggleOtherTitle);
+        toggleOtherTitle();
+    }
+</script>
+
+</body>
+</html>

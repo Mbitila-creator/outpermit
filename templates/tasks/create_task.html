@@ -1,0 +1,830 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Create Task</title>
+  <style>
+    :root {
+      --primary: #0b5ed7;
+      --primary2: #084298;
+      --success: #198754;
+      --danger: #dc3545;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --border: #e5e7eb;
+      --muted: #6b7280;
+      --shadow: 0 10px 25px rgba(0, 0, 0, .08);
+      --radius: 14px;
+      --soft-blue: #eef5ff;
+      --selected: #e8f1ff;
+      --selected-border: #4d90fe;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: #111827;
+    }
+
+    .topbar {
+      background: linear-gradient(90deg, var(--primary2), var(--primary));
+      color: #fff;
+      padding: 18px 22px;
+    }
+
+    .topbar h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .topbar p {
+      margin: 6px 0 0;
+      font-size: 13px;
+      opacity: .92;
+    }
+
+    .nav {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .nav a {
+      text-decoration: none;
+      color: #fff;
+      background: rgba(255, 255, 255, .15);
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      transition: all 0.2s ease;
+      /* Ubuntu-style motion transition */
+    }
+
+    .nav a:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: translateY(-2px);
+      /* Slight lift on hover */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 22px auto;
+      padding: 0 16px 32px;
+    }
+
+    .info-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+
+    .info-card h2 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      color: #0b3a75;
+    }
+
+    .info-card p {
+      margin: 0;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 14px 16px;
+      font-weight: 700;
+      background: #eef5ff;
+      border-bottom: 1px solid var(--border);
+      color: #0b3a75;
+    }
+
+    .body {
+      padding: 18px 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 16px;
+    }
+
+    @media (max-width:720px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      outline: none;
+      background: #eef5ff;
+      font-size: 14px;
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    .error-box {
+      background: #fff5f5;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+    }
+
+    .field-error {
+      color: var(--danger);
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 5px;
+      line-height: 1.4;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-block;
+      text-decoration: none;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      /* Ubuntu-style motion transition */
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      /* Slight lift on hover */
+      filter: brightness(1.1);
+      /* Subtle brightening */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+      /* Press down effect */
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .member-search {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #eef5ff;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .member-scroll-box {
+      max-height: 280px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      padding: 8px;
+    }
+
+    .member-scroll-box::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .member-scroll-box::-webkit-scrollbar-thumb {
+      background: #c7ced6;
+      border-radius: 10px;
+    }
+
+    .member-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      border: 1px solid #e9ecef;
+      border-radius: 10px;
+      background: #f8fafc;
+      cursor: pointer;
+      transition: all .2s ease;
+      user-select: none;
+    }
+
+    .member-option:last-child {
+      margin-bottom: 0;
+    }
+
+    .member-option:hover {
+      background: var(--soft-blue);
+      border-color: #86b7fe;
+    }
+
+    .member-option.selected {
+      background: var(--selected);
+      border-color: var(--selected-border);
+    }
+
+    .member-name {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 700;
+      color: #111827;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .member-check {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      margin: 0;
+    }
+
+    .member-check input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      margin: 0;
+      cursor: pointer;
+      accent-color: var(--primary);
+    }
+
+    .readonly-field {
+      width: 100%;
+      min-height: 44px;
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #eef5ff;
+      color: #111827;
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+    }
+
+    .empty-members {
+      text-align: center;
+      color: var(--muted);
+      padding: 14px 12px;
+      font-size: 13px;
+    }
+
+    @media (max-width:768px) {
+      .member-scroll-box {
+        max-height: 220px;
+      }
+
+      .member-option {
+        padding: 14px 12px;
+      }
+
+      .member-name {
+        font-size: 15px;
+      }
+
+      .member-check input[type="checkbox"] {
+        width: 22px;
+        height: 22px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <h1>Create Task</h1>
+    <p>Create and assign a task to one or more staff.</p>
+
+    <div class="nav">
+      <a href="{% url 'system_home' %}">Home</a>
+      <a href="{% url 'requester_dashboard' %}">Permits</a>
+      <a href="{% url 'task_dashboard' %}">Tasks Dashboard</a>
+      <a href="{% url 'my_tasks' %}">My Tasks</a>
+      <a href="{% url 'logout' %}">Logout</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="info-card">
+      <h2>Assignment Scope</h2>
+      <p>
+        {% if request.user.profile.role == "HEAD_OF_UNIT" %}
+        As Head of Unit, you can assign tasks only to staff members in your unit.
+        {% else %}
+        You can only create tasks within your allowed access scope.
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="header">New Task</div>
+
+      <div class="body">
+        {% if form.non_field_errors %}
+        <div class="error-box">
+          {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" id="taskForm">
+          {% csrf_token %}
+
+          <div class="grid">
+            <div class="full">
+              <label>Title</label>
+              {{ form.title }}
+              {% if form.title.errors %}
+              <div class="field-error">{{ form.title.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div class="full">
+              <label>Description</label>
+              {{ form.description }}
+              {% if form.description.errors %}
+              <div class="field-error">{{ form.description.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div>
+              <label>Responsible Department</label>
+
+              {% if form.department.is_hidden %}
+                {{ form.department }}
+
+                <div class="readonly-field">
+                  {% if request.user.profile.department %}
+                    {{ request.user.profile.department.name }}
+                  {% else %}
+                    No Department Assigned
+                  {% endif %}
+                </div>
+              {% else %}
+                {{ form.department }}
+              {% endif %}
+
+              {% if form.department.errors %}
+              <div class="field-error">
+                {{ form.department.errors }}
+              </div>
+              {% endif %}
+
+              <div class="hint">
+                Department loaded automatically from your user profile.
+              </div>
+            </div>
+
+            <div>
+              <label>Responsible Department Unit</label>
+              
+              {% if form.department_unit.is_hidden %}
+                {{ form.department_unit }}
+
+              <div class="readonly-field">
+              {% if request.user.profile.department_unit %}
+                {{ request.user.profile.department_unit.name }}
+              {% else %}
+                  Not Applicable
+              {% endif %}
+              </div>
+              {% else %}
+                {{ form.department_unit }}
+              {% endif %}
+
+              {% if form.department_unit.errors %}
+              <div class="field-error">
+              {{ form.department_unit.errors }}
+              </div>
+              {% endif %}
+
+              <div class="hint">
+              {% if form.department_unit.is_hidden %}
+                 This department does not require a department unit selection.
+              {% else %}
+                 Select the responsible department unit.
+              {% endif %}
+              </div>
+            </div>
+
+            {{ form.unit_name }}
+
+            {% if form.assignee_scope.is_hidden %}
+            {{ form.assignee_scope }}
+            {% else %}
+            <div>
+              <label>Staff Source</label>
+              {{ form.assignee_scope }}
+              {% if form.assignee_scope.errors %}
+              <div class="field-error">{{ form.assignee_scope.errors }}</div>
+              {% endif %}
+              <div class="hint">Choose whether to assign from the selected unit only, or from any unit.</div>
+            </div>
+            {% endif %}
+
+            <div>
+              <label>Priority</label>
+              {{ form.priority }}
+              {% if form.priority.errors %}
+              <div class="field-error">{{ form.priority.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div>
+              <label>Start Date</label>
+              {{ form.start_date }}
+              {% if form.start_date.errors %}
+              <div class="field-error">{{ form.start_date.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div>
+              <label>Due Date</label>
+              {{ form.due_date }}
+              {% if form.due_date.errors %}
+              <div class="field-error">{{ form.due_date.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div class="full">
+              <label>Assign To</label>
+
+              <input type="text" id="memberSearch" class="member-search" placeholder="Search member by full name..." autocomplete="off">
+
+              <div class="member-scroll-box" id="memberList">
+                {% for checkbox in form.assigned_users %}
+                <label class="member-option member-item" for="{{ checkbox.id_for_label }}">
+                  <span class="member-name">{{ checkbox.choice_label }}</span>
+                  <span class="member-check">{{ checkbox.tag }}</span>
+                </label>
+                {% empty %}
+                <div class="empty-members">No members available for the current selection.</div>
+                {% endfor %}
+              </div>
+
+              {% if form.assigned_users.errors %}
+              <div class="field-error">{{ form.assigned_users.errors }}</div>
+              {% endif %}
+
+              <div class="hint">
+                {% if request.user.profile.role == "HEAD_OF_UNIT" %}
+                Only staff from your unit are available in this list.
+                {% else %}
+                You can search and select one or more staff members from the list.
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="full">
+              <label>Attachment</label>
+              {{ form.attachment }}
+              {% if form.attachment.errors %}
+              <div class="field-error">{{ form.attachment.errors }}</div>
+              {% endif %}
+              <div class="hint">Attach any supporting document if available.</div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <a href="{% url 'task_dashboard' %}" class="btn btn-secondary">Back</a>
+            <button type="submit" class="btn btn-primary">Create Task</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  function closeNativePicker(field) {
+    if (!field) return;
+
+    try {
+      field.blur();
+      field.dispatchEvent(new Event("blur", { bubbles: true }));
+    } catch (e) {}
+
+    setTimeout(() => {
+      try {
+        field.blur();
+      } catch (e) {}
+    }, 50);
+
+    setTimeout(() => {
+      try {
+        document.body.focus();
+      } catch (e) {}
+    }, 100);
+  }
+
+  function setupDateField(fieldId) {
+    const field = document.getElementById(fieldId);
+    if (!field) return;
+
+    field.addEventListener("change", function () {
+      closeNativePicker(this);
+    });
+
+    field.addEventListener("input", function () {
+      closeNativePicker(this);
+    });
+
+    field.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" || event.key === "Tab") {
+        closeNativePicker(this);
+      }
+    });
+  }
+
+  function refreshMemberSelector() {
+    const searchInput = document.getElementById("memberSearch");
+    const memberItems = document.querySelectorAll(".member-item");
+
+    function refreshSelectedState() {
+      memberItems.forEach(function (item) {
+        const checkbox = item.querySelector('input[type="checkbox"]');
+
+        if (checkbox && checkbox.checked) {
+          item.classList.add("selected");
+        } else {
+          item.classList.remove("selected");
+        }
+      });
+    }
+
+    refreshSelectedState();
+
+    memberItems.forEach(function (item) {
+      const checkbox = item.querySelector('input[type="checkbox"]');
+
+      if (!checkbox) return;
+
+      checkbox.addEventListener("change", function () {
+        refreshSelectedState();
+      });
+
+      item.addEventListener("click", function (event) {
+        if (event.target.tagName.toLowerCase() !== "input") {
+          checkbox.checked = !checkbox.checked;
+          checkbox.dispatchEvent(
+            new Event("change", { bubbles: true })
+          );
+        }
+      });
+    });
+
+    if (searchInput) {
+      searchInput.onkeyup = function () {
+        const value = this.value.toLowerCase().trim();
+
+        document.querySelectorAll(".member-item").forEach(function (item) {
+          const nameElement = item.querySelector(".member-name");
+          const text = nameElement
+            ? nameElement.textContent.toLowerCase()
+            : "";
+
+          item.style.display = text.includes(value) ? "flex" : "none";
+        });
+      };
+    }
+  }
+
+  function renderStaff(staff) {
+    const memberList = document.getElementById("memberList");
+
+    if (!memberList) return;
+
+    memberList.innerHTML = "";
+
+    if (!staff.length) {
+      memberList.innerHTML =
+        '<div class="empty-members">No members available for the current selection.</div>';
+      return;
+    }
+
+    staff.forEach(function (person) {
+      const label = document.createElement("label");
+      label.className = "member-option member-item";
+      label.setAttribute("for", "id_assigned_users_" + person.id);
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "member-name";
+      nameSpan.textContent = person.name;
+
+      const checkSpan = document.createElement("span");
+      checkSpan.className = "member-check";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.name = "assigned_users";
+      checkbox.value = person.id;
+      checkbox.id = "id_assigned_users_" + person.id;
+
+      checkSpan.appendChild(checkbox);
+      label.appendChild(nameSpan);
+      label.appendChild(checkSpan);
+      memberList.appendChild(label);
+    });
+
+    refreshMemberSelector();
+  }
+
+  function loadStaff() {
+    const departmentField = document.getElementById("id_department");
+    const unitField = document.getElementById("id_department_unit");
+    const scopeField = document.getElementById("id_assignee_scope");
+    const memberList = document.getElementById("memberList");
+
+    if (!departmentField || !memberList) return;
+
+    const departmentId = departmentField.value || "";
+    const departmentUnitId = unitField ? unitField.value || "" : "";
+    const assigneeScope = scopeField ? scopeField.value || "UNIT" : "UNIT";
+
+    memberList.innerHTML =
+      '<div class="empty-members">Loading staff...</div>';
+
+    const endpoint = "{% url 'load_department_staff' %}";
+    const params = new URLSearchParams();
+
+    params.set("assignee_scope", assigneeScope);
+
+    if (departmentId) {
+      params.set("department", departmentId);
+    }
+
+    if (departmentUnitId) {
+      params.set("department_unit", departmentUnitId);
+    }
+
+    fetch(endpoint + "?" + params.toString(), {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest"
+      }
+    })
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error("Unable to load staff.");
+        }
+
+        return response.json();
+      })
+      .then(function (data) {
+        renderStaff(data.staff || []);
+      })
+      .catch(function () {
+        memberList.innerHTML =
+          '<div class="empty-members">Unable to load staff.</div>';
+      });
+  }
+
+  function setupDepartmentEngine() {
+    const departmentField = document.getElementById("id_department");
+    const unitField = document.getElementById("id_department_unit");
+    const scopeField = document.getElementById("id_assignee_scope");
+
+    if (!departmentField || !unitField) return;
+
+    departmentField.addEventListener("change", function () {
+      const departmentId = this.value;
+
+      unitField.innerHTML =
+        '<option value="">Loading...</option>';
+      unitField.disabled = true;
+
+      if (!departmentId) {
+        unitField.innerHTML =
+          '<option value="">Select responsible department unit</option>';
+        unitField.disabled = false;
+        renderStaff([]);
+        return;
+      }
+
+      const endpoint = "{% url 'load_department_units' %}";
+      const url =
+        endpoint +
+        "?department=" +
+        encodeURIComponent(departmentId);
+
+      fetch(url, {
+        headers: {
+          "X-Requested-With": "XMLHttpRequest"
+        }
+      })
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error("Unable to load department units.");
+          }
+
+          return response.json();
+        })
+        .then(function (data) {
+          unitField.innerHTML =
+            '<option value="">Select responsible department unit</option>';
+
+          data.units.forEach(function (unit) {
+            const option = document.createElement("option");
+            option.value = unit.id;
+            option.textContent = unit.name;
+            unitField.appendChild(option);
+          });
+
+          unitField.disabled = false;
+          loadStaff();
+        })
+        .catch(function () {
+          unitField.innerHTML =
+            '<option value="">Unable to load department units</option>';
+          unitField.disabled = false;
+          renderStaff([]);
+        });
+    });
+
+    unitField.addEventListener("change", function () {
+      loadStaff();
+    });
+
+    if (scopeField) {
+      scopeField.addEventListener("change", function () {
+        loadStaff();
+      });
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    setupDateField("id_start_date");
+    setupDateField("id_due_date");
+    refreshMemberSelector();
+    setupDepartmentEngine();
+
+    const departmentField = document.getElementById("id_department");
+
+    if (departmentField && departmentField.value) {
+      loadStaff();
+    }
+  });
+</script>
+</body>
+
+</html>

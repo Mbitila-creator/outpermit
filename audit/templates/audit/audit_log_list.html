@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Audit Logs</title>
+    <style>
+        body{font-family:Arial,sans-serif;background:#f5f7fb;padding:30px;margin:0}
+        .card{background:white;max-width:1500px;margin:auto;padding:25px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+        .menu{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+        .menu a,.btn{display:inline-block;padding:7px 10px;background:#0b5ed7;color:white;text-decoration:none;border-radius:6px;border:none;font-weight:700;font-size:11px}
+        .btn-secondary{background:#6c757d}
+        .filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:10px;margin-bottom:18px}
+        input,select{padding:8px;border:1px solid #ddd;border-radius:8px;width:100%;box-sizing:border-box}
+        table{width:100%;border-collapse:collapse;font-size:11px}
+        th,td{padding:6px 7px;border-bottom:1px solid #eee;text-align:left;vertical-align:top;line-height:1.25}
+        th{background:#f8f9fa}
+        .muted{color:#6b7280}
+        .url-cell{max-width:180px;word-break:break-word}
+        .desc-cell{max-width:260px;word-break:break-word}
+        .pagination{margin-top:15px;display:flex;gap:6px;flex-wrap:wrap}
+        .page-link{padding:6px 9px;border-radius:6px;text-decoration:none;font-size:11px;background:#e9ecef;color:#111}
+        .page-active{background:#0b5ed7;color:white}
+        @media(max-width:900px){.filters{grid-template-columns:1fr}.card{padding:16px}body{padding:15px}}
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>Audit Logs</h2>
+
+    <div class="menu">
+        <a href="{% url 'system_home' %}">Home</a>
+        <a href="{% url 'admin_dashboard' %}">Admin Dashboard</a>
+        <a href="{% url 'user_management' %}">User Management</a>
+        <a href="{% url 'logout' %}" class="btn-secondary">Logout</a>
+    </div>
+
+    <form method="get" class="filters">
+        <input type="text" name="q" value="{{ q }}" placeholder="Search user, reference, description">
+
+        <select name="action">
+            <option value="">All Actions</option>
+            {% for code,label in actions %}
+                <option value="{{ code }}" {% if action == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+
+        <input type="text" name="module" value="{{ module }}" placeholder="Module">
+        <input type="date" name="start_date" value="{{ start_date }}">
+        <input type="date" name="end_date" value="{{ end_date }}">
+        <button class="btn" type="submit">Filter</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Date/Time</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Module</th>
+                <th>Reference</th>
+                <th>Description</th>
+                <th>Browser / Device</th>
+                <th>Method</th>
+                <th>URL</th>
+                <th>IP Address</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log.created_at|date:"d/m/Y H:i" }}</td>
+                <td>{% if log.user %}{{ log.user.username }}{% else %}<span class="muted">System</span>{% endif %}</td>
+                <td>{{ log.get_action_display }}</td>
+                <td>{{ log.module }}</td>
+                <td>{{ log.reference_no|default:"-" }}</td>
+                <td class="desc-cell">{{ log.description|default:"-" }}</td>
+                <td>{{ log.browser|default:"-" }}</td>
+                <td>{{ log.http_method|default:"-" }}</td>
+                <td class="url-cell">{{ log.request_url|default:"-" }}</td>
+                <td>{{ log.ip_address|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10">No audit logs found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if page_obj %}
+    <div class="pagination">
+        {% for num in page_obj.paginator.page_range %}
+            <a href="?page={{ num }}&q={{ q }}&action={{ action }}&module={{ module }}&start_date={{ start_date }}&end_date={{ end_date }}"
+               class="page-link {% if page_obj.number == num %}page-active{% endif %}">
+                {{ num }}
+            </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>

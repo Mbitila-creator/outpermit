@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Permit Reports</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            padding: 30px;
+            margin: 0;
+        }
+
+        .card {
+            background: white;
+            max-width: 1200px;
+            margin: auto;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #111827;
+        }
+
+        .report-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .subtitle {
+            color: #6c757d;
+            margin-bottom: 18px;
+        }
+
+        .menu {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .menu a,
+        .tab-btn {
+            padding: 8px 12px;
+            background: #0b5ed7;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            border: none;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+        }
+
+        .tab-btn {
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .menu a:hover,
+        .tab-btn:hover {
+            background: #084298;
+        }
+
+        .tab-btn.active {
+            background: #084298;
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+        }
+
+        .btn-secondary {
+            background: #6c757d !important;
+        }
+
+        .btn-secondary:hover {
+            background: #5c636a !important;
+        }
+
+        .export-bar {
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            display: inline-block;        
+            padding: 8px 14px;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 12px;
+            margin-right: 6px;
+            border: none;
+        }
+
+        .btn-excel {
+            background: #198754;
+        }
+
+        .btn-excel:hover {
+            background: #146c43;
+        }
+
+        .btn-pdf {
+            background: #dc3545;
+        }
+
+        .btn-pdf:hover {
+            background: #b02a37;
+        }
+
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            width: 130px;
+            min-height: 65px;
+            border-radius: 8px;
+            padding: 10px;
+            color: white;
+            font-weight: 700;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .stat-box h3 {
+            margin: 0;
+            font-size: 11px;
+        }
+
+        .stat-box .number {
+            margin-top: 6px;
+            font-size: 18px;
+        }
+
+        .blue {
+            background: #0b5ed7;
+        }
+
+        .green {
+            background: #198754;
+        }
+
+        .orange {
+            background: #fd7e14;
+        }
+
+        .red {
+            background: #dc3545;
+        }
+
+        .cyan {
+            background: #0dcaf0;
+            color: #083344;
+        }
+
+        .gray {
+            background: #6c757d;
+        }
+
+        .report-note {
+            background: #f8fafc;
+            border-left: 5px solid #0b5ed7;
+            padding: 10px 12px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            color: #374151;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .report-panel {
+            display: none;
+        }
+
+        .report-panel.active {
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: left;
+            font-size: 13px;
+            vertical-align: top;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: #111827;
+        }
+
+        .section-title {
+            margin-top: 20px;
+            color: #084298;
+            border-left: 5px solid #0b5ed7;
+            padding-left: 10px;
+        }
+
+        .status-approved {
+            color: #198754;
+            font-weight: bold;
+        }
+
+        .status-risk {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .status-pending {
+            color: #fd7e14;
+            font-weight: bold;
+        }
+
+        .status-returned {
+            color: #0b7285;
+            font-weight: bold;
+        }
+
+        .empty-row {
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .filter-form {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-left: 5px solid #0b5ed7;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 13px;
+            min-width: 150px;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-btn,
+        .clear-btn {
+            padding: 8px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 12px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .filter-btn {
+             background: #0b5ed7;
+             color: white;
+        }
+
+        .clear-btn {
+             background: #6c757d;
+            color: white;
+        }
+
+        @media(max-width: 640px) {
+            body {
+                padding: 15px;
+            }
+
+            .card {
+                padding: 18px;
+            }
+
+            .stat-box {
+                width: 100%;
+            }
+
+            .menu a,
+            .btn,
+            .tab-btn {
+                width: 100%;
+                box-sizing: border-box;
+                text-align: center;
+                margin-right: 0;
+            }
+
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card">
+
+        <h2>Permit Decision-Making Reports</h2>
+        <div class="subtitle">
+            Reports for monitoring approval performance, delays, compliance, and workload distribution.
+        </div>
+
+        <div class="menu">
+
+            {% if request.user.is_superuser or request.user.profile.role == "ADMIN" %}
+            <a href="{% url 'admin_dashboard' %}" class="btn-secondary">Back to Dashboard</a>
+            {% elif request.user.profile.role == "DIRECTOR" %}
+            <a href="{% url 'director_requests' %}" class="btn-secondary">Back to Dashboard</a>
+            {% elif role == "ASSISTANT_DIRECTOR" %}
+            <a href="{% url 'assistant_director_dashboard' %}" class="btn-secondary">Back to Dashboard</a>
+            {% elif request.user.profile.role == "HEAD_OF_UNIT" %}
+            <a href="{% url 'head_of_unit_requests' %}" class="btn-secondary">Back to Dashboard</a>
+            {% else %}
+            <a href="{% url 'system_home' %}" class="btn-secondary">Home</a>
+            {% endif %}
+
+        </div>
+
+        <div class="menu report-tabs">
+            <button type="button" class="tab-btn active" data-report="performance">Performance</button>
+            <button type="button" class="tab-btn" data-report="turnaround">Turnaround Time</button>
+            <button type="button" class="tab-btn" data-report="overdue">Overdue & Risk</button>
+            <button type="button" class="tab-btn" data-report="compliance">Compliance</button>
+            <button type="button" class="tab-btn" data-report="workload">Workload</button>
+        </div>
+
+        <form method="get" class="filter-form" id="reportFilterForm">
+        
+            <div class="filter-row">
+        
+                <div class="filter-group">
+                    <label>From</label>
+                    <input type="date" name="start_date" value="{{ selected_start_date }}">
+                </div>
+        
+                <div class="filter-group">
+                    <label>To</label>
+                    <input type="date" name="end_date" value="{{ selected_end_date }}">
+                </div>
+        
+                {% if is_director_level %}
+                <div class="filter-group">
+                    <label>Unit</label>
+                    <select name="unit">
+                        <option value="">All Units</option>
+                        {% for unit in unit_options %}
+                        <option value="{{ unit }}" {% if selected_unit == unit %}selected{% endif %}>
+                            {{ unit }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+        
+                <div class="filter-group">
+                    <label>Individual</label>
+                    <select name="requester">
+                        <option value="">All Individuals</option>
+                        {% for person in requester_options %}
+                        <option value="{{ person.id }}" {% if selected_requester == person.id|stringformat:"s" %}selected{% endif %}>
+                            {% if person.get_full_name %}
+                            {{ person.get_full_name }}
+                            {% else %}
+                            {{ person.username }}
+                            {% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+        
+                <div class="filter-group">
+                    <label>Status</label>
+                    <select name="status">
+                        <option value="">All Statuses</option>
+                        {% for value, label in status_options %}
+                        <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+        
+                <div class="filter-actions">
+                    <button type="submit" class="filter-btn">Apply Filters</button>
+                    <a href="{% url 'permit_reports' %}" class="clear-btn">Clear</a>
+                </div>
+        
+            </div>
+        
+        </form>
+
+        <div class="export-bar">
+            <a id="excelExportBtn" class="btn btn-excel" href="{% url 'export_permit_reports_excel' %}?report=performance">
+                Export Excel
+            </a>
+
+            <a id="pdfExportBtn" class="btn btn-pdf" href="{% url 'export_permit_reports_pdf' %}?report=performance">
+                Export PDF
+            </a>
+        </div>
+
+        <div class="report-panel active" id="report-performance">
+            <h3 class="section-title">Permit Performance Summary</h3>
+
+            <div class="report-note">
+                This report gives management a quick summary of permit processing performance, including approval,
+                rejection, return, pending, and closure levels.
+            </div>
+
+
+            <table>
+                <tr>
+                    <th>Indicator</th>
+                    <th>Value</th>
+                    <th>Decision Meaning</th>
+                </tr>
+
+                <tr>
+                    <td>Approval Rate</td>
+                    <td>{{ approval_rate|default:0 }}%</td>
+                    <td>Shows the percentage of requests approved or closed against all submitted requests.</td>
+                </tr>
+
+                <tr>
+                    <td>Rejection Rate</td>
+                    <td>{{ rejection_rate|default:0 }}%</td>
+                    <td>Shows the percentage of requests rejected due to non-compliance or other reasons.</td>
+                </tr>
+
+                <tr>
+                    <td>Return Rate</td>
+                    <td>{{ return_rate|default:0 }}%</td>
+                    <td>Shows the percentage of requests returned for correction or additional information.</td>
+                </tr>
+
+                <tr>
+                    <td>Average HOU Turnaround</td>
+                    <td>{{ avg_hou|default:"N/A" }}</td>
+                    <td>Average time from submission to Head of Unit approval.</td>
+                </tr>
+
+                <tr>
+                    <td>Average Director Turnaround</td>
+                    <td>{{ avg_director|default:"N/A" }}</td>
+                    <td>Average time from HOU approval to Director-level approval.</td>
+                </tr>
+
+                <tr>
+                    <td>Average Total Turnaround</td>
+                    <td>{{ avg_total|default:"N/A" }}</td>
+                    <td>Average time from submission to final approval.</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="report-panel" id="report-turnaround">
+            <h3 class="section-title">Turnaround Time Report</h3>
+
+            <div class="report-note">
+                This report helps management see how long permit approvals take from submission to HOU review and
+                final Director-level approval.
+            </div>
+
+            <table>
+                <tr>
+                    <th>Reference No</th>
+                    <th>Requester</th>
+                    <th>Destination</th>
+                    <th>Created At</th>
+                    <th>HOU Approved At</th>
+                    <th>Director Approved At</th>
+                    <th>HOU Time</th>
+                    <th>Director Time</th>
+                    <th>Total Time</th>
+                </tr>
+
+                {% for r in turnaround_rows %}
+                <tr>
+                    <td>{{ r.reference_no }}</td>
+                    <td>{{ r.requester_name }}</td>
+                    <td>{{ r.destination }}</td>
+                    <td>{{ r.created_at }}</td>
+                    <td>{{ r.hou_approved_at|default:"N/A" }}</td>
+                    <td>{{ r.director_approved_at|default:"N/A" }}</td>
+                    <td>{{ r.hou_turnaround|default:"N/A" }}</td>
+                    <td>{{ r.director_turnaround|default:"N/A" }}</td>
+                    <td>{{ r.total_turnaround|default:"N/A" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="empty-row">No approved records found.</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="report-panel" id="report-overdue">
+            <h3 class="section-title">Overdue & Risk Report</h3>
+
+            <div class="report-note">
+                This report identifies permits whose end time has already passed but are not yet closed or rejected.
+                These records require follow-up.
+            </div>
+
+            <table>
+                <tr>
+                    <th>Reference No</th>
+                    <th>Requester</th>
+                    <th>Destination</th>
+                    <th>End Time</th>
+                    <th>Days Overdue</th>
+                    <th>Responsible</th>
+                    <th>Status</th>
+                </tr>
+
+                {% for r in overdue_rows %}
+                <tr>
+                    <td>{{ r.reference_no }}</td>
+                    <td>{{ r.requester_name }}</td>
+                    <td>{{ r.destination }}</td>
+                    <td>{{ r.end_time }}</td>
+                    <td><span class="status-risk">{{ r.days_overdue }}</span></td>
+                    <td>{{ r.responsible }}</td>
+                    <td><span class="status-risk">{{ r.status }}</span></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="empty-row">No overdue or risky permits found.</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="report-panel" id="report-compliance">
+            <h3 class="section-title">Compliance Report: Approved but Not Closed</h3>
+
+            <div class="report-note">
+                This report shows approved permits that are still not closed.
+                It helps ensure staff upload reports and close completed permits.
+            </div>
+
+            <div class="stats">
+                <div class="stat-box orange">
+                    <h3>Approved Not Closed</h3>
+                    <div class="number">{{ approved_not_closed_count|default:0 }}</div>
+                </div>
+
+                <div class="stat-box red">
+                    <h3>Expired Not Closed</h3>
+                    <div class="number">{{ approved_expired_not_closed_count|default:0 }}</div>
+                </div>
+            </div>
+
+            <table>
+                <tr>
+                    <th>Reference No</th>
+                    <th>Requester</th>
+                    <th>Destination</th>
+                    <th>End Time</th>
+                    <th>Report Uploaded</th>
+                    <th>Risk</th>
+                </tr>
+
+                {% for r in compliance_rows %}
+                <tr>
+                    <td>{{ r.reference_no }}</td>
+                    <td>{{ r.requester_name }}</td>
+                    <td>{{ r.destination }}</td>
+                    <td>{{ r.end_time }}</td>
+                    <td>
+                        {% if r.report_uploaded == "Yes" %}
+                        <span class="status-approved">Yes</span>
+                        {% else %}
+                        <span class="status-risk">No</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.risk == "Expired but not closed" %}
+                        <span class="status-risk">{{ r.risk }}</span>
+                        {% else %}
+                        <span class="status-pending">{{ r.risk }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="empty-row">No compliance issues found.</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="report-panel" id="report-workload">
+            <h3 class="section-title">Workload Distribution Report</h3>
+
+            <div class="report-note">
+                This report shows how permit requests are distributed across units and Heads of Unit.
+                It helps management identify busy units, pending workload, returned requests, and rejected cases.
+            </div>
+
+            <h4>Workload by Unit</h4>
+
+            <table>
+                <tr>
+                    <th>Unit</th>
+                    <th>Total</th>
+                    <th>Approved</th>
+                    <th>Closed</th>
+                    <th>Pending HOU</th>
+                    <th>Pending Director</th>
+                    <th>Returned</th>
+                    <th>Rejected</th>
+                </tr>
+
+                {% for row in workload_by_unit %}
+                <tr>
+                    <td>{{ row.requester__profile__unit_name|default:"Not Assigned" }}</td>
+                    <td>{{ row.total|default:0 }}</td>
+                    <td>{{ row.approved|default:0 }}</td>
+                    <td>{{ row.closed|default:0 }}</td>
+                    <td>{{ row.pending_hou|default:0 }}</td>
+                    <td>{{ row.pending_director|default:0 }}</td>
+                    <td>{{ row.returned|default:0 }}</td>
+                    <td>{{ row.rejected|default:0 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="empty-row">No workload data found.</td>
+                </tr>
+                {% endfor %}
+            </table>
+
+            <h4 style="margin-top: 25px;">Workload by Head of Unit</h4>
+
+            <table>
+                <tr>
+                    <th>Head of Unit</th>
+                    <th>Total</th>
+                    <th>Pending HOU</th>
+                    <th>Forwarded</th>
+                    <th>Approved</th>
+                    <th>Closed</th>
+                </tr>
+
+                {% for row in workload_by_hou %}
+                <tr>
+                    <td>
+                        {% if row.head_of_unit__first_name or row.head_of_unit__last_name %}
+                        {{ row.head_of_unit__first_name }} {{ row.head_of_unit__last_name }}
+                        {% else %}
+                        {{ row.head_of_unit__username|default:"Not Assigned" }}
+                        {% endif %}
+                    </td>
+                    <td>{{ row.total|default:0 }}</td>
+                    <td>{{ row.pending|default:0 }}</td>
+                    <td>{{ row.forwarded|default:0 }}</td>
+                    <td>{{ row.approved|default:0 }}</td>
+                    <td>{{ row.closed|default:0 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="empty-row">No Head of Unit workload data found.</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const buttons = document.querySelectorAll(".tab-btn");
+            const panels = document.querySelectorAll(".report-panel");
+
+            const excelBtn = document.getElementById("excelExportBtn");
+            const pdfBtn = document.getElementById("pdfExportBtn");
+
+            const excelBaseUrl = "{% url 'export_permit_reports_excel' %}";
+            const pdfBaseUrl = "{% url 'export_permit_reports_pdf' %}";
+
+            function showReport(reportName) {
+                buttons.forEach(function (btn) {
+                    btn.classList.remove("active");
+
+                    if (btn.dataset.report === reportName) {
+                        btn.classList.add("active");
+                    }
+                });
+
+                panels.forEach(function (panel) {
+                    panel.classList.remove("active");
+                });
+
+                const activePanel = document.getElementById("report-" + reportName);
+
+                if (activePanel) {
+                    activePanel.classList.add("active");
+                }
+
+                const form = document.getElementById("reportFilterForm");
+                const params = new URLSearchParams(new FormData(form));
+                params.set("report", reportName);
+
+                excelBtn.href = excelBaseUrl + "?" + params.toString();
+                pdfBtn.href = pdfBaseUrl + "?" + params.toString();
+                
+            }
+
+            buttons.forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    showReport(btn.dataset.report);
+                });
+            });
+
+            showReport("performance");
+        });
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,1533 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>External Work Request</title>
+
+  <!-- SweetAlert2 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+  :root {
+    --primary: #0b5ed7;
+    --primary2: #084298;
+    --success: #198754;
+    --danger: #dc3545;
+    --warning: #b45309;
+    --warning-bg: #fff7ed;
+    --bg: #f5f7fb;
+    --card: #ffffff;
+    --muted: #6c757d;
+    --border: #e5e7eb;
+    --shadow: 0 10px 25px rgba(0, 0, 0, .08);
+    --radius: 14px;
+    --readonly-bg: #f3f4f6;
+    --readonly-text: #374151;
+    --editable-bg: #eef7ff;
+    --editable-border: #93c5fd;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: var(--bg);
+    color: #111827;
+    overflow-x: hidden;
+  }
+
+  .topbar {
+    background: linear-gradient(90deg, var(--primary2), var(--primary));
+    color: #fff;
+    padding: 18px 22px;
+  }
+
+  .topbar h1 {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.3;
+  }
+
+  .topbar p {
+    margin: 6px 0 0;
+    font-size: 13px;
+    opacity: .9;
+    line-height: 1.5;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 920px;
+    margin: 22px auto;
+    padding: 0 16px 32px;
+  }
+
+  .card {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .step-header {
+    margin-bottom: 0;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding: 16px 18px;
+    background: #eef5ff;
+    border-bottom: 1px solid var(--border);
+    color: #0b3a75;
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: .3px;
+    line-height: 1.2;
+  }
+
+  .pill {
+    flex: 0 0 auto;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #0b3a75;
+    border: 1px solid #bfdbfe;
+    font-weight: 700;
+  }
+
+  .section-body {
+    padding: 16px 18px 18px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px 16px;
+    width: 100%;
+  }
+
+  .grid > div,
+  .member-row > div {
+    min-width: 0;
+  }
+
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #111827;
+  }
+
+  input,
+  select,
+  textarea {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    outline: none;
+    background: #fff;
+    color: #111827;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  textarea {
+    min-height: 110px;
+    resize: vertical;
+  }
+
+  input[type="file"] {
+    padding: 8px;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, .15);
+  }
+
+  .readonly-field input,
+  .readonly-field select,
+  .readonly-field textarea {
+    background: var(--readonly-bg) !important;
+    color: var(--readonly-text);
+    cursor: not-allowed;
+  }
+
+  .field-error {
+    color: var(--danger);
+    font-size: 12px;
+    margin-top: 6px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .group-wrap {
+    background: #f0fff4;
+    border: 1px dashed #86efac;
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 16px;
+  }
+
+  .leader-wrap {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 12px;
+  }
+
+  .acting-wrap {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 16px;
+  }
+
+  .member-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 10px;
+  }
+
+  .member-title {
+    margin-bottom: 10px;
+  }
+
+  .member-title b {
+    font-size: 13px;
+    color: #14532d;
+  }
+
+  .member-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 140px;
+    gap: 14px 16px;
+    align-items: end;
+  }
+
+  .delete-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: end;
+  }
+
+  .delete-col .btn {
+    width: 100%;
+  }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 14px 18px 18px;
+    border-top: 1px solid var(--border);
+    background: #fafafa;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1.2;
+    text-decoration: none;
+    text-align: center;
+    transition:
+      transform .18s ease,
+      box-shadow .18s ease,
+      filter .18s ease;
+  }
+
+  .btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.04);
+    box-shadow: 0 5px 12px rgba(0, 0, 0, .12);
+  }
+
+  .btn:active {
+    transform: translateY(0);
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: #fff;
+  }
+
+  .btn-secondary {
+    background: #e5e7eb;
+    color: #111827;
+  }
+
+  .btn-success {
+    background: var(--success);
+    color: #fff;
+  }
+
+  .btn-danger {
+    background: var(--danger);
+    color: #fff;
+  }
+
+  .button-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  .hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .errors {
+    background: #fff5f5;
+    border: 1px solid #fecaca;
+    color: #7f1d1d;
+    padding: 12px 14px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+  }
+
+  .alert {
+    padding: 12px 14px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+    border: 1px solid transparent;
+    font-size: 14px;
+  }
+
+  .alert-error,
+  .alert-danger {
+    background: #fff1f2;
+    color: #991b1b;
+    border-color: #fecdd3;
+  }
+
+  .alert-success {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #a7f3d0;
+  }
+
+  .alert-warning {
+    background: #fffbeb;
+    color: #92400e;
+    border-color: #fde68a;
+  }
+
+  .alert-info {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+  }
+
+  .block-alert {
+    background: var(--warning-bg);
+    border: 1px solid #fdba74;
+    color: #9a3412;
+    padding: 14px 16px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .block-alert h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    color: #9a3412;
+  }
+
+  .block-alert p {
+    margin: 6px 0;
+    font-size: 14px;
+  }
+
+  .block-alert .meta {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #fdba74;
+    font-size: 13px;
+  }
+
+  .form-disabled {
+    opacity: .72;
+    pointer-events: none;
+  }
+
+  .badge-status {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    background: #ffedd5;
+    color: #9a3412;
+    border: 1px solid #fdba74;
+  }
+
+  /* Fields the user must enter or select */
+  #requestForm input:not([readonly]):not([disabled]),
+  #requestForm select:not([disabled]),
+  #requestForm textarea:not([readonly]):not([disabled]) {
+    background-color: var(--editable-bg);
+    border-color: var(--editable-border);
+  }
+
+  /* Automatically filled and read-only fields */
+  #requestForm input[readonly],
+  #requestForm textarea[readonly],
+  #requestForm .readonly-field input,
+  #requestForm .readonly-field select,
+  #requestForm .readonly-field textarea {
+    background-color: var(--readonly-bg) !important;
+    border-color: #d1d5db;
+    color: #4b5563;
+    cursor: not-allowed;
+  }
+
+  /* Clear focus for editable fields */
+  #requestForm input:not([readonly]):not([disabled]):focus,
+  #requestForm select:not([disabled]):focus,
+  #requestForm textarea:not([readonly]):not([disabled]):focus {
+    background-color: #e0f2fe;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .15);
+    outline: none;
+  }
+
+  /* Tablet and mobile */
+  @media (max-width: 720px) {
+    .topbar {
+      padding: 16px;
+    }
+
+    .topbar h1 {
+      font-size: 17px;
+    }
+
+    .topbar p {
+      font-size: 12px;
+    }
+
+    .container {
+      margin: 14px auto;
+      padding: 0 10px 24px;
+    }
+
+    .card {
+      border-radius: 12px;
+    }
+
+    .section-title {
+      padding: 14px;
+      font-size: 24px;
+    }
+
+    .section-body {
+      padding: 14px;
+    }
+
+    .grid,
+    .member-row {
+      grid-template-columns: 1fr;
+      gap: 13px;
+    }
+
+    .grid > div,
+    .member-row > div,
+    .grid > div[style*="grid-column"],
+    .member-row > div[style*="grid-column"] {
+      grid-column: 1 / -1 !important;
+      width: 100%;
+    }
+
+    .group-wrap,
+    .leader-wrap,
+    .acting-wrap,
+    .member-card {
+      padding: 10px;
+    }
+
+    .delete-col .btn {
+      width: 100%;
+    }
+
+    .actions {
+      flex-direction: column;
+      align-items: stretch;
+      padding: 14px;
+    }
+
+    .actions .btn {
+      width: 100%;
+    }
+
+    .button-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .button-row .btn {
+      width: 100%;
+    }
+
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  /* Small phones */
+  @media (max-width: 420px) {
+    .container {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+
+    .section-title {
+      font-size: 21px;
+      padding: 12px;
+    }
+
+    .section-body {
+      padding: 12px;
+    }
+
+    .pill {
+      font-size: 10px;
+      padding: 3px 8px;
+    }
+
+    .alert,
+    .errors,
+    .block-alert {
+      padding: 11px 12px;
+      font-size: 13px;
+    }
+
+    .btn {
+      min-height: 44px;
+      font-size: 14px;
+    }
+  }
+</style>
+</head>
+
+<body>
+  <div class="topbar">
+    <h1>{% if edit_mode %}Edit External Work Request{% else %}External Work Permission Request{% endif %}</h1>
+    <p>Internal LAN form for staff to request permission for out-of-premises duties.</p>
+  </div>
+
+  <div class="container">
+    <div class="card">
+
+      <div class="section-body">
+        {% if blocking_request %}
+        <div class="block-alert">
+          <h3>New request temporarily blocked</h3>
+          <p>You cannot submit another request because your previous permit is still active in the workflow or it has
+            been completed but not yet closed.</p>
+          <p><strong>Reference No:</strong> {{ blocking_request.reference_no }}</p>
+          <p><strong>Status:</strong> <span class="badge-status">{{
+              blocking_request.display_status|default:blocking_request.get_status_display }}</span></p>
+          <p><strong>Destination:</strong> {{ blocking_request.destination }}</p>
+          <p><strong>Start Time:</strong> {{ blocking_request.start_time }}</p>
+          <p><strong>End Time:</strong> {{ blocking_request.end_time }}</p>
+
+          {% if blocking_request.is_completed_but_not_closed %}
+          <p><strong>Reason:</strong> This permit has already reached its end time, but it is not yet closed. Please
+            upload the summary report first so it can move to Closed status.</p>
+          {% else %}
+          <p><strong>Reason:</strong> This permit is still being processed, returned for correction, or approved but not
+            yet completed/closed.</p>
+          {% endif %}
+
+          <div class="meta">
+            <a href="{% url 'request_detail' blocking_request.pk %}" class="btn btn-primary">View Existing Request</a>
+            {% if blocking_request.can_upload_summary_report %}
+            <a href="{% url 'upload_summary_report' blocking_request.pk %}" class="btn btn-success">Upload Summary
+              Report</a>
+            {% endif %}
+            {% if blocking_request.is_returned %}
+            <a href="{% url 'edit_request' blocking_request.pk %}" class="btn btn-secondary">Edit Returned Request</a>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if form.non_field_errors or formset.non_form_errors %}
+        <div class="errors">
+          <b>Please correct the highlighted fields and submit again.</b>
+          {{ form.non_field_errors }}
+          {{ formset.non_form_errors }}
+        </div>
+        {% endif %}
+      </div>
+
+      <form method="post" enctype="multipart/form-data" id="requestForm" {% if blocking_request and not edit_mode %}class="form-disabled" {% endif %}>
+        {% csrf_token %}
+
+        <div class="step-header">
+          <h2 class="section-title">Request Details</h2>
+        </div>
+
+        <div class="section-body">
+          <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:12px; margin-bottom:16px;">
+          
+            <div class="grid">
+              <div>
+                <label>Department</label>
+                <input type="text" value="{{ requester_department|default:'Not Assigned' }}" readonly style="background:#f3f4f6;">
+              </div>
+
+              {% if requester_department_has_units %}
+              <div>
+                <label>Department Unit</label>
+                <input type="text" value="{{ requester_department_unit|default:'Not Assigned' }}" readonly style="background:#f3f4f6;">
+              </div>
+              {% else %}
+              <div>
+                <label>Department Unit</label>
+                <input type="text" value="Not Applicable" readonly style="background:#f3f4f6;">
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label>Request Type</label>
+              {{ form.request_type }}
+              {% if form.request_type.errors %}
+              <div class="field-error">{{ form.request_type.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div id="requesterNameBox" class="readonly-field">
+              <label>Requester Full Name</label>
+              {{ form.requester_name }}
+              {% if form.requester_name.errors %}
+              <div class="field-error">{{ form.requester_name.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div id="requesterIdBox" class="readonly-field">
+              <label>Requester Employee ID</label>
+              {{ form.requester_employee_id }}
+              {% if form.requester_employee_id.errors %}
+              <div class="field-error">{{ form.requester_employee_id.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div>
+              <label>Destination</label>
+              {{ form.destination }}
+              {% if form.destination.errors %}
+              <div class="field-error">{{ form.destination.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div style="grid-column: 1 / -1;">
+              <label>Purpose</label>
+              {{ form.purpose }}
+              {% if form.purpose.errors %}
+              <div class="field-error">{{ form.purpose.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div>
+              <label>Start Time</label>
+              {{ form.start_time }}
+              {% if form.start_time.errors %}
+              <div class="field-error">{{ form.start_time.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div>
+              <label>End Time</label>
+              {{ form.end_time }}
+              {% if form.end_time.errors %}
+              <div class="field-error">{{ form.end_time.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div style="grid-column: 1 / -1;">
+              <div class="acting-wrap">
+                <div style="font-weight:700; margin-bottom:10px; color:#334155;">Acting Officer During Absence</div>
+                <div class="grid">
+                  <div style="grid-column: 1 / -1;">
+                    <label>Select Acting Officer</label>
+                    {{ form.acting_officer }}
+                    {% if form.acting_officer.errors %}
+                    <div class="field-error">{{ form.acting_officer.errors }}</div>
+                    {% endif %}
+                    <div class="hint">Choose the staff member who will act on your behalf while you are away.</div>
+                  </div>
+
+                  <div class="readonly-field">
+                    <label>Acting Officer Full Name</label>
+                    {{ form.acting_officer_name }}
+                    {% if form.acting_officer_name.errors %}
+                    <div class="field-error">{{ form.acting_officer_name.errors }}</div>
+                    {% endif %}
+                  </div>
+
+                  <div class="readonly-field">
+                    <label>Acting Officer Employee ID</label>
+                    {{ form.acting_officer_employee_id }}
+                    {% if form.acting_officer_employee_id.errors %}
+                    <div class="field-error">{{ form.acting_officer_employee_id.errors }}</div>
+                    {% endif %}
+                  </div>
+
+                  <div style="grid-column: 1 / -1;" class="readonly-field">
+                    <label>Acting Officer Phone Number</label>
+                    {{ form.acting_officer_phone }}
+                    {% if form.acting_officer_phone.errors %}
+                    <div class="field-error">{{ form.acting_officer_phone.errors }}</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="grid-column: 1 / -1;">
+              <label>Upload Task Approval (Optional)</label>
+              {{ form.task_approval_file }}
+              {% if form.task_approval_file.errors %}
+              <div class="field-error">{{ form.task_approval_file.errors }}</div>
+              {% endif %}
+              <div class="hint">Attach the approved task document, letter, memo, or instruction if available.</div>
+            </div>
+          </div>
+
+          <div id="groupSection" class="group-wrap hidden">
+            <div class="section-title" style="margin:-12px -12px 12px; border-radius:10px; background:#dcfce7; color:#14532d; border-bottom:1px solid #bbf7d0;">
+              <span class="pill" style="background:#bbf7d0; border-color:#86efac; color:#14532d;">STEP 2</span>
+              Group Permission Details
+            </div>
+
+            <div class="leader-wrap">
+              <div class="grid">
+                <div style="grid-column: 1 / -1;">
+                  <label>Select Group Leader</label>
+                  {{ form.group_leader }}
+                  {% if form.group_leader.errors %}
+                  <div class="field-error">{{ form.group_leader.errors }}</div>
+                  {% endif %}
+                  <div class="hint">Choose the staff member who will serve as the group leader.</div>
+                </div>
+
+                <div id="groupLeaderNameBox" class="readonly-field">
+                  <label>Group Leader Full Name</label>
+                  {{ form.group_leader_name }}
+                  {% if form.group_leader_name.errors %}
+                  <div class="field-error">{{ form.group_leader_name.errors }}</div>
+                  {% endif %}
+                </div>
+
+                <div id="groupLeaderIdBox" class="readonly-field">
+                  <label>Group Leader Employee ID</label>
+                  {{ form.group_leader_employee_id }}
+                  {% if form.group_leader_employee_id.errors %}
+                  <div class="field-error">{{ form.group_leader_employee_id.errors }}</div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top:16px;">
+              <b>Group Members</b>
+              <div class="hint">Add members only when Request Type is Group.</div>
+
+              {{ formset.management_form }}
+
+              {% if formset.non_form_errors %}
+              <div class="field-error" style="margin-top:10px;">
+                {{ formset.non_form_errors }}
+              </div>
+              {% endif %}
+
+              <div id="membersContainer">
+                {% for f in formset %}
+                <div class="member-card member-form {% if not forloop.first and not f.instance.pk and not f.errors %}hidden{% endif %}">
+                  {% for hidden in f.hidden_fields %}
+                  {{ hidden }}
+                  {% endfor %}
+
+                  <div class="member-title">
+                    <b>Member <span class="member-number">{{ forloop.counter }}</span></b>
+                  </div>
+
+                  {% if f.non_field_errors %}
+                  <div class="field-error">{{ f.non_field_errors }}</div>
+                  {% endif %}
+
+                  {% for hidden in f.hidden_fields %}
+                  {% if hidden.errors %}
+                  <div class="field-error">{{ hidden.errors }}</div>
+                  {% endif %}
+                  {% endfor %}
+
+                  <div class="member-row">
+                    <div style="grid-column: 1 / -1;">
+                      <label>Select Staff Member</label>
+                      {{ f.member_user }}
+                      {% if f.member_user.errors %}
+                      <div class="field-error">{{ f.member_user.errors }}</div>
+                      {% endif %}
+                    </div>
+
+                    <div class="readonly-field">
+                      <label>Full Name</label>
+                      {{ f.full_name }}
+                      {% if f.full_name.errors %}
+                      <div class="field-error">{{ f.full_name.errors }}</div>
+                      {% endif %}
+                    </div>
+
+                    <div class="readonly-field">
+                      <label>Employee ID</label>
+                      {{ f.employee_id }}
+                      {% if f.employee_id.errors %}
+                      <div class="field-error">{{ f.employee_id.errors }}</div>
+                      {% endif %}
+                    </div>
+
+                    <div class="delete-col">
+                      <label>&nbsp;</label>
+                      <button type="button" class="btn btn-danger delete-member-btn">Delete</button>
+                      <div style="display:none;">
+                        {{ f.DELETE }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+
+              <div class="button-row">
+                <button type="button" class="btn btn-success" id="addMemberBtn">+ Add Member</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <a href="{% url 'requester_dashboard' %}" class="btn btn-secondary" id="backBtn">Back to Dashboard</a>
+          {% if not blocking_request or edit_mode %}
+          <button type="submit" class="btn btn-primary" id="submitBtn">
+            {% if edit_mode %}Update Request{% else %}Submit Request{% endif %}
+          </button>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    /* ─── SweetAlert2 Helper Functions ─── */
+    function showSuccess(message) {
+      return Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: message,
+        confirmButtonColor: '#198754',
+        confirmButtonText: 'OK'
+      });
+    }
+
+    function showError(message) {
+      return Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: message,
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'OK'
+      });
+    }
+
+    function showWarning(message) {
+      return Swal.fire({
+        icon: 'warning',
+        title: 'Warning',
+        text: message,
+        confirmButtonColor: '#b45309',
+        confirmButtonText: 'OK'
+      });
+    }
+
+    function showInfo(message) {
+      return Swal.fire({
+        icon: 'info',
+        title: 'Information',
+        text: message,
+        confirmButtonColor: '#0b5ed7',
+        confirmButtonText: 'OK'
+      });
+    }
+
+    function showConfirm(title, text) {
+      return Swal.fire({
+        icon: 'question',
+        title: title,
+        text: text,
+        showCancelButton: true,
+        confirmButtonColor: '#0b5ed7',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, Submit',
+        cancelButtonText: 'No, Cancel',
+        reverseButtons: true
+      });
+    }
+
+    /* ─── Form Submit with Confirmation ─── */
+    document.addEventListener("DOMContentLoaded", function () {
+      const form = document.getElementById("requestForm");
+      const submitBtn = document.getElementById("submitBtn");
+
+      if (form && submitBtn) {
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+
+          const isEdit = {% if edit_mode %}true{% else %} false{% endif %};
+      const title = isEdit ? "Update Request?" : "Submit Request?";
+      const text = isEdit
+        ? "Are you sure you want to update this request?"
+        : "Are you sure you want to submit this request? Please review all details before confirming.";
+
+      showConfirm(title, text).then((result) => {
+        if (result.isConfirmed) {
+          // Show loading state
+          Swal.fire({
+            title: isEdit ? 'Updating...' : 'Submitting...',
+            text: 'Please wait while we process your request.',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+
+          // Actually submit the form
+          form.removeEventListener("submit", arguments.callee);
+          form.submit();
+        }
+      });
+    });
+      }
+
+    /* ─── Back Button Confirmation ─── */
+    const backBtn = document.getElementById("backBtn");
+    if (backBtn) {
+      backBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        const href = this.getAttribute("href");
+
+        Swal.fire({
+          icon: 'warning',
+          title: 'Leave this page?',
+          text: 'Any unsaved changes will be lost.',
+          showCancelButton: true,
+          confirmButtonColor: '#dc3545',
+          cancelButtonColor: '#6c757d',
+          confirmButtonText: 'Yes, Leave',
+          cancelButtonText: 'Stay Here',
+          reverseButtons: true
+        }).then((result) => {
+          if (result.isConfirmed) {
+            window.location.href = href;
+          }
+        });
+      });
+    }
+    });
+
+    /* ─── Original Functions (updated to use SweetAlert2) ─── */
+    function checkDuplicates(selectElement) {
+      if (!selectElement.value) return false;
+
+      const rt = document.getElementById("id_request_type");
+      if (rt && rt.value !== "GROUP") return false;
+
+      const actingOfficer = document.getElementById("id_acting_officer");
+      const groupLeader = document.getElementById("id_group_leader");
+      const memberSelects = Array.from(document.querySelectorAll(".member-form:not(.hidden) select[name$='-member_user']"));
+
+      let count = 0;
+      let conflictRole = "";
+
+      if (actingOfficer && actingOfficer.value === selectElement.value && actingOfficer !== selectElement) {
+        count++;
+        conflictRole = "Acting Officer";
+      }
+
+      if (groupLeader && groupLeader.value === selectElement.value && groupLeader !== selectElement) {
+        count++;
+        conflictRole = "Group Leader";
+      }
+
+      memberSelects.forEach(select => {
+        if (select.value === selectElement.value && select !== selectElement) {
+          count++;
+          conflictRole = "Group Member";
+        }
+      });
+
+      if (count > 0) {
+        showWarning("This person cannot be selected because they are already assigned as a " + conflictRole + ".");
+        selectElement.value = "";
+        return true;
+      }
+      return false;
+    }
+
+    function updateDisabledOptions() {
+      const rt = document.getElementById("id_request_type");
+      const isGroup = rt && rt.value === "GROUP";
+
+      const actingOfficerSelect = document.getElementById("id_acting_officer");
+      const groupLeaderSelect = document.getElementById("id_group_leader");
+      const allMemberSelects = document.querySelectorAll("select[name$='-member_user']");
+      const visibleMemberSelects = Array.from(document.querySelectorAll(".member-form:not(.hidden) select[name$='-member_user']"));
+
+      const allSelects = [actingOfficerSelect, groupLeaderSelect, ...allMemberSelects];
+      allSelects.forEach(select => {
+        if (!select) return;
+        Array.from(select.options).forEach(option => {
+          option.disabled = false;
+        });
+      });
+
+      if (!isGroup) return;
+
+      const actingVal = actingOfficerSelect ? actingOfficerSelect.value : "";
+      const leaderVal = groupLeaderSelect ? groupLeaderSelect.value : "";
+      const memberVals = visibleMemberSelects.map(s => s.value).filter(v => v !== "");
+
+      if (actingOfficerSelect) {
+        Array.from(actingOfficerSelect.options).forEach(option => {
+          if (!option.value) return;
+          if ((option.value === leaderVal || memberVals.includes(option.value)) && actingVal !== option.value) {
+            option.disabled = true;
+          }
+        });
+      }
+
+      if (groupLeaderSelect) {
+        Array.from(groupLeaderSelect.options).forEach(option => {
+          if (!option.value) return;
+          if ((option.value === actingVal || memberVals.includes(option.value)) && leaderVal !== option.value) {
+            option.disabled = true;
+          }
+        });
+      }
+
+      allMemberSelects.forEach(select => {
+        Array.from(select.options).forEach(option => {
+          if (!option.value) return;
+          if (option.value === actingVal || option.value === leaderVal || (memberVals.includes(option.value) && select.value !== option.value)) {
+            option.disabled = true;
+          }
+        });
+      });
+    }
+
+    function clearInputs(container) {
+      if (!container) return;
+
+      const textInputs = container.querySelectorAll("input[type='text'], input[type='file'], textarea");
+      textInputs.forEach(input => {
+        if (input.hasAttribute("readonly")) return;
+        input.value = "";
+      });
+
+      const selects = container.querySelectorAll("select");
+      selects.forEach(select => {
+        if (["id_acting_officer", "id_group_leader"].includes(select.id)) return;
+        if (select.name && select.name.includes("-member_user")) return;
+        if (select.options.length > 0) {
+          select.selectedIndex = 0;
+        }
+      });
+
+      const checkboxes = container.querySelectorAll("input[type='checkbox']");
+      checkboxes.forEach(box => {
+        box.checked = false;
+      });
+    }
+
+    function getVisibleMemberCards() {
+      return Array.from(document.querySelectorAll(".member-form"))
+        .filter(card => !card.classList.contains("hidden"));
+    }
+
+    function renumberMembers() {
+      getVisibleMemberCards().forEach((card, index) => {
+        const num = card.querySelector(".member-number");
+        if (num) num.textContent = index + 1;
+      });
+    }
+
+    function clearMemberCard(card, keepDeleteChecked = false) {
+      if (!card) return;
+
+      const memberSelect = card.querySelector("select[name$='-member_user']");
+      const fullNameInput = card.querySelector("input[name$='-full_name']");
+      const employeeIdInput = card.querySelector("input[name$='-employee_id']");
+
+      if (memberSelect) memberSelect.selectedIndex = 0;
+      if (fullNameInput) fullNameInput.value = "";
+      if (employeeIdInput) employeeIdInput.value = "";
+
+      const deleteBox = card.querySelector("input[type='checkbox']");
+      if (deleteBox && !keepDeleteChecked) {
+        deleteBox.checked = false;
+      }
+    }
+
+    function clearAllMemberCards() {
+      const cards = document.querySelectorAll(".member-form");
+
+      cards.forEach((card, index) => {
+        clearMemberCard(card);
+
+        if (index === 0) {
+          card.classList.remove("hidden");
+        } else {
+          card.classList.add("hidden");
+        }
+      });
+
+      renumberMembers();
+      updateDisabledOptions();
+    }
+
+    function toggleGroupSection() {
+      const rt = document.getElementById("id_request_type");
+      const groupSection = document.getElementById("groupSection");
+
+      const requesterNameBox = document.getElementById("requesterNameBox");
+      const requesterIdBox = document.getElementById("requesterIdBox");
+
+      const groupLeaderSelect = document.getElementById("id_group_leader");
+
+      if (!rt) return;
+
+      const isGroup = rt.value === "GROUP";
+
+      if (groupSection) {
+        groupSection.classList.toggle("hidden", !isGroup);
+      }
+
+      if (requesterNameBox) {
+        requesterNameBox.classList.toggle("hidden", isGroup);
+      }
+
+      if (requesterIdBox) {
+        requesterIdBox.classList.toggle("hidden", isGroup);
+      }
+
+      if (!isGroup) {
+        if (groupLeaderSelect) groupLeaderSelect.selectedIndex = 0;
+        clearGroupLeaderFields();
+        clearAllMemberCards();
+      }
+
+      updateDisabledOptions();
+    }
+
+    function addMemberRow() {
+      const cards = document.querySelectorAll(".member-form");
+
+      for (const card of cards) {
+        if (card.classList.contains("hidden")) {
+          card.classList.remove("hidden");
+          clearMemberCard(card);
+          renumberMembers();
+          updateDisabledOptions();
+          return;
+        }
+      }
+
+      showInfo("Maximum number of group members reached. No more rows available.");
+    }
+
+    function deleteMemberRow(button) {
+      const card = button.closest(".member-form");
+      if (!card) return;
+
+      const visibleCards = getVisibleMemberCards();
+
+      if (visibleCards.length === 1) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Cannot Remove',
+          text: 'At least one member row must remain. The fields have been cleared instead.',
+          confirmButtonColor: '#b45309',
+          confirmButtonText: 'OK'
+        });
+        clearMemberCard(card);
+        updateDisabledOptions();
+        return;
+      }
+
+      Swal.fire({
+        icon: 'warning',
+        title: 'Remove Member?',
+        text: 'Are you sure you want to remove this member?',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, Remove',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+      }).then((result) => {
+        if (result.isConfirmed) {
+          const deleteBox = card.querySelector("input[type='checkbox']");
+          if (deleteBox) {
+            deleteBox.checked = true;
+          }
+
+          clearMemberCard(card, true);
+          card.classList.add("hidden");
+          renumberMembers();
+          updateDisabledOptions();
+        }
+      });
+    }
+
+    function setReadonlyIfExists(id) {
+      const field = document.getElementById(id);
+      if (field) {
+        field.setAttribute("readonly", "readonly");
+      }
+    }
+
+    function clearActingOfficerFields() {
+      const officerName = document.getElementById("id_acting_officer_name");
+      const officerEmployeeId = document.getElementById("id_acting_officer_employee_id");
+      const officerPhone = document.getElementById("id_acting_officer_phone");
+
+      if (officerName) officerName.value = "";
+      if (officerEmployeeId) officerEmployeeId.value = "";
+      if (officerPhone) officerPhone.value = "";
+    }
+
+    function fillActingOfficerFields(data) {
+      const officerName = document.getElementById("id_acting_officer_name");
+      const officerEmployeeId = document.getElementById("id_acting_officer_employee_id");
+      const officerPhone = document.getElementById("id_acting_officer_phone");
+
+      if (officerName) officerName.value = data.full_name || data.name || "";
+      if (officerEmployeeId) officerEmployeeId.value = data.employee_id || "";
+      if (officerPhone) officerPhone.value = data.phone_number || data.phone || "";
+    }
+
+    function clearGroupLeaderFields() {
+      const leaderName = document.getElementById("id_group_leader_name");
+      const leaderEmployeeId = document.getElementById("id_group_leader_employee_id");
+
+      if (leaderName) leaderName.value = "";
+      if (leaderEmployeeId) leaderEmployeeId.value = "";
+    }
+
+    function fillGroupLeaderFields(data) {
+      const leaderName = document.getElementById("id_group_leader_name");
+      const leaderEmployeeId = document.getElementById("id_group_leader_employee_id");
+
+      if (leaderName) leaderName.value = data.full_name || data.name || "";
+      if (leaderEmployeeId) leaderEmployeeId.value = data.employee_id || "";
+    }
+
+    function clearGroupMemberFields(card) {
+      const fullName = card.querySelector("input[name$='-full_name']");
+      const employeeId = card.querySelector("input[name$='-employee_id']");
+
+      if (fullName) fullName.value = "";
+      if (employeeId) employeeId.value = "";
+    }
+
+    function fillGroupMemberFields(card, data) {
+      const fullName = card.querySelector("input[name$='-full_name']");
+      const employeeId = card.querySelector("input[name$='-employee_id']");
+
+      if (fullName) fullName.value = data.full_name || data.name || "";
+      if (employeeId) employeeId.value = data.employee_id || "";
+    }
+
+    async function fetchStaffDetails(userId) {
+      if (!userId) return null;
+
+      const endpointTemplate = "{% url 'acting_officer_details' 0 %}";
+      const endpoint = endpointTemplate.replace("/0/", "/" + userId + "/");
+
+      try {
+        const response = await fetch(endpoint, {
+          headers: {
+            "X-Requested-With": "XMLHttpRequest"
+          }
+        });
+
+        if (!response.ok) return null;
+
+        const data = await response.json();
+        if (data.error) return null;
+
+        return data;
+      } catch (error) {
+        console.error("Failed to fetch staff details:", error);
+        return null;
+      }
+    }
+
+    async function fetchActingOfficerDetails(selectElement) {
+      if (checkDuplicates(selectElement)) {
+        clearActingOfficerFields();
+        updateDisabledOptions();
+        return;
+      }
+
+      const userId = selectElement.value;
+      if (!userId) {
+        clearActingOfficerFields();
+        updateDisabledOptions();
+        return;
+      }
+
+      const data = await fetchStaffDetails(userId);
+      if (!data) {
+        clearActingOfficerFields();
+        updateDisabledOptions();
+        return;
+      }
+
+      fillActingOfficerFields(data);
+      updateDisabledOptions();
+    }
+
+    async function fetchGroupLeaderDetails(selectElement) {
+      if (checkDuplicates(selectElement)) {
+        clearGroupLeaderFields();
+        updateDisabledOptions();
+        return;
+      }
+
+      const userId = selectElement.value;
+      if (!userId) {
+        clearGroupLeaderFields();
+        updateDisabledOptions();
+        return;
+      }
+
+      const data = await fetchStaffDetails(userId);
+      if (!data) {
+        clearGroupLeaderFields();
+        updateDisabledOptions();
+        return;
+      }
+
+      fillGroupLeaderFields(data);
+      updateDisabledOptions();
+    }
+
+    async function fetchMemberDetails(selectElement) {
+      if (!selectElement) return;
+
+      const card = selectElement.closest(".member-form");
+      if (!card) return;
+
+      if (checkDuplicates(selectElement)) {
+        clearGroupMemberFields(card);
+        updateDisabledOptions();
+        return;
+      }
+
+      const userId = selectElement.value;
+      if (!userId) {
+        clearGroupMemberFields(card);
+        updateDisabledOptions();
+        return;
+      }
+
+      const data = await fetchStaffDetails(userId);
+      if (!data) {
+        clearGroupMemberFields(card);
+        updateDisabledOptions();
+        return;
+      }
+
+      fillGroupMemberFields(card, data);
+      updateDisabledOptions();
+    }
+
+    function bindMemberSelectEvents() {
+      document.querySelectorAll("select[name$='-member_user']").forEach(select => {
+        if (select.dataset.bound === "true") return;
+
+        select.addEventListener("change", function () {
+          fetchMemberDetails(this);
+        });
+
+        select.dataset.bound = "true";
+
+        if (select.value) {
+          fetchMemberDetails(select);
+        }
+      });
+    }
+
+    function bindDateAutoClose() {
+      ["id_start_time", "id_end_time"].forEach(function (id) {
+        const field = document.getElementById(id);
+        if (!field) return;
+
+        field.addEventListener("change", function () {
+          setTimeout(() => this.blur(), 50);
+        });
+
+        field.addEventListener("input", function () {
+          if (this.value) {
+            setTimeout(() => this.blur(), 50);
+          }
+        });
+
+        field.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") {
+            this.blur();
+          }
+        });
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      toggleGroupSection();
+      renumberMembers();
+
+      setReadonlyIfExists("id_requester_name");
+      setReadonlyIfExists("id_requester_employee_id");
+      setReadonlyIfExists("id_group_leader_name");
+      setReadonlyIfExists("id_group_leader_employee_id");
+      setReadonlyIfExists("id_acting_officer_name");
+      setReadonlyIfExists("id_acting_officer_employee_id");
+      setReadonlyIfExists("id_acting_officer_phone");
+
+      bindDateAutoClose();
+      bindMemberSelectEvents();
+
+      const rt = document.getElementById("id_request_type");
+      if (rt) {
+        rt.addEventListener("change", toggleGroupSection);
+      }
+
+      const addBtn = document.getElementById("addMemberBtn");
+      if (addBtn) {
+        addBtn.addEventListener("click", function () {
+          addMemberRow();
+          bindMemberSelectEvents();
+        });
+      }
+
+      document.querySelectorAll(".delete-member-btn").forEach(btn => {
+        btn.addEventListener("click", function () {
+          deleteMemberRow(this);
+        });
+      });
+
+      const actingOfficerSelect = document.getElementById("id_acting_officer");
+      if (actingOfficerSelect) {
+        actingOfficerSelect.addEventListener("change", function () {
+          fetchActingOfficerDetails(this);
+        });
+
+        if (actingOfficerSelect.value) {
+          fetchActingOfficerDetails(actingOfficerSelect);
+        }
+      }
+
+      const groupLeaderSelect = document.getElementById("id_group_leader");
+      if (groupLeaderSelect) {
+        groupLeaderSelect.addEventListener("change", function () {
+          fetchGroupLeaderDetails(this);
+        });
+
+        if (groupLeaderSelect.value) {
+          fetchGroupLeaderDetails(groupLeaderSelect);
+        }
+      }
+
+      setTimeout(updateDisabledOptions, 100);
+    });
+  </script>
+
+  <!-- ─── Django Messages as SweetAlert2 Popups ─── -->
+  {% if messages %}
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      {% for message in messages %}
+      {% if message.tags == 'success' %}
+      showSuccess("{{ message|escapejs }}");
+      {% elif message.tags == 'error' or message.tags == 'danger' %}
+      showError("{{ message|escapejs }}");
+      {% elif message.tags == 'warning' %}
+      showWarning("{{ message|escapejs }}");
+      {% elif message.tags == 'info' %}
+      showInfo("{{ message|escapejs }}");
+      {% else %}
+      showInfo("{{ message|escapejs }}");
+      {% endif %}
+      {% endfor %}
+    });
+  </script>
+  {% endif %}
+
+</body>
+
+</html>

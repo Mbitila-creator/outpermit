@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Add Workflow Step</title>
+
+    <style>
+
+        body{
+            font-family:Arial,sans-serif;
+            background:#f5f7fb;
+            margin:0;
+            padding:30px;
+        }
+
+        .card{
+            background:white;
+            max-width:700px;
+            margin:auto;
+            padding:25px;
+            border-radius:12px;
+            box-shadow:0 6px 18px rgba(0,0,0,.08);
+        }
+
+        h2{
+            margin-top:0;
+            color:#0b5ed7;
+        }
+
+        label{
+            display:block;
+            margin-top:15px;
+            margin-bottom:6px;
+            font-weight:bold;
+        }
+
+        input,
+        select{
+            width:100%;
+            padding:10px;
+            border:1px solid #ddd;
+            border-radius:8px;
+            box-sizing:border-box;
+        }
+
+        .checkbox{
+            margin-top:15px;
+        }
+
+        .checkbox label{
+            font-weight:normal;
+            display:flex;
+            align-items:center;
+            gap:8px;
+        }
+
+        .checkbox input{
+            width:auto;
+        }
+
+        .buttons{
+            margin-top:25px;
+        }
+
+        .btn{
+            display:inline-block;
+            padding:10px 15px;
+            border:none;
+            border-radius:8px;
+            text-decoration:none;
+            cursor:pointer;
+            font-weight:bold;
+            color:white;
+            background:#0b5ed7;
+        }
+
+        .btn-secondary{
+            background:#6c757d;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>Add Workflow Step</h2>
+
+<form method="post">
+
+{% csrf_token %}
+
+<label>Department</label>
+
+<input
+type="text"
+value="{{ department.code }} - {{ department.name }}"
+readonly>
+
+<label>Module</label>
+
+<input
+type="text"
+value="{{ module_code }}"
+readonly>
+
+<label>Step Order</label>
+
+<input
+type="number"
+name="step_order"
+value="{{ next_step }}"
+required>
+
+<label>Approval Role</label>
+
+<select
+name="approval_role"
+required>
+
+{% for role in approval_roles %}
+
+<option value="{{ role.id }}">
+
+{{ role.name }}
+
+</option>
+
+{% endfor %}
+
+</select>
+
+<div class="checkbox">
+
+<label>
+
+<input
+type="checkbox"
+name="is_required"
+checked>
+
+Required Step
+
+</label>
+
+</div>
+
+<div class="checkbox">
+
+<label>
+
+<input
+type="checkbox"
+name="is_active"
+checked>
+
+Active
+
+</label>
+
+</div>
+
+<div class="buttons">
+
+<button
+type="submit"
+class="btn">
+
+Save Workflow Step
+
+</button>
+
+<a
+href="{% url 'workflow_details' department.id module_code %}"
+class="btn btn-secondary">
+
+Cancel
+
+</a>
+
+</div>
+
+</form>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,129 @@
+{% extends "system_admin/system_admin_base.html" %}
+
+{% block title %}System Settings{% endblock %}
+{% block page_title %}System Settings{% endblock %}
+
+{% block active_menu %}
+<a href="{% url 'system_admin:settings' %}">System Settings</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="section-title">General System Configuration</div>
+
+<form method="post">
+    {% csrf_token %}
+
+    <div class="form-row">
+        <label>System Name</label>
+        {{ form.system_name }}
+    </div>
+
+    <div class="form-row">
+        <label>Organization Name</label>
+        {{ form.organization_name }}
+    </div>
+
+    <div class="form-row">
+        <label>Organization Email</label>
+        {{ form.organization_email }}
+    </div>
+
+    <div class="form-row">
+        <label>Organization Phone</label>
+        {{ form.organization_phone }}
+    </div>
+    
+    <hr>
+
+    <div class="form-row">
+        <label>Backup Frequency</label>
+        {{ form.backup_frequency }}
+    </div>
+
+    <hr>
+
+    <div class="form-row">
+        <label>Security Level</label>
+        {{ form.security_level }}
+    </div>
+
+    <hr>
+
+    <div class="checkbox-row">
+        {{ form.maintenance_mode }} Maintenance Mode
+    </div>
+
+    <div class="checkbox-row">
+        {{ form.allow_user_registration }} Allow User Registration
+    </div>
+
+    <hr>
+
+    <div class="section-title">Open Permit Module Customization</div>
+
+    <div class="checkbox-row">
+        {{ form.open_permit_enabled }} Enable Open Permit Module
+    </div>
+
+    <div class="checkbox-row">
+        {{ form.allow_individual_permit }} Allow Individual Permit Requests
+    </div>
+
+    <div class="checkbox-row">
+        {{ form.allow_group_permit }} Allow Group Permit Requests
+    </div>
+
+    <div class="checkbox-row">
+        {{ form.allow_permit_edit }} Allow Permit Editing
+    </div>
+
+    <div class="checkbox-row">
+        {{ form.allow_permit_cancel }} Allow Permit Cancellation
+    </div>
+
+    <div class="checkbox-row">
+        {{ form.allow_permit_export }} Allow Permit Export
+    </div>
+
+    <div class="checkbox-row">
+        {{ form.allow_permit_print }} Allow Permit Printing
+    </div>
+
+    <div class="checkbox-row">
+        {{ form.allow_qr_code }} Allow QR Code Generation
+    </div>
+    <hr>
+
+    <div class="section-title">Open Task Module Customization</div>
+
+    <div class="checkbox-row">
+        {{ form.open_task_enabled }} Enable Open Task Module
+    </div>
+
+    <div class="checkbox-row">
+        {{ form.allow_task_creation }} Allow Task Creation
+    </div>
+
+    <div class="checkbox-row">
+        {{ form.allow_task_assignment }} Allow Task Assignment
+    </div>
+
+    <div class="checkbox-row">
+        {{ form.allow_task_progress_update }} Allow Task Progress Update
+    </div>
+
+    <div class="checkbox-row">
+        {{ form.allow_task_completion }} Allow Task Completion
+    </div>
+
+    <div class="checkbox-row">
+        {{ form.allow_task_export }} Allow Task Export
+    </div>
+
+    <hr>
+
+    <button type="submit">Save Settings</button>
+</form>
+
+{% endblock %}

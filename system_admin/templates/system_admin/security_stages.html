@@ -1,0 +1,76 @@
+{% extends "system_admin/system_admin_base.html" %}
+
+{% block title %}Security Stages{% endblock %}
+{% block page_title %}Security Stages{% endblock %}
+
+{% block active_menu %}
+<a href="{% url 'system_admin:security_stages' %}">Security Stages</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="section-title">Add Security Stage</div>
+
+<form method="post">
+    {% csrf_token %}
+
+    <div class="form-row">
+        <label>Stage Name</label>
+        {{ form.name }}
+    </div>
+
+    <div class="form-row">
+        <label>Stage Code</label>
+        {{ form.code }}
+    </div>
+
+    <div class="form-row">
+        <label>Description</label>
+        {{ form.description }}
+    </div>
+
+    <div class="form-row">
+        <label>Order</label>
+        {{ form.order }}
+    </div>
+
+    <div class="checkbox-row">
+        {{ form.is_active }} Active
+    </div>
+
+    <button type="submit">Add Stage</button>
+</form>
+
+<div class="section-title">Configured Security Stages</div>
+
+<table>
+    <tr>
+        <th>Order</th>
+        <th>Name</th>
+        <th>Code</th>
+        <th>Description</th>
+        <th>Status</th>
+    </tr>
+
+    {% for stage in stages %}
+    <tr>
+        <td>{{ stage.order }}</td>
+        <td>{{ stage.name }}</td>
+        <td>{{ stage.code }}</td>
+        <td>{{ stage.description|default:"-" }}</td>
+        <td>
+            {% if stage.is_active %}
+                <span class="badge badge-approved">Active</span>
+            {% else %}
+                <span class="badge badge-rejected">Inactive</span>
+            {% endif %}
+        </td>
+    </tr>
+    {% empty %}
+    <tr>
+        <td colspan="5">No security stages configured yet.</td>
+    </tr>
+    {% endfor %}
+</table>
+
+{% endblock %}

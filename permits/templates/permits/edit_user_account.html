@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Edit User</title>
+    <style>
+        body{
+            font-family:Arial,sans-serif;
+            background:#f5f7fb;
+            padding:30px;
+            margin:0;
+        }
+        .card{
+            background:white;
+            max-width:800px;
+            margin:auto;
+            padding:25px;
+            border-radius:12px;
+            box-shadow:0 6px 18px rgba(0,0,0,0.08);
+        }
+        h2{
+            margin-top:0;
+        }
+        label{
+            display:block;
+            font-weight:700;
+            margin:10px 0 6px;
+        }
+        input, select{
+            width:100%;
+            padding:10px 12px;
+            border:1px solid #ddd;
+            border-radius:8px;
+            box-sizing:border-box;
+        }
+        .grid{
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:14px 16px;
+        }
+        .btn{
+            display:inline-block;
+            padding:10px 14px;
+            background:#0b5ed7;
+            color:white;
+            text-decoration:none;
+            border:none;
+            border-radius:8px;
+            font-weight:700;
+            cursor:pointer;
+        }
+        .btn-secondary{
+            background:#6c757d;
+        }
+        .errors{
+            background:#fff5f5;
+            border:1px solid #fecaca;
+            color:#7f1d1d;
+            padding:12px;
+            border-radius:10px;
+            margin-bottom:16px;
+        }
+        .checkbox-wrap{
+            display:flex;
+            align-items:center;
+            gap:8px;
+            margin-top:10px;
+        }
+        .checkbox-wrap input{
+            width:auto;
+            padding:0;
+            margin:0;
+        }
+        .muted{
+            color:#6b7280;
+            font-size:13px;
+        }
+
+        @media (max-width: 768px){
+            body{
+                padding:15px;
+            }
+            .card{
+                padding:18px;
+            }
+            .grid{
+                grid-template-columns:1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>Edit User: {{ target_user.username }}</h2>
+
+    {% if form.errors %}
+    <div class="errors">{{ form.errors }}</div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="grid">
+            <div>
+                <label>First Name</label>
+                {{ form.first_name }}
+            </div>
+
+            <div>
+                <label>Last Name</label>
+                {{ form.last_name }}
+            </div>
+
+            <div>
+                <label>Email</label>
+                {{ form.email }}
+            </div>
+
+            <div>
+                <label>Employee ID</label>
+                {{ form.employee_id }}
+            </div>
+
+            <div>
+                <label>Check Number</label>
+                {{ form.check_number }}
+            </div>
+
+            <div>
+                <label>Phone Number</label>
+                {{ form.phone_number }}
+            </div>
+
+            <div>
+                <label>Department</label>
+                {{ form.department }}
+            </div>
+
+            <div>
+                <label>Department Unit</label>
+                {{ form.department_unit }}
+            </div>
+
+            <div>
+                <label>Head of Unit</label>
+                {{ form.head_of_unit }}
+            </div>
+
+            <div>
+                <label>Role</label>
+                {{ form.role }}
+                <div class="muted">Workflow Role is synchronized automatically from this role.</div>
+            </div>
+
+            <div>
+                <label>Staff Access</label>
+                <div class="checkbox-wrap">
+                    {{ form.is_staff }}
+                    <span class="muted">Enable admin/staff privileges</span>
+                </div>
+            </div>
+        </div>
+
+        <br>
+        <button type="submit" class="btn">Save Changes</button>
+        <a href="{% url 'user_management' %}" class="btn btn-secondary">Back</a>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    function getCodeFromText(text) {
+        return (text || "").split(" - ")[0].trim();
+    }
+
+    function setupDepartmentUnitFilter(departmentSelectId, unitSelectId) {
+        const departmentSelect = document.getElementById(departmentSelectId);
+        const unitSelect = document.getElementById(unitSelectId);
+
+        if (!departmentSelect || !unitSelect) {
+            return;
+        }
+
+        const originalOptions = Array.from(unitSelect.options).map(function (option) {
+            return {
+                value: option.value,
+                text: option.text,
+                selected: option.selected
+            };
+        });
+
+        function rebuildUnitOptions() {
+            const selectedDepartmentText = departmentSelect.options[departmentSelect.selectedIndex]
+                ? departmentSelect.options[departmentSelect.selectedIndex].text
+                : "";
+            const selectedDepartmentCode = getCodeFromText(selectedDepartmentText);
+            const currentValue = unitSelect.value;
+
+            unitSelect.innerHTML = "";
+
+            originalOptions.forEach(function (item, index) {
+                const isEmpty = item.value === "";
+                const unitDepartmentCode = getCodeFromText(item.text);
+
+                if (isEmpty || !selectedDepartmentCode || unitDepartmentCode === selectedDepartmentCode) {
+                    const option = document.createElement("option");
+                    option.value = item.value;
+                    option.text = item.text;
+                    unitSelect.appendChild(option);
+                }
+            });
+
+            const matchingValues = Array.from(unitSelect.options).map(function (option) {
+                return option.value;
+            });
+
+            if (matchingValues.includes(currentValue)) {
+                unitSelect.value = currentValue;
+            } else {
+                unitSelect.value = "";
+            }
+
+            const hasRealUnits = Array.from(unitSelect.options).some(function (option) {
+                return option.value !== "";
+            });
+
+            if (!selectedDepartmentCode || !hasRealUnits) {
+                unitSelect.disabled = true;
+                unitSelect.value = "";
+            } else {
+                unitSelect.disabled = false;
+            }
+        }
+
+        departmentSelect.addEventListener("change", rebuildUnitOptions);
+        rebuildUnitOptions();
+    }
+
+    setupDepartmentUnitFilter("id_department", "id_department_unit");
+});
+</script>
+
+</body>
+</html>

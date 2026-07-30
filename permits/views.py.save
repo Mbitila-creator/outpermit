@@ -1,0 +1,105 @@
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponseForbidden
+from .models import ExternalWorkRequest
+from .forms import ExternalWorkRequestForm, GroupMemberFormSet, ReportUploadForm
+
+
+@login_required
+def create_request(request):
+    if request.method == "POST":
+        form = ExternalWorkRequestForm(request.POST)
+        formset = GroupMemberFormSet(request.POST)
+
+        if form.is_valid():
+            req = form.save(commit=False)
+            req.requester = request.user
+            req.is_group_request = (form.cleaned_data.get("request_type") == "GROUP")
+            req.save()
+
+            if req.is_group_request:
+                formset = GroupMemberFormSet(request.POST, instance=req)
+                if formset.is_valid():
+                    formset.save()
+                else:
+                    return render(request, "permits/request_form.html", {"form": form, "formset": formset})
+            return redirect("submission_status", pk=req.pk)
+
+    else:
+        form = ExternalWorkRequestForm()
+        formset = GroupMemberFormSet()
+
+    return render(request, "permits/request_form.html", {"form": form, "formset": formset})
+
+
+@login_required
+def submission_status(request, pk):
+    req = get_object_or_404(ExternalWorkRequest, pk=pk)
+
+    if req.requester != request.user and not request.user.is_staff:
+        return HttpResponseForbidden("Not allowed.")
+
+    return render(request, "permits/submission_status.html", {"req": req})
+
+
+@login_required
+def request_detail(request, pk):
+    req = get_object_or_404(ExternalWorkRequest, pk=pk)
+
+    if req.requester != request.user and not request.user.is_staff:
+        return HttpResponseForbidden("Not allowed.")
+
+    return render(request, "permits/request_detail.html", {"req": req})
+
+
+@login_required
+def edit_request(request, pk):
+    req = get_object_or_404(ExternalWorkRequest, pk=pk)
+
+    if req.requester != request.user:
+        return HttpResponseForbidden("Not allowed.")
+
+    if req.status == "APPROVED":
+        return HttpResponseForbidden("Approved requests cannot be edited.")
+
+    if request.method == "POST":
+        form = ExternalWorkRequestForm(request.POST, instance=req)
+        formset = GroupMemberFormSet(request.POST, instance=req)
+
+        if form.is_valid():
+            req = form.save(commit=False)
+            req.is_group_request = (form.cleaned_data.get("request_type") == "GROUP")
+
+            if not req.is_group_request:
+                req.group_leader_name = ""
+                req.group_leader_employee_id = ""
+
+            req.save()
+
+            if req.is_group_request:
+                if formset.is_valid():
+                    formset.save()
+                else:
+                    return render(request, "permits/request_form.html", {"form": form, "formset": formset})
+            else:
+                req.members.all().delete()
+
+            return redirect("request_detail", pk=req.pk)
+
+    else:
+        form = ExternalWorkRequestForm(instance=req)
+        formset = GroupMemberFormSet(instance=req)
+
+    return render(request, "permits/request_form.html", {"form": form, "formset": formset, "edit_mode": True, "req": req})
+
+
+@login_required
+def delete_request(request, pk):
+    req = get_object_or_404(ExternalWorkRequest, pk=pk)
+
+    if req.requester != request.user:
+        return HttpResponseForbidden("Not allowed.")
+
+    if req.status == "APPROVED":
+        return HttpResponseForbidden("Approved requests canno
+

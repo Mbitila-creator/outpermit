@@ -1,0 +1,8 @@
+asgiref==3.11.1
+charset-normalizer==3.4.5
+Django==4.2.29
+pillow==11.3.0
+qrcode==8.2
+reportlab==4.4.10
+sqlparse==0.5.5
+typing_extensions==4.15.0

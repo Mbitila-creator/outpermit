@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Planning and Budgeting</title>
+
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+        }
+
+        .topbar {
+            background: #0b5ed7;
+            color: white;
+            padding: 18px 25px;
+        }
+
+        .container {
+            padding: 25px;
+            max-width: 950px;
+            margin: auto;
+        }
+
+        form {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        button {
+            background: #0b5ed7;
+            color: white;
+            padding: 11px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .note {
+            background: #e9f1ff;
+            padding: 12px;
+            border-left: 5px solid #0b5ed7;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="topbar">
+        {% if is_edit %}
+        <h1>Edit Budget Line</h1>
+        {% else %}
+        <h1>Planning and Budgeting Section</h1>
+        {% endif %}
+    </div>
+
+    <div class="container">
+
+        <div class="note">
+            This form is used by the Division Budget Officer (DBO) to enter MTEF task budget details.
+        </div>
+
+        {% if messages %}
+        {% for message in messages %}
+        <p style="color: green;">{{ message }}</p>
+        {% endfor %}
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+
+            {% if form.errors %}
+            <div style="background:#ffe5e5; color:#842029; padding:12px; border-left:5px solid #dc3545; margin-bottom:15px;">
+                <strong>Please fix the following errors:</strong>
+                {{ form.errors }}
+            </div>
+            {% endif %}
+
+            <label>Task Code</label>
+            <input type="text" name="task_code" value="{{ form.task_code.value|default_if_none:'' }}" placeholder="Enter unique task code (e.g. TASK-001)">
+
+            <label>Task in MTEF</label>
+            <textarea name="task_in_mtef" rows="3" placeholder="Describe the task as defined in the Mid-Term Expenditure Framework (MTEF)">{{ form.task_in_mtef.value|default_if_none:'' }}</textarea>
+
+            <label>Financial Year</label>
+            <input type="text" name="financial_year" value="{{ form.financial_year.value|default_if_none:'' }}" placeholder="e.g. 2025/2026">
+
+            <label>Budgeted Amount</label>
+            <input type="number" step="0.01" name="budgeted_amount" value="{{ form.budgeted_amount.value|default_if_none:'' }}" placeholder="Enter total amount budgeted for this task in the selected financial year">
+
+            <label>Month</label>
+            <select name="month">
+                <option value="">Select month</option>
+                <option value="JULY" {% if form.month.value == "JULY" %}selected{% endif %}>JULY</option>
+                <option value="AUGUST" {% if form.month.value == "AUGUST" %}selected{% endif %}>AUGUST</option>
+                <option value="SEPTEMBER" {% if form.month.value == "SEPTEMBER" %}selected{% endif %}>SEPTEMBER</option>
+                <option value="OCTOBER" {% if form.month.value == "OCTOBER" %}selected{% endif %}>OCTOBER</option>
+                <option value="NOVEMBER" {% if form.month.value == "NOVEMBER" %}selected{% endif %}>NOVEMBER</option>
+                <option value="DECEMBER" {% if form.month.value == "DECEMBER" %}selected{% endif %}>DECEMBER</option>
+                <option value="JANUARY" {% if form.month.value == "JANUARY" %}selected{% endif %}>JANUARY</option>
+                <option value="FEBRUARY" {% if form.month.value == "FEBRUARY" %}selected{% endif %}>FEBRUARY</option>
+                <option value="MARCH" {% if form.month.value == "MARCH" %}selected{% endif %}>MARCH</option>
+                <option value="APRIL" {% if form.month.value == "APRIL" %}selected{% endif %}>APRIL</option>
+                <option value="MAY" {% if form.month.value == "MAY" %}selected{% endif %}>MAY</option>
+                <option value="JUNE" {% if form.month.value == "JUNE" %}selected{% endif %}>JUNE</option>
+            </select>
+
+            <label>Monthly Activity Description</label>
+            <textarea name="monthly_activity_description" rows="3" placeholder="Provide breakdown of activities under this task for the selected month">{{ form.monthly_activity_description.value|default_if_none:'' }}</textarea>
+
+            <label>Monthly Proposed Amount</label>
+            <input type="number" step="0.01" name="monthly_proposed_amount" value="{{ form.monthly_proposed_amount.value|default_if_none:'' }}" placeholder="Enter amount requested by the division for this month">
+
+            <label>Monthly Approved Amount</label>
+            <input type="number" step="0.01" min="0" name="monthly_approved_amount" value="{{ form.monthly_approved_amount.value|default_if_none:'' }}" placeholder="Enter amount approved for this month (should not exceed proposed amount)">
+
+            <label>Remarks</label>
+            <textarea name="remarks" rows="2" placeholder="Optional comments or notes">{{ form.remarks.value|default_if_none:'' }}</textarea>
+
+            {% if is_edit %}
+            <button type="submit">Update Budget Line</button>
+            {% else %}
+            <button type="submit">Save Planning Budget</button>
+            {% endif %}
+        </form>
+
+        <p><a href="{% url 'finance:budget_line_list' %}">Back to Budget Lines</a></p>
+
+    </div>
+
+</body>
+
+</html>

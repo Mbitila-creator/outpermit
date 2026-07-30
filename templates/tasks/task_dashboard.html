@@ -1,0 +1,1062 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Task Dashboard</title>
+  <style>
+    :root {
+      --primary: #0b5ed7;
+      --primary2: #084298;
+      --success: #198754;
+      --warning: #b45309;
+      --danger: #dc3545;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --border: #e5e7eb;
+      --muted: #6b7280;
+      --shadow: 0 8px 18px rgba(0, 0, 0, .08);
+      --shadow-hover: 0 18px 32px rgba(0, 0, 0, .18);
+      --radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: #111827;
+      overflow-x: hidden;
+    }
+
+    .topbar {
+      background: linear-gradient(90deg, var(--primary2), var(--primary));
+      color: #fff;
+      padding: 18px 22px;
+    }
+
+    .topbar h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.3;
+    }
+
+    .topbar p {
+      margin: 6px 0 0;
+      font-size: 13px;
+      opacity: .92;
+      line-height: 1.5;
+    }
+
+    .nav {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .nav a {
+      position: relative;
+      overflow: hidden;
+      text-decoration: none;
+      color: #fff;
+      background: rgba(255, 255, 255, .15);
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      border: 1px solid rgba(255, 255, 255, .10);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, .10);
+      transition:
+        transform .22s cubic-bezier(.2, .8, .2, 1),
+        box-shadow .22s ease,
+        background .22s ease,
+        border-color .22s ease,
+        opacity .22s ease;
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .nav a::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -130%;
+      width: 70%;
+      height: 100%;
+      transform: skewX(-22deg);
+      background: linear-gradient(90deg,
+          transparent,
+          rgba(255, 255, 255, .30),
+          transparent);
+      transition: left .55s ease;
+    }
+
+    .nav:hover a {
+      transform: scale(.97);
+      opacity: .92;
+    }
+
+    .nav a:hover {
+      background: rgba(255, 255, 255, .24);
+      border-color: rgba(255, 255, 255, .22);
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, .18);
+      opacity: 1;
+    }
+
+    .nav a:hover::before {
+      left: 150%;
+    }
+
+    .nav a:active {
+      transform: translateY(-1px) scale(1.01);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, .14);
+    }
+
+    .nav a:last-child:hover {
+      background: rgba(220, 53, 69, .85);
+    }
+
+    .container {
+      max-width: 1080px;
+      margin: 22px auto;
+      padding: 0 16px 32px;
+      width: 100%;
+    }
+
+    .intro-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px 18px;
+      margin-bottom: 18px;
+    }
+
+    .intro-card h2 {
+      margin: 0 0 6px;
+      font-size: 18px;
+      line-height: 1.35;
+    }
+
+    .intro-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+      justify-content: flex-start;
+      align-items: stretch;
+    }
+
+    @media (max-width:1200px) {
+      .stats {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width:700px) {
+      .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width:420px) {
+      .stats {
+        grid-template-columns: 1fr;
+        justify-content: stretch;
+      }
+    }
+
+    .stat-link {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      min-width: 0;
+    }
+
+    .stat-card {
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: 10px;
+      padding: 10px 10px;
+      min-height: 76px;
+      width: 100%;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, .06);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 4px;
+      transition:
+        transform .15s ease,
+        box-shadow .15s ease,
+        outline .15s ease;
+      transform-origin: center bottom;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255, 255, 255, .35), rgba(255, 255, 255, 0));
+      pointer-events: none;
+    }
+
+    .stat-link:hover .stat-card {
+      transform: translateY(-5px) scale(1.04);
+      box-shadow: 0 12px 20px rgba(0, 0, 0, .12);
+      outline: 1px solid rgba(0, 0, 0, 0.04);
+      cursor: pointer;
+    }
+
+    .stat-link:active .stat-card {
+      transform: translateY(-2px) scale(1.01);
+    }
+
+    .stat-icon {
+      font-size: 15px;
+      line-height: 1;
+      opacity: .9;
+      margin-bottom: 1px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .stat-label {
+      color: #374151;
+      font-size: 11px;
+      font-weight: 800;
+      margin-bottom: 2px;
+      line-height: 1.2;
+      letter-spacing: .1px;
+      text-align: center;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      white-space: normal;
+      position: relative;
+      z-index: 1;
+    }
+
+    .stat-value {
+      font-size: 19px;
+      font-weight: 700;
+      line-height: 1;
+      position: relative;
+      z-index: 1;
+    }
+
+    .stats .stat-link:nth-child(1) .stat-card {
+      background: #dbeafe;
+    }
+
+    .stats .stat-link:nth-child(2) .stat-card {
+      background: #dcfce7;
+    }
+
+    .stats .stat-link:nth-child(3) .stat-card {
+      background: #ede9fe;
+    }
+
+    .stats .stat-link:nth-child(4) .stat-card {
+      background: #fee2e2;
+    }
+
+    .stats .stat-link:nth-child(5) .stat-card {
+      background: #ffedd5;
+    }
+
+    .stats .stat-link:nth-child(6) .stat-card {
+      background: #cffafe;
+    }
+
+    .stats .stat-link:nth-child(7) .stat-card {
+      background: #e5e7eb;
+    }
+
+    .stats .stat-link:nth-child(8) .stat-card {
+      background: #d1fae5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    @media (max-width:900px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .card-header {
+      padding: 14px 16px;
+      font-weight: 700;
+      background: #eef5ff;
+      border-bottom: 1px solid var(--border);
+      color: #0b3a75;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .card-body {
+      padding: 14px 16px;
+    }
+
+    .btn {
+      display: inline-block;
+      text-decoration: none;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      min-height: 42px;
+      line-height: 1.2;
+      text-align: center;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .item {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+      min-width: 0;
+    }
+
+    .item-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    .item-meta {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+      word-break: break-word;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 14px;
+      padding: 4px 0;
+      line-height: 1.5;
+    }
+
+    .actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #eef2ff;
+      color: #3730a3;
+      max-width: 100%;
+      word-break: break-word;
+    }
+
+    .badge-success {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .badge-danger {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .badge-warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge-muted {
+      background: #f3f4f6;
+      color: #374151;
+    }
+
+    .progress-wrap {
+      margin-top: 8px;
+      margin-bottom: 8px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #374151;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 10px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary2), var(--primary));
+      border-radius: 999px;
+      transition: width .3s ease;
+    }
+
+    .progress-fill.success {
+      background: linear-gradient(90deg, #157347, var(--success));
+    }
+
+    .progress-fill.warning {
+      background: linear-gradient(90deg, #b45309, #d97706);
+    }
+
+    .scope {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .overdue-text {
+      color: var(--danger);
+      font-weight: 700;
+      font-size: 12px;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    .summary-line {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #4b5563;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .analytics-highlight {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      background: #fff;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, .05);
+    }
+
+    .analytics-highlight h5 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      color: #374151;
+    }
+
+    .analytics-highlight h2 {
+      margin: 0;
+      font-size: 32px;
+      color: var(--primary);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 8px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .analytics-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      background: #fff;
+      min-width: 600px;
+    }
+
+    .analytics-table th,
+    .analytics-table td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .analytics-table th {
+      background: #f3f4f6;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .analytics-table td.num,
+    .analytics-table th.num {
+      text-align: center;
+    }
+
+    .section-title {
+      margin: 0 0 8px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    @media (max-width: 768px) {
+      .topbar {
+        padding: 16px;
+      }
+
+      .topbar h1 {
+        font-size: 22px;
+      }
+
+      .topbar p {
+        font-size: 14px;
+      }
+
+      .nav {
+        gap: 8px;
+      }
+
+      .nav a {
+        flex: 1 1 calc(50% - 8px);
+        font-size: 14px;
+        padding: 11px 12px;
+      }
+
+      .container {
+        margin: 16px auto;
+        padding: 0 12px 24px;
+      }
+
+      .intro-card {
+        padding: 15px;
+      }
+
+      .intro-card h2 {
+        font-size: 19px;
+      }
+
+      .intro-card p {
+        font-size: 14px;
+      }
+
+      .card-header,
+      .card-body {
+        padding: 14px;
+      }
+
+      .card-header {
+        font-size: 15px;
+      }
+
+      .item {
+        padding: 12px;
+      }
+
+      .item-title {
+        font-size: 15px;
+      }
+
+      .item-meta {
+        font-size: 14px;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .actions .btn {
+        flex: 1 1 100%;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .topbar h1 {
+        font-size: 20px;
+      }
+
+      .topbar p {
+        font-size: 13px;
+      }
+
+      .nav a {
+        flex: 1 1 100%;
+      }
+
+      .stats {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .stat-card {
+        min-height: 82px;
+      }
+
+      .stat-label {
+        font-size: 12px;
+      }
+
+      .stat-value {
+        font-size: 20px;
+      }
+
+      .intro-card h2 {
+        font-size: 18px;
+      }
+
+      .card-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .card-header .btn {
+        width: 100%;
+      }
+
+      .progress-label {
+        font-size: 12px;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .container {
+        padding: 0 10px 20px;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar,
+      .intro-card,
+      .card-body,
+      .card-header,
+      .item {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .topbar h1 {
+        font-size: 18px;
+      }
+
+      .intro-card h2 {
+        font-size: 17px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <h1>
+      {% if request.user.is_superuser or profile.role == "ADMIN" %}
+      Tasks Dashboard
+      {% elif profile.department %}
+      {{ profile.department.code }} Tasks Dashboard
+      {% else %}
+      Tasks Dashboard
+      {% endif %}
+    </h1>
+    <p>Manage activities, assignments, and progress updates.</p>
+
+    <div class="nav">
+      <a href="{% url 'system_home' %}">Home</a>
+      <a href="{% url 'requester_dashboard' %}">Permits</a>
+      <a href="{% url 'task_dashboard' %}">Tasks Dashboard</a>
+      <a href="{% url 'my_tasks' %}?scope=mine">My Tasks</a>
+
+      {% if can_create_task %}
+      <a href="{% url 'create_task' %}">Create Task</a>
+      {% endif %}
+
+      {% if request.user.is_superuser or profile.role == "ADMIN" or profile.role == "DIRECTOR" or profile.role == "ADRD" or profile.role == "ADSTI" or profile.role == "HEAD_OF_UNIT" %}
+      <a href="{% url 'task_analytics' %}">Analytics</a>
+      {% endif %}
+
+      <a href="{% url 'logout' %}">Logout</a>
+    </div>
+  </div>
+
+  <div class="container">
+    {% if messages %}
+      {% for message in messages %}
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-body">{{ message }}</div>
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <div class="intro-card">
+      <h2>
+        Welcome, {{ request.user.get_full_name|default:request.user.username }}
+      </h2>
+
+      <p>
+        {% if request.user.is_superuser or profile.role == "ADMIN" %}
+          You are viewing tasks and assignments across all departments.
+
+        {% elif profile.role == "DIRECTOR" or profile.role == "ADRD" or profile.role == "ADSTI" %}
+          You are viewing tasks and assignments within your department.
+
+        {% elif profile.role == "HEAD_OF_UNIT" %}
+          You are viewing tasks and assignments within your department unit.
+
+        {% else %}
+          You are viewing tasks available within your department, including tasks assigned to you and tasks created by you.
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="stats">
+      <a href="{% url 'my_tasks' %}" class="stat-link">
+        <div class="stat-card">
+          <div class="stat-icon">📋</div>
+          <div class="stat-label">Tasks</div>
+          <div class="stat-value">{{ my_task_count }}</div>
+        </div>
+      </a>
+
+      <a href="{% url 'my_tasks' %}" class="stat-link">
+        <div class="stat-card">
+          <div class="stat-icon">🗂️</div>
+          <div class="stat-label">Assignments</div>
+          <div class="stat-value">{{ my_assignment_count }}</div>
+        </div>
+      </a>
+
+      <a href="{% url 'my_tasks' %}?created_by=me" class="stat-link">
+        <div class="stat-card">
+          <div class="stat-icon">✍️</div>
+          <div class="stat-label">Created</div>
+          <div class="stat-value">{{ created_task_count }}</div>
+        </div>
+      </a>
+
+      <a href="{% url 'my_tasks' %}?status=OVERDUE" class="stat-link">
+        <div class="stat-card">
+          <div class="stat-icon">⏰</div>
+          <div class="stat-label">Overdue</div>
+          <div class="stat-value">{{ overdue_task_count }}</div>
+        </div>
+      </a>
+
+      <a href="{% url 'my_tasks' %}?task_status=PENDING" class="stat-link">
+        <div class="stat-card">
+          <div class="stat-icon">🕓</div>
+          <div class="stat-label">Pending</div>
+          <div class="stat-value">{{ pending_task_count }}</div>
+        </div>
+      </a>
+
+      <a href="{% url 'my_tasks' %}?task_status=ON_HOLD" class="stat-link">
+        <div class="stat-card">
+          <div class="stat-icon">⏸️</div>
+          <div class="stat-label">On Hold</div>
+          <div class="stat-value">{{ on_hold_task_count }}</div>
+        </div>
+      </a>
+
+      <a href="{% url 'my_tasks' %}?task_status=CANCELLED" class="stat-link">
+        <div class="stat-card">
+          <div class="stat-icon">❌</div>
+          <div class="stat-label">Cancelled</div>
+          <div class="stat-value">{{ cancelled_task_count }}</div>
+        </div>
+      </a>
+
+      <a href="{% url 'my_tasks' %}?task_status=RETURNED" class="stat-link">
+        <div class="stat-card">
+          <div class="stat-icon">↩️</div>
+          <div class="stat-label">Returned</div>
+          <div class="stat-value">{{ returned_task_count }}</div>
+        </div>
+      </a>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-header">
+          <span>Recent Visible Assignments</span>
+          <a href="{% url 'my_tasks' %}" class="btn btn-secondary">
+            View All
+          </a>
+        </div>
+
+        <div class="card-body">
+          {% if recent_assignments %}
+          <div class="list">
+            {% for item in recent_assignments %}
+            <div class="item">
+              <div class="item-title">
+                {{ item.task.title }}
+
+                {% if item.is_overdue %}
+                <div class="overdue-text">
+                  Assignment overdue
+                </div>
+                {% endif %}
+              </div>
+
+              <div class="item-meta">
+                Assigned to:
+                {{ item.assigned_to.get_full_name|default:item.assigned_to.username }}
+                <br>
+
+                Assigned by:
+                {{ item.assigned_by.get_full_name|default:item.assigned_by.username }}
+                <br>
+
+                Assignment status:
+                <span class="badge {% if item.status == 'COMPLETED' %}badge-success{% elif item.is_overdue %}badge-danger{% elif item.status == 'IN_PROGRESS' or item.status == 'ACCEPTED' %}badge-warning{% else %}badge-muted{% endif %}">
+                  {{ item.get_status_display }}
+                </span>
+                <br>
+
+                Task status:
+                <span class="badge {% if item.task.status == 'COMPLETED' %}badge-success{% elif item.task.is_overdue %}badge-danger{% elif item.task.status == 'IN_PROGRESS' %}badge-warning{% else %}badge-muted{% endif %}">
+                  {{ item.task.get_status_display }}
+                </span>
+                <br>
+
+                Priority:
+                <span class="badge">
+                  {{ item.task.get_priority_display }}
+                </span>
+                <br>
+
+                Assigned at: {{ item.assigned_at }}
+                <br>
+
+                Last updated at:
+                {{ item.last_updated_at|default:"N/A" }}
+                <br>
+
+                {% if item.assigned_to.profile.department_unit %}
+                  Staff Unit:
+                  {{ item.assigned_to.profile.department_unit.code }}
+                  <br>
+                {% elif item.assigned_to.profile.unit_name %}
+                  Staff Unit:
+                  {{ item.assigned_to.profile.unit_name }}
+                  <br>
+                {% endif %}
+
+                {% if item.task.department_unit %}
+                  Task Unit:
+                  {{ item.task.department_unit.code }}
+                {% elif item.task.unit_name %}
+                  Task Unit:
+                  {{ item.task.unit_name }}
+                {% endif %}
+              </div>
+
+              <div class="progress-wrap">
+                <div class="progress-label">
+                  <span>Assignment Progress</span>
+                  <span>{{ item.progress_percent }}%</span>
+                </div>
+
+                <div class="progress-bar">
+                  <div
+                    class="progress-fill {% if item.progress_percent >= 100 %}success{% elif item.progress_percent > 0 %}warning{% endif %}"
+                    style="width: {{ item.progress_percent }}%;">
+                  </div>
+                </div>
+              </div>
+
+              <div class="progress-wrap">
+                <div class="progress-label">
+                  <span>Overall Task Progress</span>
+                  <span>{{ item.task.progress_percent }}%</span>
+                </div>
+
+                <div class="progress-bar">
+                  <div
+                    class="progress-fill {% if item.task.progress_percent >= 100 %}success{% elif item.task.progress_percent > 0 %}warning{% endif %}"
+                    style="width: {{ item.task.progress_percent }}%;">
+                  </div>
+                </div>
+              </div>
+
+              <div class="actions">
+                <a href="{% url 'task_detail' item.task.pk %}" class="btn btn-primary">
+                  Open Task
+                </a>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+
+          {% else %}
+          <div class="empty">
+            No recent assignments found.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span>Recent Tasks Created By Me</span>
+
+          {% if can_create_task %}
+          <a href="{% url 'create_task' %}" class="btn btn-success">
+            Create Task
+          </a>
+          {% endif %}
+        </div>
+
+        <div class="card-body">
+          {% if recent_created_tasks %}
+          <div class="list">
+            {% for task in recent_created_tasks %}
+            <div class="item">
+              <div class="item-title">
+                {{ task.title }}
+
+                {% if task.is_overdue %}
+                <div class="overdue-text">
+                  Task overdue
+                </div>
+                {% endif %}
+              </div>
+
+              <div class="item-meta">
+                Priority:
+                <span class="badge">
+                  {{ task.get_priority_display }}
+                </span>
+                <br>
+
+                Status:
+                <span class="badge {% if task.status == 'COMPLETED' %}badge-success{% elif task.is_overdue %}badge-danger{% elif task.status == 'IN_PROGRESS' %}badge-warning{% else %}badge-muted{% endif %}">
+                  {{ task.get_status_display }}
+                </span>
+                <br>
+
+                Due date: {{ task.due_date|default:"N/A" }}
+                <br>
+
+                Created at: {{ task.created_at }}
+                <br>
+
+                {% if task.department %}
+                  Department: {{ task.department.code }}
+                  <br>
+                {% endif %}
+
+                {% if task.department_unit %}
+                  Task Unit: {{ task.department_unit.code }}
+                {% elif task.unit_name %}
+                  Task Unit: {{ task.unit_name }}
+                {% endif %}
+              </div>
+
+              <div class="progress-wrap">
+                <div class="progress-label">
+                  <span>Overall Progress</span>
+                  <span>{{ task.progress_percent }}%</span>
+                </div>
+
+                <div class="progress-bar">
+                  <div
+                    class="progress-fill {% if task.progress_percent >= 100 %}success{% elif task.progress_percent > 0 %}warning{% endif %}"
+                    style="width: {{ task.progress_percent }}%;">
+                  </div>
+                </div>
+              </div>
+
+              <div class="summary-line">
+                Assignments completed:
+                {{ task.completed_assignment_count }}/{{ task.assignment_count }}
+              </div>
+
+              <div class="actions">
+                <a href="{% url 'task_detail' task.pk %}" class="btn btn-primary">
+                  Open Task
+                </a>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+
+          {% else %}
+          <div class="empty">
+            You have not created any tasks yet.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

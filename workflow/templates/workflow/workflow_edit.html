@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Edit Workflow Step</title>
+
+<style>
+body{
+    font-family:Arial,sans-serif;
+    background:#f5f7fb;
+    margin:0;
+    padding:30px;
+}
+
+.card{
+    background:#fff;
+    max-width:700px;
+    margin:auto;
+    padding:25px;
+    border-radius:12px;
+    box-shadow:0 6px 18px rgba(0,0,0,.08);
+}
+
+h2{
+    margin-top:0;
+}
+
+label{
+    display:block;
+    margin-top:15px;
+    margin-bottom:6px;
+    font-weight:bold;
+}
+
+input,
+select{
+    width:100%;
+    padding:10px;
+    border:1px solid #ddd;
+    border-radius:8px;
+    box-sizing:border-box;
+}
+
+.checkbox{
+    margin-top:12px;
+}
+
+.btn{
+    display:inline-block;
+    margin-top:20px;
+    padding:10px 15px;
+    border:none;
+    border-radius:8px;
+    text-decoration:none;
+    cursor:pointer;
+    font-weight:bold;
+    color:#fff;
+    background:#0b5ed7;
+}
+
+.btn-secondary{
+    background:#6c757d;
+}
+</style>
+
+</head>
+<body>
+
+<div class="card">
+
+<h2>Edit Workflow Step</h2>
+
+<form method="post">
+
+{% csrf_token %}
+
+<label>Department</label>
+
+<input
+type="text"
+value="{{ workflow.department.code }} - {{ workflow.department.name }}"
+readonly>
+
+<label>Module</label>
+
+<input
+type="text"
+value="{{ workflow.module }}"
+readonly>
+
+<label>Step Order</label>
+
+<input
+type="number"
+name="step_order"
+value="{{ workflow.step_order }}"
+required>
+
+<label>Approval Role</label>
+
+<select name="approval_role">
+
+{% for role in approval_roles %}
+
+<option
+value="{{ role.id }}"
+{% if workflow.approval_role.id == role.id %}
+selected
+{% endif %}
+>
+
+{{ role.name }}
+
+</option>
+
+{% endfor %}
+
+</select>
+
+<div class="checkbox">
+
+<label>
+
+<input
+type="checkbox"
+name="is_required"
+{% if workflow.is_required %}checked{% endif %}>
+
+Required
+
+</label>
+
+</div>
+
+<div class="checkbox">
+
+<label>
+
+<input
+type="checkbox"
+name="is_active"
+{% if workflow.is_active %}checked{% endif %}>
+
+Active
+
+</label>
+
+</div>
+
+<button
+type="submit"
+class="btn">
+
+Save Changes
+
+</button>
+
+<a
+href="{% url 'workflow_list' %}"
+class="btn btn-secondary">
+
+Cancel
+
+</a>
+
+</form>
+
+</div>
+
+</body>
+</html>

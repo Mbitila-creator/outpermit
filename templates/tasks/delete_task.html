@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Delete Task</title>
+  <style>
+    :root{
+      --primary:#0b5ed7;
+      --danger:#dc3545;
+      --bg:#f5f7fb;
+      --card:#ffffff;
+      --border:#e5e7eb;
+      --shadow:0 10px 25px rgba(0,0,0,.08);
+      --radius:14px;
+    }
+
+    body{
+      margin:0;
+      font-family:Arial, Helvetica, sans-serif;
+      background:var(--bg);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      height:100vh;
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:24px;
+      width:100%;
+      max-width:420px;
+      text-align:center;
+    }
+
+    h2{
+      margin-top:0;
+      color:var(--danger);
+    }
+
+    p{
+      font-size:14px;
+      margin:12px 0 20px;
+      color:#374151;
+    }
+
+    .task-name{
+      font-weight:700;
+      color:#111827;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      justify-content:center;
+      flex-wrap:wrap;
+    }
+
+    .btn{
+      border:none;
+      border-radius:10px;
+      padding:10px 14px;
+      font-weight:700;
+      cursor:pointer;
+      text-decoration:none;
+      font-size:14px;
+    }
+
+    .btn-danger{
+      background:var(--danger);
+      color:#fff;
+    }
+
+    .btn-secondary{
+      background:#e5e7eb;
+      color:#111827;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>⚠ Delete Task</h2>
+
+    <p>
+      Are you sure you want to remove this task?
+    </p>
+
+    <p class="task-name">
+      "{{ task.title }}"
+    </p>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="actions">
+        <button type="submit" class="btn btn-danger">
+          Yes, Remove
+        </button>
+
+        <a href="{% url 'task_detail' task.pk %}" class="btn btn-secondary">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+
+</body>
+</html>

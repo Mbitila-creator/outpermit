@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Finance Request Detail</title>
+
+    {% load humanize %}
+    {{ value|floatformat:2|intcomma }}
+
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+        }
+
+        .topbar {
+            background: #0b5ed7;
+            color: white;
+            padding: 18px 25px;
+        }
+
+        .container {
+            padding: 25px;
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        .box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            margin-top: 15px;
+        }
+
+        th,
+        td {
+            padding: 9px;
+            border: 1px solid #ddd;
+            font-size: 14px;
+            text-align: left;
+        }
+
+        th {
+            background: #e9f1ff;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 9px;
+            margin-bottom: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            background: #0b5ed7;
+            color: white;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 6px;
+        }
+
+        .danger {
+            background: #dc3545;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="topbar">
+        <h1>Finance Request Detail</h1>
+    </div>
+
+    <div class="container">
+
+        {% if messages %}
+        {% for message in messages %}
+        <p style="color:green;">{{ message }}</p>
+        {% endfor %}
+        {% endif %}
+
+        <div class="box">
+            <p><strong>Request No:</strong> {{ finance_request.request_no }}</p>
+            <p><strong>Type:</strong> {{ finance_request.request_type }}</p>
+            <p><strong>Requested Amount:</strong> {{ finance_request.requested_amount|floatformat:2|intcomma }}</p>
+            <p><strong>Approved Amount:</strong> {{ finance_request.approved_amount|floatformat:2|intcomma }}</p>
+            <p><strong>Total Disbursed:</strong> {{ finance_request.total_disbursed|floatformat:2|intcomma }}</p>
+            <p><strong>Remaining Balance:</strong> {{ finance_request.remaining_approved_balance|floatformat:2|intcomma }}</p>
+            <p><strong>Status:</strong> {{ finance_request.status }}</p>
+            <p><strong>Financial Year:</strong> {{ finance_request.financial_year }}</p>
+            <p><strong>Remarks:</strong> {{ finance_request.remarks }}</p>
+        </div>
+
+        <h2>Budget Lines</h2>
+
+        <table>
+            <tr>
+                <th>Task Code</th>
+                <th>Task in MTEF</th>
+                <th>Month</th>
+                <th>Activity</th>
+                <th>Budgeted</th>
+                <th>Proposed</th>
+                <th>Approved</th>
+                <th>Disbursed</th>
+                <th>Balance</th>
+                <th>Remarks</th>
+            </tr>
+
+            {% for line in budget_lines %}
+            <tr>
+                <td>{{ line.task_code }}</td>
+                <td>{{ line.task_in_mtef }}</td>
+                <td>{{ line.month }}</td>
+                <td>{{ line.monthly_activity_description }}</td>
+                <td>{{ line.budgeted_amount|floatformat:2|intcomma }}</td>
+                <td>{{ line.monthly_proposed_amount|floatformat:2|intcomma }}</td>
+                <td>{{ line.monthly_approved_amount|floatformat:2|intcomma }}</td>
+                <td>{{ line.amount_disbursed|floatformat:2|intcomma }}</td>
+                <td>{{ line.monthly_balance|floatformat:2|intcomma }}</td>
+                <td>{{ line.remarks }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10">No budget lines added.</td>
+            </tr>
+            {% endfor %}
+        </table>
+
+        {% if role == "HEAD_OF_UNIT" %}
+        <h2>HOU Review</h2>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="hou_review">
+
+            <label>Remarks</label>
+            <textarea name="remarks"></textarea>
+
+            <button type="submit">Review and Forward</button>
+        </form>
+        {% endif %}
+
+        {% if role == "DIRECTOR" %}
+        <h2>Director Approval</h2>
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="director_approve">
+
+            <label>Approved Amount</label>
+            <input type="number" step="0.01" name="approved_amount" value="{{ finance_request.requested_amount|floatformat:2 }}">
+
+            <label>Remarks</label>
+            <textarea name="remarks"></textarea>
+
+            <button type="submit">Approve Request</button>
+        </form>
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reject">
+
+            <label>Reason for Rejection</label>
+            <textarea name="remarks"></textarea>
+
+            <button type="submit" class="danger">Reject Request</button>
+        </form>
+        {% endif %}
+
+        <p>
+            <a href="{% url 'finance:budget_line_create' %}">Add Budget Line</a> |
+            <a href="{% url 'finance:dashboard' %}">Back to Dashboard</a>
+        </p>
+
+    </div>
+
+</body>
+
+</html>

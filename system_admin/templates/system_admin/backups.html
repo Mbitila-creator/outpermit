@@ -1,0 +1,62 @@
+{% extends "system_admin/system_admin_base.html" %}
+
+{% block title %}Backup Management{% endblock %}
+{% block page_title %}Backup Management{% endblock %}
+
+{% block active_menu %}
+<a href="{% url 'system_admin:backup_list' %}">Backup Management</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="section-title">Create Manual Backup</div>
+
+<p>
+    Click the button below to create a manual backup of the current system database.
+</p>
+
+<a href="{% url 'system_admin:create_backup' %}" class="btn-link">
+    Create Backup Now
+</a>
+
+<div class="section-title">Backup History</div>
+
+<table>
+    <tr>
+        <th>Backup Name</th>
+        <th>Status</th>
+        <th>Created By</th>
+        <th>Date Created</th>
+        <th>File</th>
+        <th>Remarks</th>
+    </tr>
+
+    {% for backup in backups %}
+    <tr>
+        <td>{{ backup.backup_name }}</td>
+        <td>
+            {% if backup.status == "SUCCESS" %}
+                <span class="badge badge-approved">Success</span>
+            {% else %}
+                <span class="badge badge-rejected">Failed</span>
+            {% endif %}
+        </td>
+        <td>{{ backup.created_by|default:"System" }}</td>
+        <td>{{ backup.created_at|date:"d/m/Y H:i" }}</td>
+        <td>
+            {% if backup.backup_file %}
+                <a href="{{ backup.backup_file.url }}" class="btn-link">Download</a>
+            {% else %}
+                -
+            {% endif %}
+        </td>
+        <td>{{ backup.remarks|default:"-" }}</td>
+    </tr>
+    {% empty %}
+    <tr>
+        <td colspan="6">No backup records found.</td>
+    </tr>
+    {% endfor %}
+</table>
+
+{% endblock %}

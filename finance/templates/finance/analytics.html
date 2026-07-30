@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Finance Analytics</title>
+
+    {% load humanize %}
+
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+            color: #111827;
+        }
+
+        .topbar {
+            background: #0b5ed7;
+            color: white;
+            padding: 10px 20px;
+        }
+
+        .topbar h1 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .topbar p {
+            margin: 2px 0 0;
+            font-size: 13px;
+        }
+
+        .container {
+            padding: 25px;
+        }
+
+        .actions {
+            margin-bottom: 15px;
+        }
+
+        .actions a {
+            background: #0b5ed7;
+            color: white;
+            padding: 9px 13px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            margin-right: 6px;
+            display: inline-block;
+            margin-bottom: 6px;
+        }
+
+        .actions a.export-excel {
+            background: #198754;
+        }
+
+        .actions a.export-pdf {
+            background: #dc3545;
+        }
+
+        .filter-box {
+            background: white;
+            padding: 16px;
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            align-items: end;
+        }
+
+        .filter-box label {
+            font-size: 13px;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .filter-box input,
+        .filter-box select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        .filter-box button {
+            background: #198754;
+            color: white;
+            padding: 9px 13px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .filter-box .reset-btn {
+            background: #6c757d;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .card p {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 8px 0 0;
+        }
+
+        .section {
+            background: white;
+            padding: 18px;
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+            margin-bottom: 25px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th,
+        td {
+            padding: 7px;
+            border: 1px solid #ddd;
+            font-size: 13px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: #e9f1ff;
+            white-space: nowrap;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media(max-width: 900px) {
+
+            .cards,
+            .filter-box {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="topbar">
+        <h1>Analytics Dashboard</h1>
+        <p>Role: {{ role }}</p>
+    </div>
+
+    <div class="container">
+
+        <div class="actions">
+            <a href="{% url 'finance:dashboard' %}">Back to Dashboard</a>
+            <a href="{% url 'finance:finance_reports' %}">Finance Reports</a>
+            <a id="exportExcelBtn" href="#" class="export-excel">Export Excel</a>
+            <a id="exportPdfBtn" href="#" class="export-pdf">Print PDF</a>
+        </div>
+
+        <div class="cards">
+            <div class="card">
+                <h3>Budgeted</h3>
+                <p>{{ total_budgeted|floatformat:2|intcomma }}</p>
+            </div>
+
+            <div class="card">
+                <h3>Proposed</h3>
+                <p>{{ total_proposed|floatformat:2|intcomma }}</p>
+            </div>
+
+            <div class="card">
+                <h3>Approved</h3>
+                <p>{{ total_approved|floatformat:2|intcomma }}</p>
+            </div>
+
+            <div class="card">
+                <h3>Disbursed</h3>
+                <p>{{ total_disbursed|floatformat:2|intcomma }}</p>
+            </div>
+
+            <div class="card">
+                <h3>Balance</h3>
+                <p>{{ balance|floatformat:2|intcomma }}</p>
+            </div>
+        </div>
+
+        <div class="filter-box">
+            <div>
+                <label>Show Table</label>
+                <select id="tableFilter">
+                    <option value="all" {% if selected_table == "all" %}selected{% endif %}>All Tables</option>
+                    <option value="monthly" {% if selected_table == "monthly" %}selected{% endif %}>Monthly Spending Trend</option>
+                    <option value="top" {% if selected_table == "top" %}selected{% endif %}>Top Consuming Tasks</option>
+                    <option value="remaining" {% if selected_table == "remaining" %}selected{% endif %}>Remaining Funds Per Task</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Search</label>
+                <input type="text" id="searchInput" value="{{ search_query }}" placeholder="Search task, code, month...">
+            </div>
+
+            <div>
+                <label>Month</label>
+                <select id="monthFilter">
+                    <option value="all" {% if selected_month == "all" %}selected{% endif %}>All Months</option>
+                    <option value="JULY" {% if selected_month == "JULY" %}selected{% endif %}>JULY</option>
+                    <option value="AUGUST" {% if selected_month == "AUGUST" %}selected{% endif %}>AUGUST</option>
+                    <option value="SEPTEMBER" {% if selected_month == "SEPTEMBER" %}selected{% endif %}>SEPTEMBER</option>
+                    <option value="OCTOBER" {% if selected_month == "OCTOBER" %}selected{% endif %}>OCTOBER</option>
+                    <option value="NOVEMBER" {% if selected_month == "NOVEMBER" %}selected{% endif %}>NOVEMBER</option>
+                    <option value="DECEMBER" {% if selected_month == "DECEMBER" %}selected{% endif %}>DECEMBER</option>
+                    <option value="JANUARY" {% if selected_month == "JANUARY" %}selected{% endif %}>JANUARY</option>
+                    <option value="FEBRUARY" {% if selected_month == "FEBRUARY" %}selected{% endif %}>FEBRUARY</option>
+                    <option value="MARCH" {% if selected_month == "MARCH" %}selected{% endif %}>MARCH</option>
+                    <option value="APRIL" {% if selected_month == "APRIL" %}selected{% endif %}>APRIL</option>
+                    <option value="MAY" {% if selected_month == "MAY" %}selected{% endif %}>MAY</option>
+                    <option value="JUNE" {% if selected_month == "JUNE" %}selected{% endif %}>JUNE</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Financial Year</label>
+                <input type="text" id="financialYear" value="{{ financial_year }}" placeholder="e.g. 2025/2026">
+            </div>
+
+            <div>
+                <button type="button" onclick="applyFilters()">Apply Filters</button>
+                <button type="button" class="reset-btn" onclick="resetFilters()">Reset</button>
+            </div>
+        </div>
+
+        <div class="section analytics-section" data-table="monthly">
+            <h2>Monthly Spending Trend</h2>
+
+            <table>
+                <tr>
+                    <th>Month</th>
+                    <th>Proposed</th>
+                    <th>Approved</th>
+                    <th>Disbursed</th>
+                </tr>
+
+                {% for month, data in monthly_data.items %}
+                <tr class="filter-row">
+                    <td>{{ month }}</td>
+                    <td>{{ data.proposed|floatformat:2|intcomma }}</td>
+                    <td>{{ data.approved|floatformat:2|intcomma }}</td>
+                    <td>{{ data.disbursed|floatformat:2|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">No monthly data available.</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="section analytics-section" data-table="top">
+            <h2>Top Consuming Tasks</h2>
+
+            <table>
+                <tr>
+                    <th>#</th>
+                    <th>Task Code</th>
+                    <th>Task in MTEF</th>
+                    <th>Approved</th>
+                    <th>Disbursed</th>
+                    <th>Balance</th>
+                </tr>
+
+                {% for task in top_consuming_tasks %}
+                <tr class="filter-row">
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ task.task_code }}</td>
+                    <td>{{ task.task_in_mtef }}</td>
+                    <td>{{ task.approved|floatformat:2|intcomma }}</td>
+                    <td>{{ task.disbursed|floatformat:2|intcomma }}</td>
+                    <td>{{ task.balance|floatformat:2|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6">No task expenditure data available.</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="section analytics-section" data-table="remaining">
+            <h2>Remaining Funds Per Task</h2>
+
+            <table>
+                <tr>
+                    <th>#</th>
+                    <th>Task Code</th>
+                    <th>Task in MTEF</th>
+                    <th>Approved</th>
+                    <th>Disbursed</th>
+                    <th>Remaining</th>
+                </tr>
+
+                {% for task in remaining_funds_tasks %}
+                <tr class="filter-row">
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ task.task_code }}</td>
+                    <td>{{ task.task_in_mtef }}</td>
+                    <td>{{ task.approved|floatformat:2|intcomma }}</td>
+                    <td>{{ task.disbursed|floatformat:2|intcomma }}</td>
+                    <td>{{ task.balance|floatformat:2|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6">No remaining funds data available.</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        function getFilterParams() {
+            const table = document.getElementById("tableFilter").value;
+            const search = document.getElementById("searchInput").value;
+            const month = document.getElementById("monthFilter").value;
+            const financialYear = document.getElementById("financialYear").value;
+
+            const params = new URLSearchParams();
+            params.set("table", table);
+            params.set("search", search);
+            params.set("month", month);
+            params.set("financial_year", financialYear);
+
+            return params.toString();
+        }
+
+        function updateExportLinks() {
+            const query = getFilterParams();
+
+            document.getElementById("exportExcelBtn").href =
+                "{% url 'finance:export_finance_analytics_excel' %}?" + query;
+
+            document.getElementById("exportPdfBtn").href =
+                "{% url 'finance:export_finance_analytics_pdf' %}?" + query;
+        }
+
+        function showSelectedTableOnLoad() {
+            const selectedTable = document.getElementById("tableFilter").value;
+            const sections = document.querySelectorAll(".analytics-section");
+
+            sections.forEach(section => {
+                const tableName = section.getAttribute("data-table");
+
+                if (selectedTable !== "all" && selectedTable !== tableName) {
+                    section.classList.add("hidden");
+                } else {
+                    section.classList.remove("hidden");
+                }
+            });
+        }
+
+        function applyFilters() {
+            showSelectedTableOnLoad();
+            updateExportLinks();
+
+            const query = getFilterParams();
+            window.location.href = "{% url 'finance:finance_analytics' %}?" + query;
+        }
+
+        function resetFilters() {
+            window.location.href = "{% url 'finance:finance_analytics' %}";
+        }
+
+        showSelectedTableOnLoad();
+        updateExportLinks();
+    </script>
+
+</body>
+
+</html>

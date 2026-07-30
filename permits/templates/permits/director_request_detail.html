@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>
+        {% if request.user.profile.approval_role.code == "ASSISTANT_DIRECTOR" %}
+        Assistant Director Review
+        {% else %}
+        Director Review
+        {% endif %}
+    </title>
+    <!-- SweetAlert2 CSS & JS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        /* Unified & Standardized CSS (Matches Head of Unit exactly) */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f7f6;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 0;
+            margin-bottom: 25px;
+            font-size: 22px;
+        }
+
+        /* Ribbon Headers */
+        h3 {
+            background: linear-gradient(90deg, #f0f4f8 0%, #ffffff 100%);
+            border-left: 5px solid #0b5ed7;
+            padding: 8px 12px;
+            font-size: 15px;
+            color: #2c3e50;
+            margin-top: 25px;
+            margin-bottom: 12px;
+            border-radius: 0 4px 4px 0;
+            font-weight: 600;
+        }
+
+        /* Dark Blue Bold Labels */
+        strong,
+        label {
+            color: #084298;
+            font-weight: 600;
+        }
+
+        /* Details Box & Section Box - Ultra Compact, hugs text perfectly */
+        .details-box,
+        .section-box {
+            background: #fdfdfd;
+            border: 1px solid #e0e0e0;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #222;
+            margin-bottom: 15px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .details-box p,
+        .section-box p {
+            line-height: 1.2;
+            margin: 4px 0;
+        }
+
+        .details-box p:first-child,
+        .section-box p:first-child {
+            margin-top: 0;
+        }
+
+        .details-box p:last-child,
+        .section-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-box ul {
+            padding-left: 20px;
+            margin: 2px 0;
+        }
+
+        .section-box li {
+            margin-bottom: 2px;
+            line-height: 1.2;
+        }
+
+        .section-box li:last-child {
+            margin-bottom: 0;
+        }
+
+        .justified {
+            text-align: justify;
+        }
+
+        .muted {
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 3px 6px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+        }
+
+        .badge-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-forwarded {
+            background: #e2d9f3;
+            color: #4b2e83;
+        }
+
+        .badge-rejected {
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        .badge-returned {
+            background: #cff4fc;
+            color: #055160;
+        }
+
+        .badge-approved {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .badge-closed {
+            background: #e2e3e5;
+            color: #41464b;
+        }
+
+        /* Form Elements & Buttons */
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 13px;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+            resize: vertical;
+        }
+
+        textarea:focus,
+        select:focus {
+            border-color: #86b7fe;
+            outline: 0;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+        .field-error {
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 4px;
+            font-weight: 600;
+            display: block;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 8px 14px;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 13px;
+            text-align: center;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: #3498db;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5c636a;
+        }
+
+        .btn-success {
+            background: #198754;
+        }
+
+        .btn-success:hover {
+            background: #146c43;
+        }
+
+        .info-box {
+            background: #eef5ff;
+            border: 1px solid #bfdbfe;
+            color: #0b3a75;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 20px;
+            font-weight: 500;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+
+            .btn {
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h2>
+            {% if request.user.profile.approval_role.code == "ASSISTANT_DIRECTOR" %}
+            Assistant Director Review
+            {% else %}
+            Director Review
+            {% endif %}
+        </h2>
+
+        <div class="actions" style="margin-top:0; margin-bottom:20px;">
+            <a href="{% url 'director_requests' %}" class="btn btn-secondary" style="margin-top: 0;">Back to Dashboard</a>
+        </div>
+
+        <!-- Request Details (Compact Text Layout) -->
+        <div class="details-box">
+            <p><strong>Reference No:</strong> {{ req.reference_no }}</p>
+
+            <p><strong>Status:</strong>
+                {% if req.raw_status == "PENDING_HOU" %}
+                <span class="badge badge-pending">{{ req.display_status|default:req.get_status_display }}</span>
+                {% elif req.raw_status == "PENDING_DIRECTOR" %}
+                <span class="badge badge-forwarded">{{ req.display_status|default:req.get_status_display }}</span>
+                {% elif req.raw_status == "RETURNED_HOU" or req.raw_status == "RETURNED_DIRECTOR" %}
+                <span class="badge badge-returned">{{ req.display_status|default:req.get_status_display }}</span>
+                {% elif req.raw_status == "REJECTED_HOU" or req.raw_status == "REJECTED_DIRECTOR" %}
+                <span class="badge badge-rejected">{{ req.display_status|default:req.get_status_display }}</span>
+                {% elif req.raw_status == "APPROVED" %}
+                <span class="badge badge-approved">Approved</span>
+                {% elif req.raw_status == "CLOSED" %}
+                <span class="badge badge-closed">Closed</span>
+                {% else %}
+                <span class="badge badge-pending">{{ req.display_status|default:req.get_status_display }}</span>
+                {% endif %}
+            </p>
+
+            <p><strong>Requester:</strong> {{ req.requester_name }}{% if req.requester_employee_id %} ({{ req.requester_employee_id }}){% endif %}</p>
+            <p><strong>Unit:</strong> {{ req.requester.profile.get_unit_name_display|default:"Not assigned" }}</p>
+            <p><strong>Head of Unit:</strong> {{ req.requester.profile.head_of_unit|default:"Not assigned" }}</p>
+            <p><strong>Phone Number:</strong> {{ req.requester.profile.phone_number|default:"Not assigned" }}</p>
+            <p><strong>Check Number:</strong> {{ req.requester.profile.check_number|default:"Not assigned" }}</p>
+            <p><strong>Type:</strong> {% if req.is_group_request %}Group{% else %}Individual{% endif %}</p>
+            <p><strong>Destination:</strong> {{ req.destination }}</p>
+            <p><strong>Start Time:</strong> {{ req.start_time }}</p>
+            <p><strong>End Time:</strong> {{ req.end_time }}</p>
+
+            {% if req.created_at %}
+            <p><strong>Submitted At:</strong> {{ req.created_at }}</p>
+            {% endif %}
+
+            {% if req.resubmitted_at %}
+            <p><strong>Re-Submitted At:</strong> {{ req.resubmitted_at }}</p>
+            {% endif %}
+        </div>
+
+        <!-- Purpose -->
+        <h3>Purpose</h3>
+        <div class="section-box justified">
+            <p>{{ req.purpose }}</p>
+        </div>
+
+        <!-- Acting Officer -->
+        <h3>Acting Officer During Absence</h3>
+        <div class="section-box">
+            {% if req.acting_officer_name or req.acting_officer_employee_id or req.acting_officer_phone %}
+            {% if req.acting_officer_name %}
+            <p><strong>Full Name:</strong> {{ req.acting_officer_name }}</p>
+            {% endif %}
+            {% if req.acting_officer_employee_id %}
+            <p><strong>Employee ID:</strong> {{ req.acting_officer_employee_id }}</p>
+            {% endif %}
+            {% if req.acting_officer_phone %}
+            <p><strong>Phone Number:</strong> {{ req.acting_officer_phone }}</p>
+            {% endif %}
+            {% else %}
+            <p class="muted">No acting officer details provided.</p>
+            {% endif %}
+        </div>
+
+        {% if req.is_group_request %}
+        <h3>Group Leader</h3>
+        <div class="section-box">
+            <p>{{ req.group_leader_name }}{% if req.group_leader_employee_id %} ({{ req.group_leader_employee_id }}){%endif %}</p>
+        </div>
+
+        <h3>Group Members</h3>
+        <div class="section-box">
+            <ul>
+                {% for member in req.members.all %}
+                <li>{{ member.full_name }}{% if member.employee_id %} ({{ member.employee_id }}){% endif %}</li>
+                {% empty %}
+                <li>No members added.</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <h3>Task Approval Document</h3>
+        <div class="section-box">
+            {% if req.task_approval_file %}
+            <p><a href="{{ req.task_approval_file.url }}" target="_blank">View Uploaded Task Approval</a></p>
+            {% else %}
+            <p class="muted">No task approval uploaded.</p>
+            {% endif %}
+        </div>
+
+        {% if req.hou_comment %}
+        <h3>
+            {% if req.hou_approved_by.profile.approval_role.code == "ASSISTANT_DIRECTOR" %}
+            Assistant Director Comment
+            {% else %}
+            Head of Unit Comment
+            {% endif %}
+        </h3>
+        <div class="section-box">
+            <p class="justified">{{ req.hou_comment }}</p>
+        </div>
+        {% endif %}
+
+        {% if req.director_comment %}
+        <h3>Director Comment</h3>
+        <div class="section-box">
+            <p class="justified">{{ req.director_comment }}</p>
+        </div>
+        {% endif %}
+
+        {% if req.report_file %}
+        <h3>Summary Report</h3>
+        <div class="section-box">
+            <p><a href="{{ req.report_file.url }}" target="_blank">View Uploaded Summary Report</a></p>
+        </div>
+        {% elif req.raw_status == "CLOSED" %}
+        <h3>Summary Report</h3>
+        <div class="section-box">
+            <p class="muted">No summary report uploaded.</p>
+        </div>
+        {% endif %}
+
+        {% if req.raw_status == "APPROVED" or req.raw_status == "CLOSED" %}
+        <h3>Permit Document</h3>
+        <div class="section-box">
+            <p><a href="{% url 'export_permit_pdf' req.pk %}" target="_blank">View Permit PDF</a></p>
+        </div>
+        {% endif %}
+
+        <!-- Decision Form Section -->
+        {% if can_take_director_action %}
+        <h3 style="margin-top: 30px;">Decision</h3>
+        <form id="directorDecisionForm" method="post">
+            {% csrf_token %}
+            <!-- Hidden field to track which action was chosen -->
+            <input type="hidden" id="directorActionField" name="directorActionField" value="">
+
+            <p style="margin: 0 0 10px 0;">
+                <label>Status</label>
+                {{ form.status }}
+                {% if form.status.errors %}
+                <span class="field-error">{{ form.status.errors }}</span>
+                {% endif %}
+            </p>
+
+            <p style="margin: 0 0 10px 0;">
+                <label>Comment / Decision Notes</label>
+                {{ form.director_comment }}
+                {% if form.director_comment.errors %}
+                <span class="field-error">{{ form.director_comment.errors }}</span>
+                {% endif %}
+            </p>
+
+            <div class="actions">
+                <button type="button" class="btn btn-success" onclick="confirmApprove()">Approve</button>
+                <button type="button" class="btn btn-primary" onclick="confirmReturn()">Return</button>
+                <button type="button" class="btn" style="background:#dc3545;" onclick="confirmReject()">Reject</button>
+            </div>
+        </form>
+        {% else %}
+        <div class="info-box">
+            {% if req.raw_status == "PENDING_DIRECTOR" %}
+            This request has been forwarded to the next assigned approver. It is now available to you in view-only mode.
+            {% else %}
+            This request is now in view-only mode. No further approval action is available.
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- ==================== SweetAlert2 Logic ==================== -->
+    <script>
+        /* ---------- Reusable popup helpers ---------- */
+        function showSuccess(msg) {
+            Swal.fire({ icon: 'success', title: 'Success', text: msg, confirmButtonColor: '#198754' });
+        }
+        function showError(msg) {
+            Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonColor: '#dc3545' });
+        }
+        function showWarning(msg) {
+            Swal.fire({ icon: 'warning', title: 'Warning', text: msg, confirmButtonColor: '#ffc107' });
+        }
+        function showInfo(msg) {
+            Swal.fire({ icon: 'info', title: 'Info', text: msg, confirmButtonColor: '#3498db' });
+        }
+
+        /* ---------- Helper: get the selected status value ---------- */
+        function getSelectedStatus() {
+            var sel = document.querySelector('[name="status"]');
+            return sel ? sel.value : '';
+        }
+
+        /* ---------- Approve confirmation ---------- */
+        function confirmApprove() {
+            var status = getSelectedStatus();
+            if (status !== 'APPROVED') {
+                showWarning('Please select "Approve" in the Status dropdown before confirming.');
+                return;
+            }
+            Swal.fire({
+                title: 'Approve This Request?',
+                text: 'This will approve the permit and notify the requester.',
+                icon: 'question',
+                iconColor: '#198754',
+                showCancelButton: true,
+                confirmButtonColor: '#198754',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, Approve',
+                cancelButtonText: 'Cancel',
+                reverseButtons: true
+            }).then(function (result) {
+                if (result.isConfirmed) {
+                    document.getElementById('directorActionField').value = 'approve';
+                    document.getElementById('directorDecisionForm').submit();
+                }
+            });
+        }
+
+        /* ---------- Return confirmation ---------- */
+        function confirmReturn() {
+            var status = getSelectedStatus();
+            if (status !== 'RETURNED_DIRECTOR') {
+                showWarning('Please select "Return" in the Status dropdown before confirming.');
+                return;
+            }
+            Swal.fire({
+                title: 'Return This Request?',
+                text: 'The request will be sent back to the requester for revision.',
+                icon: 'warning',
+                iconColor: '#0dcaf0',
+                showCancelButton: true,
+                confirmButtonColor: '#0dcaf0',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, Return',
+                cancelButtonText: 'Cancel',
+                reverseButtons: true
+            }).then(function (result) {
+                if (result.isConfirmed) {
+                    document.getElementById('directorActionField').value = 'return';
+                    document.getElementById('directorDecisionForm').submit();
+                }
+            });
+        }
+
+        /* ---------- Reject confirmation ---------- */
+        function confirmReject() {
+            var status = getSelectedStatus();
+            if (status !== 'REJECTED_DIRECTOR') {
+                showWarning('Please select "Reject" in the Status dropdown before confirming.');
+                return;
+            }
+            Swal.fire({
+                title: 'Reject This Request?',
+                text: 'This action will permanently reject the permit request.',
+                icon: 'warning',
+                iconColor: '#dc3545',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, Reject',
+                cancelButtonText: 'Cancel',
+                reverseButtons: true
+            }).then(function (result) {
+                if (result.isConfirmed) {
+                    document.getElementById('directorActionField').value = 'reject';
+                    document.getElementById('directorDecisionForm').submit();
+                }
+            });
+        }
+
+        /* ---------- Django messages → SweetAlert2 ---------- */
+        {% if messages %}
+        {% for message in messages %}
+        {% if 'success' in message.tags %}
+        showSuccess("{{ message|escapejs }}");
+        {% elif 'error' in message.tags %}
+        showError("{{ message|escapejs }}");
+        {% elif 'warning' in message.tags %}
+        showWarning("{{ message|escapejs }}");
+        {% else %}
+        showInfo("{{ message|escapejs }}");
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+    </script>
+
+</body>
+
+</html>

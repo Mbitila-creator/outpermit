@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+
+<title>Delete Workflow Step</title>
+
+<style>
+
+body{
+font-family:Arial,sans-serif;
+background:#f5f7fb;
+padding:30px;
+margin:0;
+}
+
+.card{
+background:#fff;
+max-width:650px;
+margin:auto;
+padding:25px;
+border-radius:12px;
+box-shadow:0 6px 18px rgba(0,0,0,.08);
+}
+
+.btn{
+display:inline-block;
+padding:10px 15px;
+border:none;
+border-radius:8px;
+text-decoration:none;
+font-weight:bold;
+cursor:pointer;
+color:#fff;
+background:#dc3545;
+}
+
+.btn-secondary{
+background:#6c757d;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>Delete Workflow Step</h2>
+
+<p>
+
+Are you sure you want to delete this workflow step?
+
+</p>
+
+<ul>
+
+<li>
+
+Department:
+
+<strong>
+
+{{ workflow.department.code }}
+
+</strong>
+
+</li>
+
+<li>
+
+Module:
+
+<strong>
+
+{{ workflow.module }}
+
+</strong>
+
+</li>
+
+<li>
+
+Step:
+
+<strong>
+
+{{ workflow.step_order }}
+
+</strong>
+
+</li>
+
+<li>
+
+Approval Role:
+
+<strong>
+
+{{ workflow.approval_role.name }}
+
+</strong>
+
+</li>
+
+</ul>
+
+<form method="post">
+
+{% csrf_token %}
+
+<button
+type="submit"
+class="btn">
+
+Delete
+
+</button>
+
+<a
+href="{% url 'workflow_list' %}"
+class="btn btn-secondary">
+
+Cancel
+
+</a>
+
+</form>
+
+</div>
+
+</body>
+</html>

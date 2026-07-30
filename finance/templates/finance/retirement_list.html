@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Retirement List</title>
+
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+        }
+
+        .topbar {
+            background: #0b5ed7;
+            color: white;
+            padding: 14px 25px;
+        }
+
+        .container {
+            padding: 25px;
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        .card {
+            background: white;
+            padding: 22px;
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        .btn-back {
+            display: inline-block;
+            margin-bottom: 15px;
+            background: #6c757d;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f1f4f8;
+        }
+
+        a {
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 9px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .status-draft {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-returned {
+            background: #ffe5d0;
+            color: #9a4b00;
+        }
+
+        .status-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-other {
+            background: #dbeafe;
+            color: #0b5ed7;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="topbar">
+        <h2>Retirement List</h2>
+    </div>
+
+    <div class="container">
+
+        <a class="btn-back" href="{% url 'finance:dashboard' %}">Back to Dashboard</a>
+
+        <div class="card">
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Finance Request No</th>
+                        <th>Retirement No</th>
+                        <th>Amount Accounted</th>
+                        <th>Amount Unaccounted</th>
+                        <th>Refund Amount</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for retirement in retirements %}
+                    <tr>
+                        <td>
+                            {% if retirement.finance_request %}
+                            {{ retirement.finance_request.request_no }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if retirement.retirement_no %}
+                            {{ retirement.retirement_no }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+
+                        <td>{{ retirement.amount_accounted }}</td>
+                        <td>{{ retirement.amount_unaccounted }}</td>
+                        <td>{{ retirement.refund_amount }}</td>
+
+                        <td>
+                            {% if retirement.status|upper == "DRAFT" %}
+                            <a href="{% url 'finance:edit_retirement' retirement.id %}">
+                                <span class="status-badge status-draft">{{ retirement.status }}</span>
+                            </a>
+
+                            {% elif retirement.status|upper == "RETURNED" %}
+                            {% if retirement.submitted_by == request.user %}
+                            <a href="{% url 'finance:edit_retirement' retirement.id %}">
+                                <span class="status-badge status-returned">RETURNED</span>
+                            </a>
+                            {% else %}
+                            <a href="{% url 'finance:retirement_detail' retirement.id %}">
+                                <span class="status-badge status-returned">RETURNED</span>
+                            </a>
+                            {% endif %}
+
+                            {% elif retirement.status|upper == "APPROVED" or retirement.status|upper == "ACCEPTED" %}
+                            <a href="{% url 'finance:retirement_detail' retirement.id %}">
+                                <span class="status-badge status-approved">{{ retirement.status }}</span>
+                            </a>
+
+                            {% else %}
+                            <a href="{% url 'finance:retirement_detail' retirement.id %}">
+                                <span class="status-badge status-other">{{ retirement.status }}</span>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6">No retirement records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+
+</body>
+
+</html>

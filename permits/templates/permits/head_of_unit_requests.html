@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Head of Unit Dashboard</title>
+
+    <!-- SweetAlert2 CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            padding: 30px;
+            margin: 0;
+        }
+
+        .card {
+            background: white;
+            max-width: 1100px;
+            margin: auto;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        .subtitle {
+            color: #6c757d;
+            margin-bottom: 18px;
+        }
+
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 15px 0 20px 0;
+        }
+
+        .stats a {
+            text-decoration: none;
+            color: inherit;
+            display: inline-block;
+            transition: transform 0.18s ease;
+        }
+
+        .stat-box {
+            width: 100px;
+            height: 52px;
+            border-radius: 8px;
+            padding: 6px 6px;
+            color: white;
+            font-weight: 700;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            box-sizing: border-box;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .stats a:hover {
+            transform: translateY(-5px);
+        }
+
+        .stats a:hover .stat-box {
+            transform: scale(1.05);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-box h3 {
+            margin: 0;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .stat-box .number {
+            font-size: 14px;
+            margin-top: 2px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .total {
+            background: #0b5ed7;
+        }
+
+        .pending {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .returned {
+            background: #0dcaf0;
+            color: #083344;
+        }
+
+        .forwarded {
+            background: #198754;
+        }
+
+        .approved {
+            background: #20c997;
+        }
+
+        .closed {
+            background: #6c757d;
+        }
+
+        .rejected {
+            background: #dc3545;
+        }
+
+        .overdue {
+            background: #fd7e14;
+        }
+
+        .menu {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .menu a {
+            display: inline-block;
+            padding: 6px 10px;
+            background: #0b5ed7;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            line-height: 1.2;
+            white-space: nowrap;
+            text-align: center;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        }
+
+        .menu a:hover {
+            background: #084298;
+            transform: translateY(-4px) scale(1.04);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+        }
+
+        th {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .badge-submitted {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-forwarded {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .badge-rejected {
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        .badge-returned {
+            background: #cff4fc;
+            color: #055160;
+        }
+
+        .badge-approved {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .badge-closed {
+            background: #e2e3e5;
+            color: #41464b;
+        }
+
+        .badge-overdue {
+            background: #ffe5d0;
+            color: #9a3412;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 6px 10px;
+            background: #0b5ed7;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.2;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        }
+
+        .btn:hover {
+            background: #084298;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 15px;
+            }
+
+            .card {
+                padding: 18px;
+            }
+
+            .stats {
+                gap: 6px;
+            }
+
+            .stat-box {
+                width: 90px;
+                height: 48px;
+            }
+
+            th,
+            td {
+                padding: 10px 8px;
+                font-size: 13px;
+            }
+
+            .subtitle {
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card">
+
+        <h2>Head of Unit Dashboard</h2>
+        <div class="subtitle">Welcome, {{ welcome_name }}</div>
+
+        <div class="stats">
+
+            <a href="{% url 'head_of_unit_requests' %}">
+                <div class="stat-box total">
+                    <h3>Total Requests</h3>
+                    <div class="number">{{ total_requests|default:0 }}</div>
+                </div>
+            </a>
+
+            <a href="{% url 'head_of_unit_requests' %}?status=PENDING_HOU">
+                <div class="stat-box pending">
+                    <h3>Pending HOU</h3>
+                    <div class="number">{{ pending_hou_count|default:0 }}</div>
+                </div>
+            </a>
+
+            <a href="{% url 'head_of_unit_requests' %}?status=RETURNED">
+                <div class="stat-box returned">
+                    <h3>Returned</h3>
+                    <div class="number">{{ returned_count|default:0 }}</div>
+                </div>
+            </a>
+
+            <a href="{% url 'head_of_unit_requests' %}?status=APPROVED">
+                <div class="stat-box approved">
+                    <h3>Approved</h3>
+                    <div class="number">{{ approved_count|default:0 }}</div>
+                </div>
+            </a>
+
+            <a href="{% url 'head_of_unit_requests' %}?status=CLOSED">
+                <div class="stat-box closed">
+                    <h3>Closed</h3>
+                    <div class="number">{{ closed_count|default:0 }}</div>
+                </div>
+            </a>
+
+            <a href="{% url 'head_of_unit_requests' %}?status=REJECTED">
+                <div class="stat-box rejected">
+                    <h3>Rejected</h3>
+                    <div class="number">{{ rejected_count|default:0 }}</div>
+                </div>
+            </a>
+
+            <a href="{% url 'head_of_unit_requests' %}?status=OVERDUE">
+                <div class="stat-box overdue">
+                    <h3>Overdue</h3>
+                    <div class="number">{{ overdue_count|default:0 }}</div>
+                </div>
+            </a>
+
+        </div>
+
+        <div class="menu">
+            <a href="{% url 'system_home' %}">Home</a>
+            <a href="{% url 'requester_dashboard' %}">My Requests</a>
+            <a href="{% url 'request_new' %}" id="newRequestBtn">New Request</a>
+            <a href="{% url 'permit_reports' %}">Reports</a>
+            <a href="{% url 'logout' %}" id="logoutBtn">Logout</a>
+        </div>
+
+        <table>
+
+            <tr>
+                <th>Reference No</th>
+                <th>Requester</th>
+                <th>Request Type</th>
+                <th>Destination</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+
+            {% for r in requests %}
+
+            <tr>
+
+                <td>{{ r.reference_no }}</td>
+                <td>{{ r.requester_name }}</td>
+
+                <td>
+                    {% if r.is_group_request %}
+                    Group
+                    {% else %}
+                    Individual
+                    {% endif %}
+                </td>
+
+                <td>{{ r.destination }}</td>
+
+                <td>
+                    {% if r.raw_status == "CLOSED" %}
+                    <span class="badge badge-closed">Closed</span>
+
+                    {% elif r.raw_status == "APPROVED" %}
+                    <span class="badge badge-approved">Approved</span>
+
+                    {% elif r.raw_status == "PENDING_DIRECTOR" %}
+                    <span class="badge badge-forwarded">Forwarded</span>
+
+                    {% elif r.raw_status == "RETURNED_HOU" or r.raw_status == "RETURNED_DIRECTOR" %}
+                    <span class="badge badge-returned">{{ r.display_status|default:"Returned" }}</span>
+
+                    {% elif r.raw_status == "REJECTED_HOU" or r.raw_status == "REJECTED_DIRECTOR" %}
+                    <span class="badge badge-rejected">{{ r.display_status|default:"Rejected" }}</span>
+
+                    {% elif r.is_overdue %}
+                    <span class="badge badge-overdue">Overdue</span>
+
+                    {% else %}
+                    <span class="badge badge-submitted">{{ r.display_status|default:"Submitted" }}</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    <a class="btn" href="{% url 'head_of_unit_request_detail' r.pk %}">
+                        {% if r.raw_status == "PENDING_HOU" %}
+                        Review
+                        {% else %}
+                        View
+                        {% endif %}
+                    </a>
+                </td>
+
+            </tr>
+
+            {% empty %}
+
+            <tr>
+                <td colspan="6">No requests found.</td>
+            </tr>
+
+            {% endfor %}
+
+        </table>
+
+    </div>
+
+    <!-- ─── SweetAlert2 Scripts ─── -->
+    <script>
+        /* ─── Helper Functions ─── */
+        function showSuccess(message) {
+            return Swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: message,
+                confirmButtonColor: '#198754',
+                confirmButtonText: 'OK'
+            });
+        }
+
+        function showError(message) {
+            return Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: message,
+                confirmButtonColor: '#dc3545',
+                confirmButtonText: 'OK'
+            });
+        }
+
+        function showWarning(message) {
+            return Swal.fire({
+                icon: 'warning',
+                title: 'Warning',
+                text: message,
+                confirmButtonColor: '#b45309',
+                confirmButtonText: 'OK'
+            });
+        }
+
+        function showInfo(message) {
+            return Swal.fire({
+                icon: 'info',
+                title: 'Information',
+                text: message,
+                confirmButtonColor: '#0b5ed7',
+                confirmButtonText: 'OK'
+            });
+        }
+
+        /* ─── Confirmation Dialogs & Blocking Logic ─── */
+        document.addEventListener("DOMContentLoaded", function () {
+
+            /* Logout Confirmation */
+            const logoutBtn = document.getElementById("logoutBtn");
+            if (logoutBtn) {
+                logoutBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    const href = this.getAttribute("href");
+
+                    Swal.fire({
+                        icon: 'question',
+                        title: 'Logout?',
+                        text: 'Are you sure you want to logout?',
+                        showCancelButton: true,
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Yes, Logout',
+                        cancelButtonText: 'Cancel',
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = href;
+                        }
+                    });
+                });
+            }
+
+            /* New Request — Blocking Check */
+            const newRequestBtn = document.getElementById("newRequestBtn");
+            if (newRequestBtn) {
+                newRequestBtn.addEventListener("click", function (e) {
+                    {% if has_blocking_request %}
+                    e.preventDefault();
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Cannot Create New Request',
+                        html: '<div style="text-align:left; font-size:14px; line-height:1.6;">{{ blocking_message|escapejs }}</div>',
+                        confirmButtonColor: '#b45309',
+                        confirmButtonText: 'Understood',
+                        width: 520
+                    });
+                    {% endif %}
+                });
+            }
+        });
+    </script>
+
+    <!-- ─── Django Messages as SweetAlert2 Popups ─── -->
+    {% if messages %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            {% for message in messages %}
+            {% if message.tags == 'success' %}
+            showSuccess("{{ message|escapejs }}");
+            {% elif message.tags == 'error' or message.tags == 'danger' %}
+            showError("{{ message|escapejs }}");
+            {% elif message.tags == 'warning' %}
+            showWarning("{{ message|escapejs }}");
+            {% elif message.tags == 'info' %}
+            showInfo("{{ message|escapejs }}");
+            {% else %}
+            showInfo("{{ message|escapejs }}");
+            {% endif %}
+            {% endfor %}
+        });
+    </script>
+    {% endif %}
+
+</body>
+
+</html>

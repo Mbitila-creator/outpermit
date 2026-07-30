@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Finance Reports</title>
+
+    {% load humanize %}
+
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+            color: #111827;
+            font-size: 13px;
+        }
+
+        /* 🔹 Compact Top Ribbon */
+        .topbar {
+            background: #0b5ed7;
+            color: white;
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .topbar h1 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .container {
+            padding: 15px;
+        }
+
+        /* 🔹 Filters */
+        .filters {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .filters input,
+        .filters select {
+            padding: 5px 8px;
+            font-size: 13px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .filters button {
+            padding: 6px 10px;
+            font-size: 13px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #0b5ed7;
+            color: white;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .card {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .card h3 {
+            margin: 0;
+            font-size: 12px;
+            color: #555;
+        }
+
+        .card p {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 5px 0 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th,
+        td {
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            font-size: 13px;
+        }
+
+        th {
+            background: #e9f1ff;
+        }
+
+        .positive {
+            color: green;
+            font-weight: bold;
+        }
+
+        .negative {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .actions {
+            margin-bottom: 10px;
+        }
+
+        .actions a,
+        .actions button {
+            background: #0b5ed7;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 5px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            margin-right: 5px;
+        }
+
+        .reset-btn {
+            background: #6c757d;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        /* 🔹 Landscape Print */
+        @media print {
+            @page {
+                size: A4 landscape;
+            }
+
+            .filters,
+            .actions {
+                display: none;
+            }
+
+            .topbar {
+                background: white;
+                color: black;
+                border-bottom: 1px solid #ccc;
+            }
+
+            body {
+                background: white;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="topbar">
+        <h1>Finance Reports</h1>
+        <span>Role: {{ role }}</span>
+    </div>
+
+    <div class="container">
+
+        <!-- 🔹 FILTERS -->
+        <form method="get" class="filters">
+            <input type="text" name="search" placeholder="Search..." value="{{ request.GET.search }}">
+
+            <select name="month">
+                <option value="all">All Months</option>
+                <option value="JANUARY">January</option>
+                <option value="FEBRUARY">February</option>
+                <option value="MARCH">March</option>
+                <option value="APRIL">April</option>
+                <option value="MAY">May</option>
+                <option value="JUNE">June</option>
+                <option value="JULY">July</option>
+                <option value="AUGUST">August</option>
+                <option value="SEPTEMBER">September</option>
+                <option value="OCTOBER">October</option>
+                <option value="NOVEMBER">November</option>
+                <option value="DECEMBER">December</option>
+            </select>
+
+            <input type="text" name="financial_year" placeholder="Financial Year" value="{{ request.GET.financial_year }}">
+
+            <input type="date" name="date_from" value="{{ request.GET.date_from }}">
+            <input type="date" name="date_to" value="{{ request.GET.date_to }}">
+
+            <button type="submit">Apply</button>
+            <a href="{% url 'finance:finance_reports' %}" class="reset-btn">Reset</a>
+        </form>
+
+        <!-- 🔹 ACTIONS -->
+        <div class="actions">
+            <a href="{% url 'finance:dashboard' %}">Back</a>
+            <button onclick="window.print()">Print (PDF)</button>
+
+            <!-- Excel Export -->
+            <a href="?search={{ request.GET.search }}&month={{ request.GET.month }}&financial_year={{ request.GET.financial_year }}&date_from={{ request.GET.date_from }}&date_to={{ request.GET.date_to }}&export=excel">Export Excel</a>
+        </div>
+
+        <!-- 🔹 CARDS -->
+        <div class="cards">
+            <div class="card">
+                <h3>Total Budgeted</h3>
+                <p>{{ total_budgeted|floatformat:2|intcomma }}</p>
+            </div>
+
+            <div class="card">
+                <h3>Total Proposed</h3>
+                <p>{{ total_proposed|floatformat:2|intcomma }}</p>
+            </div>
+
+            <div class="card">
+                <h3>Total Approved</h3>
+                <p>{{ total_approved|floatformat:2|intcomma }}</p>
+            </div>
+
+            <div class="card">
+                <h3>Total Disbursed</h3>
+                <p>{{ total_disbursed|floatformat:2|intcomma }}</p>
+            </div>
+        </div>
+
+        <h3>Budget, Activity and Expenditure Report</h3>
+
+        <table>
+            <tr>
+                <th>#</th>
+                <th>FY</th>
+                <th>Month</th>
+                <th>Task Code</th>
+                <th>Task</th>
+                <th>Activity</th>
+                <th>Budgeted</th>
+                <th>Proposed</th>
+                <th>Approved</th>
+                <th>Disbursed</th>
+                <th>Available</th>
+                <th>Variance</th>
+            </tr>
+
+            {% for line in budget_lines %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ line.financial_year }}</td>
+                <td>{{ line.month }}</td>
+                <td>{{ line.task_code }}</td>
+                <td>{{ line.task_in_mtef }}</td>
+                <td>{{ line.monthly_activity_description }}</td>
+
+                <td>{{ line.budgeted_amount|floatformat:2|intcomma }}</td>
+                <td>{{ line.monthly_proposed_amount|floatformat:2|intcomma }}</td>
+                <td>{{ line.monthly_approved_amount|floatformat:2|intcomma }}</td>
+                <td>{{ line.amount_disbursed|floatformat:2|intcomma }}</td>
+                <td>{{ line.monthly_balance|floatformat:2|intcomma }}</td>
+
+                <td>
+                    {% if line.monthly_variance == 0 %}
+                       <span class="positive">
+                           {{ line.monthly_variance|floatformat:2|intcomma }}
+                       </span>
+                    {% elif line.monthly_variance > 0 %}
+                       <span class="negative">
+                           {{ line.monthly_variance|floatformat:2|intcomma }}
+                       </span>
+                    {% else %}
+                       <span class="positive">
+                           {{ line.monthly_variance|floatformat:2|intcomma }}
+                       </span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="12">No report data available.</td>
+            </tr>
+            {% endfor %}
+        </table>
+
+    </div>
+
+</body>
+
+</html>

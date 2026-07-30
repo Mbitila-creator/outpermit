@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Event</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family:Arial;background:#f4f7fb;padding:20px;">
+
+<h2>Edit Event</h2>
+
+<form method="post">
+    {% csrf_token %}
+
+    <p>
+        <label>Event Name</label><br>
+        <input type="text" name="name" value="{{ event.name }}" required>
+    </p>
+
+    <p>
+        <label>Event Code</label><br>
+        <input type="text" name="code" value="{{ event.code }}" required>
+    </p>
+
+    <p>
+        <label>Venue</label><br>
+        <input type="text" name="venue" value="{{ event.venue }}" required>
+    </p>
+
+    <p>
+        <label>Start Date</label><br>
+        <input type="date" name="start_date" value="{{ event.start_date|date:'Y-m-d' }}" required>
+    </p>
+
+    <p>
+        <label>End Date</label><br>
+        <input type="date" name="end_date" value="{{ event.end_date|date:'Y-m-d' }}">
+    </p>
+
+    <button type="submit">Update Event</button>
+</form>
+
+<p>
+    <a href="{% url 'event_details' event.id %}">Back to Event Details</a> |
+    <a href="{% url 'event_list' %}">Back to Events</a>
+</p>
+
+</body>
+</html>

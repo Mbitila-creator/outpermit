@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Submission Status</title>
+
+<style>
+body{
+    font-family: Arial, sans-serif;
+    background:#f5f7fb;
+    padding:30px;
+}
+
+.card{
+    background:white;
+    max-width:700px;
+    margin:auto;
+    padding:25px;
+    border-radius:12px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.08);
+}
+
+.status-badge{
+    display:inline-block;
+    padding:8px 14px;
+    border-radius:20px;
+    font-weight:700;
+    margin-top:10px;
+}
+
+.status-approved{
+    background:#d1e7dd;
+    color:#0f5132;
+}
+
+.status-returned{
+    background:#fff3cd;
+    color:#856404;
+}
+
+.status-rejected{
+    background:#f8d7da;
+    color:#842029;
+}
+
+.status-progress{
+    background:#cfe2ff;
+    color:#084298;
+}
+
+.btn{
+    display:inline-block;
+    margin-top:20px;
+    margin-right:10px;
+    padding:10px 16px;
+    background:#0b5ed7;
+    color:white;
+    text-decoration:none;
+    border-radius:8px;
+    font-weight:600;
+}
+
+.btn-warning{
+    background:#fd7e14;
+}
+
+.btn-success{
+    background:#198754;
+}
+
+.comment-box{
+    margin-top:15px;
+    padding:12px;
+    background:#f8f9fa;
+    border-left:4px solid #ffc107;
+    border-radius:6px;
+}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>
+{% if req.raw_status == "APPROVED" %}
+Submission Approved
+
+{% elif req.raw_status == "RETURNED_HOU" %}
+Returned by Head of Unit
+
+{% elif req.raw_status == "RETURNED_DIRECTOR" %}
+Returned by Director
+
+{% elif req.raw_status == "REJECTED_HOU" %}
+Rejected by Head of Unit
+
+{% elif req.raw_status == "REJECTED_DIRECTOR" %}
+Rejected by Director
+
+{% elif req.raw_status == "PENDING_DIRECTOR" %}
+Under Director Review
+
+{% elif req.raw_status == "PENDING_HOU" %}
+Under Head of Unit Review
+
+{% else %}
+Submission Received
+{% endif %}
+</h2>
+
+<p><strong>Current Status:</strong></p>
+
+{% if req.raw_status == "APPROVED" %}
+<span class="status-badge status-approved">{{ req.display_status|default:req.get_status_display }}</span>
+
+{% elif req.raw_status == "RETURNED_HOU" or req.raw_status == "RETURNED_DIRECTOR" %}
+<span class="status-badge status-returned">{{ req.display_status|default:req.get_status_display }}</span>
+
+{% elif req.raw_status == "REJECTED_HOU" or req.raw_status == "REJECTED_DIRECTOR" %}
+<span class="status-badge status-rejected">{{ req.display_status|default:req.get_status_display }}</span>
+
+{% else %}
+<span class="status-badge status-progress">{{ req.display_status|default:req.get_status_display }}</span>
+{% endif %}
+
+{% if req.hou_comment %}
+<div class="comment-box">
+<strong>Head of Unit Comment:</strong><br>
+{{ req.hou_comment }}
+</div>
+{% endif %}
+
+{% if req.director_comment %}
+<div class="comment-box">
+<strong>Director Comment:</strong><br>
+{{ req.director_comment }}
+</div>
+{% endif %}
+
+<a class="btn" href="{% url 'request_detail' req.pk %}">
+View My Submission Details
+</a>
+
+{% if req.raw_status == "RETURNED_HOU" or req.raw_status == "RETURNED_DIRECTOR" %}
+<a class="btn btn-warning" href="{% url 'edit_request' req.pk %}">
+Edit Request
+</a>
+
+<a class="btn btn-success" href="{% url 'resubmit_request' req.pk %}">
+Re-submit Request
+</a>
+{% endif %}
+
+</div>
+{% if messages %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        {% for message in messages %}
+        Swal.fire({
+            icon: 'success',
+            title: 'Success!',
+            text: "{{ message|escapejs }}",
+            confirmButtonColor: '#198754',
+            confirmButtonText: 'OK',
+            allowOutsideClick: false,
+            allowEscapeKey: false
+        });
+        {% endfor %}
+    });
+</script>
+{% endif %}
+</body>
+</html>

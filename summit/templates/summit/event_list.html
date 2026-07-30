@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Summit Events</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        .action-select {
+            padding: 6px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            width: 150px;
+        }
+    </style>
+</head>
+<body style="font-family:Arial;background:#f4f7fb;padding:20px;">
+
+<h2>{{ page_title }}</h2>
+
+<p>
+    <a href="{% url 'event_list' %}" class="btn btn-secondary">All Events</a>
+    <a href="{% url 'event_list' %}?status=open" class="btn btn-secondary">Open Events</a>
+    <a href="{% url 'event_list' %}?status=closed" class="btn btn-secondary">Closed Events</a>
+</p>
+
+<p>
+    <a href="{% url 'create_event' %}">Create New Event</a> |
+    <a href="{% url 'summit_admin_dashboard' %}">Back</a>
+</p>
+
+<table border="1" cellpadding="8" cellspacing="0" width="100%">
+    <tr>
+        <th>Code</th>
+        <th>Event Name</th>
+        <th>Venue</th>
+        <th>Dates</th>
+        <th>Status</th>
+        <th>Registration Link</th>
+        <th>QR Code</th>
+        <th>Action</th>
+    </tr>
+
+    {% for event in events %}
+    <tr>
+        <td>{{ event.code }}</td>
+        <td>{{ event.name }}</td>
+        <td>{{ event.venue }}</td>
+        <td>{{ event.start_date }} - {{ event.end_date }}</td>
+
+        <td>
+            {% if event.is_archived %}
+                <span style="color:#6b7280;font-weight:bold;">Archived</span>
+            {% elif event.is_open %}
+                <span style="color:green;font-weight:bold;">Open</span>
+            {% else %}
+                <span style="color:#b91c1c;font-weight:bold;">Closed</span>
+            {% endif %}
+        </td>
+
+        <td>
+            {% if event.is_open and not event.is_archived %}
+                <a href="{% url 'summit_register' event.code %}" target="_blank">
+                    Open Registration
+                </a>
+            {% else %}
+                Registration Closed
+            {% endif %}
+        </td>
+
+        <td>
+            {% if event.registration_qr_code %}
+                <a href="{% url 'event_details' event.id %}">
+                    View QR
+                </a>
+            {% else %}
+                No QR
+            {% endif %}
+        </td>
+
+        <td>
+            <select class="action-select" onchange="if (this.value) window.location.href=this.value;">
+                <option value="">Select</option>
+
+                <option value="{% url 'event_details' event.id %}">
+                    View
+                </option>
+
+                <option value="{% url 'edit_event' event.id %}">
+                    Edit
+                </option>
+
+                <option value="{% url 'duplicate_event' event.id %}">
+                    Duplicate
+                </option>
+
+                {% if event.is_open %}
+                    <option value="{% url 'close_event' event.id %}">
+                        Close
+                    </option>
+                {% else %}
+                    <option value="{% url 'open_event' event.id %}">
+                        Open
+                    </option>
+                {% endif %}
+
+                <option value="{% url 'archive_event' event.id %}">
+                    Archive
+                </option>
+            </select>
+        </td>
+    </tr>
+    {% empty %}
+    <tr>
+        <td colspan="8">No events found.</td>
+    </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>

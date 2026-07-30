@@ -1,0 +1,1145 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Task Analytics</title>
+    <style>
+        :root {
+            --primary: #0b5ed7;
+            --primary2: #084298;
+            --success: #198754;
+            --danger: #dc3545;
+            --warning: #fd7e14;
+            --info: #0dcaf0;
+            --secondary: #6c757d;
+            --bg: #f5f7fb;
+            --card: #ffffff;
+            --border: #e5e7eb;
+            --muted: #6b7280;
+            --shadow: 0 8px 18px rgba(0, 0, 0, .08);
+            --radius: 14px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--bg);
+            color: #111827;
+        }
+
+        .topbar {
+            background: linear-gradient(90deg, var(--primary2), var(--primary));
+            color: #fff;
+            padding: 18px 22px;
+        }
+
+        .topbar h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .topbar p {
+            margin: 6px 0 0;
+            font-size: 13px;
+            opacity: .92;
+        }
+
+        .nav {
+            margin-top: 12px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            text-decoration: none;
+            color: #fff;
+            background: rgba(255, 255, 255, .15);
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .container {
+            max-width: 1180px;
+            margin: 22px auto;
+            padding: 0 16px 32px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+            align-items: center;
+        }
+
+        .toolbar a,
+        .toolbar button {
+            text-decoration: none;
+            border: 0;
+            cursor: pointer;
+            background: #fff;
+            color: #0b3a75;
+            border: 1px solid var(--border);
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            box-shadow: var(--shadow);
+        }
+
+        .toolbar button:hover,
+        .toolbar a:hover {
+            transform: translateY(-1px);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, max-content);
+            gap: 8px;
+            margin-bottom: 16px;
+            justify-content: flex-start;
+            align-items: stretch;
+        }
+
+        @media (max-width:1200px) {
+            .stats {
+                grid-template-columns: repeat(4, max-content);
+            }
+        }
+
+        @media (max-width:700px) {
+            .stats {
+                grid-template-columns: repeat(2, max-content);
+            }
+        }
+
+        @media (max-width:420px) {
+            .stats {
+                grid-template-columns: 1fr;
+                justify-content: stretch;
+            }
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(8, minmax(120px, 1fr));
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        @media (max-width:1400px) {
+            .summary-grid {
+                grid-template-columns: repeat(4, minmax(120px, 1fr));
+            }
+        }
+
+        @media (max-width:900px) {
+            .summary-grid {
+                grid-template-columns: repeat(2, minmax(120px, 1fr));
+            }
+        }
+
+        @media (max-width:520px) {
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .stat-link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .summary-link {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+        }
+
+        .stat-card,
+        .summary-card,
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .stat-card {
+            border-radius: 10px;
+            padding: 8px 10px;
+            min-height: 66px;
+            min-width: 106px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, .06);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 3px;
+            transition: transform .15s ease, box-shadow .15s ease, outline .15s ease;
+            transform-origin: center bottom;
+        }
+
+        .summary-card {
+            padding: 10px 10px;
+            min-height: 78px;
+            border-radius: 12px;
+            transition: transform .15s ease, box-shadow .15s ease, outline .15s ease;
+        }
+
+        .summary-link:hover .summary-card,
+        .stat-link:hover .stat-card {
+            transform: translateY(-4px) scale(1.01);
+            box-shadow: 0 12px 20px rgba(0, 0, 0, .12);
+            outline: 1px solid rgba(0, 0, 0, 0.04);
+            cursor: pointer;
+        }
+
+        .summary-link.active .summary-card {
+            outline: 2px solid rgba(11, 94, 215, 0.22);
+            box-shadow: 0 12px 24px rgba(11, 94, 215, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .summary-title {
+            font-size: 12px;
+            font-weight: 800;
+            color: #0b3a75;
+            margin-bottom: 4px;
+            line-height: 1.15;
+        }
+
+        .summary-value {
+            font-size: 16px;
+            font-weight: 800;
+            margin-bottom: 3px;
+            line-height: 1;
+        }
+
+        .summary-text {
+            font-size: 11px;
+            color: var(--muted);
+            line-height: 1.2;
+        }
+
+        .summary-card.all {
+            background: #eef5ff;
+        }
+
+        .summary-card.completion {
+            background: #eefaf4;
+        }
+
+        .summary-card.overdue {
+            background: #fff3f3;
+        }
+
+        .summary-card.unit-delay {
+            background: #fff9ed;
+        }
+
+        .summary-card.performers {
+            background: #eefcff;
+        }
+
+        .summary-card.staff-delay {
+            background: #f6f0ff;
+        }
+
+        .summary-card.risk {
+            background: #fff7e8;
+        }
+
+        .summary-card.stalled {
+            background: #fef2f2;
+        }
+
+        .stat-icon {
+            font-size: 14px;
+            line-height: 1;
+            opacity: .85;
+            margin-bottom: 1px;
+        }
+
+        .stat-title {
+            color: #4b5563;
+            font-size: 11px;
+            font-weight: 800;
+            margin-bottom: 2px;
+            line-height: 1.1;
+            letter-spacing: .1px;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .stat-value {
+            font-size: 19px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .stats.secondary-stats .stat-link:nth-child(1) .stat-card {
+            background: #eefaf4;
+        }
+
+        .stats.secondary-stats .stat-link:nth-child(2) .stat-card {
+            background: #fff3f3;
+        }
+
+        .stats.secondary-stats .stat-link:nth-child(3) .stat-card {
+            background: #fff9ed;
+        }
+
+        .stats.secondary-stats .stat-link:nth-child(4) .stat-card {
+            background: #eef4ff;
+        }
+
+        .card {
+            overflow: hidden;
+            margin-bottom: 18px;
+        }
+
+        .card-header {
+            padding: 14px 16px;
+            font-weight: 700;
+            background: #eef5ff;
+            border-bottom: 1px solid var(--border);
+            color: #0b3a75;
+        }
+
+        .card-body {
+            padding: 14px 16px;
+        }
+
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            min-width: 700px;
+        }
+
+        th,
+        td {
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        th {
+            background: #f8fafc;
+        }
+
+        .num {
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .badge-success {
+            background: #e8f7ee;
+            color: #146c43;
+        }
+
+        .badge-danger {
+            background: #fdecec;
+            color: #b02a37;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #9a6700;
+        }
+
+        .badge-primary {
+            background: #e7f1ff;
+            color: #0b5ed7;
+        }
+
+        .badge-secondary {
+            background: #f1f3f5;
+            color: #495057;
+        }
+
+        .section-note {
+            margin: -4px 0 12px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .action-link {
+            display: inline-block;
+            text-decoration: none;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1px solid var(--border);
+            background: #fff;
+            color: #0b5ed7;
+        }
+
+        .action-link.disabled {
+            pointer-events: none;
+            color: #98a2b3;
+            background: #f8fafc;
+        }
+
+        .data-section {
+            display: none;
+        }
+
+        .data-section.active {
+            display: block;
+        }
+
+        .print-report-header {
+            display: none;
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 16mm 12mm 18mm 12mm;
+            }
+
+            body {
+                background: #fff;
+            }
+
+            .topbar,
+            .nav,
+            .toolbar,
+            .summary-grid,
+            .stats {
+                display: none !important;
+            }
+
+            .container {
+                max-width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            .print-report-header {
+                display: block !important;
+                text-align: center;
+                margin-bottom: 14px;
+                border-bottom: 2px solid #0b3a75;
+                padding-bottom: 8px;
+            }
+
+            .print-report-header h1 {
+                margin: 0 0 4px 0;
+                font-size: 20px;
+                color: #0b3a75;
+            }
+
+            .print-report-header p {
+                margin: 0;
+                font-size: 12px;
+                color: #4b5563;
+            }
+
+            .card {
+                box-shadow: none;
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .data-section {
+                display: none !important;
+            }
+
+            .data-section.print-active {
+                display: block !important;
+            }
+
+            .data-section.print-all {
+                display: block !important;
+            }
+
+            table {
+                font-size: 12px;
+                min-width: 100%;
+            }
+
+            th,
+            td {
+                padding: 6px 8px;
+            }
+
+            .action-link {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="topbar">
+        <h1>Task Analytics</h1>
+        <p>Director-level analytics overview.</p>
+
+        <div class="nav">
+            <a href="{% url 'system_home' %}">Home</a>
+            <a href="{% url 'requester_dashboard' %}">Permits</a>
+            <a href="{% url 'task_dashboard' %}">Tasks Dashboard</a>
+            <a href="{% url 'my_tasks' %}">My Tasks</a>
+            <a href="{% url 'create_task' %}">Create Task</a>
+            <a href="{% url 'task_analytics' %}">Analytics</a>
+            <a href="{% url 'logout' %}">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <div class="print-report-header">
+            <h1 id="printReportTitle">Task Analytics Report</h1>
+        </div>
+
+        <div class="toolbar">
+            <button type="button" onclick="window.print()">Print / Save as PDF</button>
+            {% if allow_task_export %}
+            <a id="exportExcelBtn" href="{% url 'task_analytics_export_excel' %}?table=all_tables">
+                Export All Tables to Excel
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="summary-grid">
+            <a class="summary-link active" data-target="all-sections">
+                <div class="summary-card all">
+                    <div class="summary-title">All</div>
+                    <div class="summary-value">7</div>
+                    <div class="summary-text">All tables</div>
+                </div>
+            </a>
+
+            <a class="summary-link" data-target="completion-rate-by-unit-section">
+                <div class="summary-card completion">
+                    <div class="summary-title">Unit Rate</div>
+                    <div class="summary-value">{{ completion_rate }}%</div>
+                    <div class="summary-text">By unit</div>
+                </div>
+            </a>
+
+            <a class="summary-link" data-target="overdue-aging-analysis-section">
+                <div class="summary-card overdue">
+                    <div class="summary-title">Overdue</div>
+                    <div class="summary-value">{{ overdue_tasks }}</div>
+                    <div class="summary-text">Aging</div>
+                </div>
+            </a>
+
+            <a class="summary-link" data-target="delay-performance-by-unit-section">
+                <div class="summary-card unit-delay">
+                    <div class="summary-title">Unit Delay</div>
+                    <div class="summary-value">{{ delay_by_unit|length }}</div>
+                    <div class="summary-text">By unit</div>
+                </div>
+            </a>
+
+            <a class="summary-link" data-target="top-performers-section">
+                <div class="summary-card performers">
+                    <div class="summary-title">Top Staff</div>
+                    <div class="summary-value">{{ top_performers|length }}</div>
+                    <div class="summary-text">Performance</div>
+                </div>
+            </a>
+
+            <a class="summary-link" data-target="delayed-assignments-by-staff-section">
+                <div class="summary-card staff-delay">
+                    <div class="summary-title">Staff Delay</div>
+                    <div class="summary-value">{{ delayed_assignments_by_staff|length }}</div>
+                    <div class="summary-text">Late staff</div>
+                </div>
+            </a>
+
+            <a class="summary-link" data-target="due-soon-tasks-section">
+                <div class="summary-card risk">
+                    <div class="summary-title">Due Soon</div>
+                    <div class="summary-value">{{ due_soon_tasks }}</div>
+                    <div class="summary-text">Upcoming</div>
+                </div>
+            </a>
+
+            <a class="summary-link" data-target="high-risk-stalled-tasks-section">
+                <div class="summary-card stalled">
+                    <div class="summary-title">At Risk</div>
+                    <div class="summary-value">{{ stalled_tasks|length }}</div>
+                    <div class="summary-text">Stalled</div>
+                </div>
+            </a>
+        </div>
+
+        <div id="completion-rate-by-unit-section" class="data-section active all-member">
+            <div class="card">
+                <div class="card-header">Tasks Completion Rate by Unit</div>
+                <div class="card-body">
+                    <p class="section-note">This section shows how each unit is performing in terms of overall task completion.</p>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Unit</th>
+                                    <th class="num">Tasks Completed</th>
+                                    <th class="num">Total Tasks</th>
+                                    <th class="num">Completion Rate</th>
+                                    <th class="num">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in completion_rate_by_unit %}
+                                <tr>
+                                    <td>{{ row.unit_name }}</td>
+                                    <td class="num">{{ row.completed }}</td>
+                                    <td class="num">{{ row.total }}</td>
+                                    <td class="num">{{ row.rate }}%</td>
+                                    <td class="num">
+                                        {% if row.total > 0 %}
+                                        <a class="action-link" href="{% url 'task_analytics_completion_unit_detail' row.unit_name %}">View Details</a>
+                                        {% else %}
+                                        <span class="action-link disabled">No Tasks</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5">No data available.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="overdue-aging-analysis-section" class="data-section active all-member">
+            <div class="card">
+                <div class="card-header">Overdue Aging Analysis</div>
+                <div class="card-body">
+                    <p class="section-note">This shows how long overdue tasks have remained incomplete so management can prioritise urgent delays.</p>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Delay Range</th>
+                                    <th class="num">Tasks</th>
+                                    <th>Status</th>
+                                    <th class="num">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>1–3 Days Overdue</td>
+                                    <td class="num">{{ overdue_1_3 }}</td>
+                                    <td>
+                                        {% if overdue_1_3 > 0 %}
+                                        <span class="badge badge-warning">Needs follow-up</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">No overdue tasks</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="num">
+                                        {% if overdue_1_3 > 0 %}
+                                        <a class="action-link" href="{% url 'task_analytics_overdue_detail' '1-3' %}">View Details</a>
+                                        {% else %}
+                                        <span class="action-link disabled">No Tasks</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>4–7 Days Overdue</td>
+                                    <td class="num">{{ overdue_4_7 }}</td>
+                                    <td>
+                                        {% if overdue_4_7 > 0 %}
+                                        <span class="badge badge-danger">Attention required</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">No overdue tasks</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="num">
+                                        {% if overdue_4_7 > 0 %}
+                                        <a class="action-link" href="{% url 'task_analytics_overdue_detail' '4-7' %}">View Details</a>
+                                        {% else %}
+                                        <span class="action-link disabled">No Tasks</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>8–14 Days Overdue</td>
+                                    <td class="num">{{ overdue_8_14 }}</td>
+                                    <td>
+                                        {% if overdue_8_14 > 0 %}
+                                        <span class="badge badge-danger">Serious delay</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">No overdue tasks</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="num">
+                                        {% if overdue_8_14 > 0 %}
+                                        <a class="action-link" href="{% url 'task_analytics_overdue_detail' '8-14' %}">View Details</a>
+                                        {% else %}
+                                        <span class="action-link disabled">No Tasks</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>15+ Days Overdue</td>
+                                    <td class="num">{{ overdue_15_plus }}</td>
+                                    <td>
+                                        {% if overdue_15_plus > 0 %}
+                                        <span class="badge badge-danger">Critical</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">No overdue tasks</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="num">
+                                        {% if overdue_15_plus > 0 %}
+                                        <a class="action-link" href="{% url 'task_analytics_overdue_detail' '15-plus' %}">View Details</a>
+                                        {% else %}
+                                        <span class="action-link disabled">No Tasks</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="delay-performance-by-unit-section" class="data-section active all-member">
+            <div class="card">
+                <div class="card-header">Delay Performance by Unit</div>
+                <div class="card-body">
+                    <p class="section-note">This section highlights the units with more overdue or late-completed work and their on-time delivery performance.</p>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Unit</th>
+                                    <th class="num">Overdue Tasks</th>
+                                    <th class="num">Late Completed</th>
+                                    <th class="num">Avg Delay Days</th>
+                                    <th class="num">On-Time Rate</th>
+                                    <th class="num">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in delay_by_unit %}
+                                <tr>
+                                    <td>{{ row.unit_name }}</td>
+                                    <td class="num">{{ row.overdue }}</td>
+                                    <td class="num">{{ row.late_completed }}</td>
+                                    <td class="num">{{ row.avg_delay_days }}</td>
+                                    <td class="num">{{ row.on_time_rate }}%</td>
+                                    <td class="num">
+                                        {% if row.overdue > 0 or row.late_completed > 0 %}
+                                        <a class="action-link" href="{% url 'task_analytics_delay_unit_detail' row.unit_name %}">View Details</a>
+                                        {% else %}
+                                        <span class="action-link disabled">No Issues</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6">No delay data available.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="top-performers-section" class="data-section active all-member">
+            <div class="card">
+                <div class="card-header">Top Performers</div>
+                <div class="card-body">
+                    <p class="section-note">This section shows staff performance based on assignment completion, average progress, and completion rate.</p>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="num">#</th>
+                                    <th>Name</th>
+                                    <th>Unit</th>
+                                    <th class="num">Completed Ass.</th>
+                                    <th class="num">Total Ass.</th>
+                                    <th class="num">Avg Progress</th>
+                                    <th class="num">Completion Rate</th>
+                                    <th class="num">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in top_performers %}
+                                <tr>
+                                    <td class="num">{{ forloop.counter }}</td>
+                                    <td>{{ row.name }}</td>
+                                    <td>{{ row.unit_name }}</td>
+                                    <td class="num">{{ row.completed_assignments }}</td>
+                                    <td class="num">{{ row.total_assignments }}</td>
+                                    <td class="num">{{ row.avg_progress }}%</td>
+                                    <td class="num">{{ row.completion_rate }}%</td>
+                                    <td class="num">
+                                        {% if row.total_assignments > 0 %}
+                                        <a class="action-link" href="{% url 'task_analytics_staff_detail' row.user_id %}">View Details</a>
+                                        {% else %}
+                                        <span class="action-link disabled">No Data</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8">No performer data available.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="delayed-assignments-by-staff-section" class="data-section active all-member">
+            <div class="card">
+                <div class="card-header">Delayed Assignments by Staff</div>
+                <div class="card-body">
+                    <p class="section-note">This section highlights staff members with overdue assignments, late completions, and lower on-time delivery rates.</p>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="num">#</th>
+                                    <th>Name</th>
+                                    <th>Unit</th>
+                                    <th class="num">Open Overdue</th>
+                                    <th class="num">Late Completed</th>
+                                    <th class="num">Avg Delay Days</th>
+                                    <th class="num">On-Time Rate</th>
+                                    <th class="num">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in delayed_assignments_by_staff %}
+                                <tr>
+                                    <td class="num">{{ forloop.counter }}</td>
+                                    <td>{{ row.name }}</td>
+                                    <td>{{ row.unit_name }}</td>
+                                    <td class="num">{{ row.open_overdue }}</td>
+                                    <td class="num">{{ row.late_completed }}</td>
+                                    <td class="num">{{ row.avg_delay_days }}</td>
+                                    <td class="num">{{ row.on_time_rate }}%</td>
+                                    <td class="num">
+                                        {% if row.open_overdue > 0 or row.late_completed > 0 %}
+                                        <a class="action-link" href="{% url 'task_analytics_staff_detail' row.user_id %}">View Details</a>
+                                        {% else %}
+                                        <span class="action-link disabled">No Issues</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8">No delayed assignment data available.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="due-soon-tasks-section" class="data-section active all-member">
+            <div class="card">
+                <div class="card-header">Due Soon Tasks</div>
+                <div class="card-body">
+                    <p class="section-note">This section provides an early warning for tasks approaching their deadlines.</p>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Task</th>
+                                    <th>Unit</th>
+                                    <th>Assignee</th>
+                                    <th class="num">Progress</th>
+                                    <th>Due Date</th>
+                                    <th class="num">Days Remaining</th>
+                                    <th class="num">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in due_soon_list %}
+                                <tr>
+                                    <td>{{ row.title }}</td>
+                                    <td>{{ row.unit_name }}</td>
+                                    <td>{{ row.assignee_name }}</td>
+                                    <td class="num">{{ row.progress }}%</td>
+                                    <td>{{ row.due_date }}</td>
+                                    <td class="num">{{ row.days_remaining }}</td>
+                                    <td class="num">
+                                        <a class="action-link" href="{% url 'task_analytics_due_soon_detail' %}">View Details</a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7">No tasks are currently due soon.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="high-risk-stalled-tasks-section" class="data-section active all-member">
+            <div class="card">
+                <div class="card-header">High-Risk / Stalled Tasks</div>
+                <div class="card-body">
+                    <p class="section-note">These are tasks with low progress and approaching or exceeded deadlines, requiring prompt action.</p>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Task</th>
+                                    <th>Unit</th>
+                                    <th>Assignee</th>
+                                    <th class="num">Progress</th>
+                                    <th>Due Date</th>
+                                    <th class="num">Days Late</th>
+                                    <th>Status</th>
+                                    <th class="num">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in stalled_tasks %}
+                                <tr>
+                                    <td>{{ row.title }}</td>
+                                    <td>{{ row.unit_name }}</td>
+                                    <td>{{ row.assignee_name }}</td>
+                                    <td class="num">{{ row.progress }}%</td>
+                                    <td>{{ row.due_date }}</td>
+                                    <td class="num">{{ row.days_late }}</td>
+                                    <td>
+                                        {% if row.days_late > 0 %}
+                                        <span class="badge badge-danger">Overdue</span>
+                                        {% elif row.progress < 50 %} <span class="badge badge-warning">Slow Progress</span>
+                                            {% else %}
+                                            <span class="badge badge-primary">At Risk</span>
+                                            {% endif %}
+                                    </td>
+                                    <td class="num">
+                                        <a class="action-link" href="{% url 'task_analytics_stalled_detail' %}">View Details</a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8">No stalled tasks available.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const summaryLinks = document.querySelectorAll('.summary-link');
+            const sections = document.querySelectorAll('.data-section');
+            const exportExcelBtn = document.getElementById('exportExcelBtn');
+            const printReportTitle = document.getElementById('printReportTitle');
+
+            let currentPrintMode = "all";
+
+            function mapSectionToTableKey(sectionId) {
+                const map = {
+                    "all-sections": "all_tables",
+                    "completion-rate-by-unit-section": "completion_rate_by_unit",
+                    "overdue-aging-analysis-section": "overdue_aging",
+                    "delay-performance-by-unit-section": "delay_by_unit",
+                    "top-performers-section": "top_performers",
+                    "delayed-assignments-by-staff-section": "delayed_assignments_by_staff",
+                    "due-soon-tasks-section": "due_soon_list",
+                    "high-risk-stalled-tasks-section": "stalled_tasks"
+                };
+                return map[sectionId] || "all_tables";
+            }
+
+            function mapSectionToPrintTitle(sectionId) {
+                const map = {
+                    "all-sections": "Task Analytics Report - All Tables",
+                    "completion-rate-by-unit-section": "Task Analytics Report - Completion by Unit",
+                    "overdue-aging-analysis-section": "Task Analytics Report - Overdue Aging Analysis",
+                    "delay-performance-by-unit-section": "Task Analytics Report - Delay Performance by Unit",
+                    "top-performers-section": "Task Analytics Report - Top Performers",
+                    "delayed-assignments-by-staff-section": "Task Analytics Report - Delayed Assignments by Staff",
+                    "due-soon-tasks-section": "Task Analytics Report - Due Soon Tasks",
+                    "high-risk-stalled-tasks-section": "Task Analytics Report - High-Risk / Stalled Tasks"
+                };
+                return map[sectionId] || "Task Analytics Report";
+            }
+
+            function updatePrintMeta(sectionId) {
+                if (printReportTitle) {
+                    printReportTitle.textContent = mapSectionToPrintTitle(sectionId);
+                }
+            }
+
+            function updateExportLink(sectionId) {
+                if (!exportExcelBtn) return;
+
+                const tableKey = mapSectionToTableKey(sectionId);
+                exportExcelBtn.href = "{% url 'task_analytics_export_excel' %}?table=" + encodeURIComponent(tableKey);
+
+                if (tableKey === "all_tables") {
+                    exportExcelBtn.textContent = "Export All Tables to Excel";
+                } else {
+                    exportExcelBtn.textContent = "Export Displayed Table to Excel";
+                }
+            }
+
+            function clearPrintClasses() {
+                sections.forEach(section => {
+                    section.classList.remove('print-active');
+                    section.classList.remove('print-all');
+                });
+            }
+
+            function preparePrintAll() {
+                clearPrintClasses();
+                sections.forEach(section => {
+                    section.classList.add('print-all');
+                });
+                currentPrintMode = "all";
+                updatePrintMeta("all-sections");
+            }
+
+            function preparePrintOne(targetId) {
+                clearPrintClasses();
+                const targetSection = document.getElementById(targetId);
+                if (targetSection) {
+                    targetSection.classList.add('print-active');
+                }
+                currentPrintMode = targetId;
+                updatePrintMeta(targetId);
+            }
+
+            function showAllSections() {
+                sections.forEach(section => {
+                    section.classList.add('active');
+                });
+
+                summaryLinks.forEach(link => {
+                    link.classList.remove('active');
+                });
+
+                const allLink = document.querySelector('.summary-link[data-target="all-sections"]');
+                if (allLink) {
+                    allLink.classList.add('active');
+                }
+
+                updateExportLink("all-sections");
+                preparePrintAll();
+            }
+
+            function showOneSection(targetId) {
+                sections.forEach(section => {
+                    section.classList.remove('active');
+                });
+
+                summaryLinks.forEach(link => {
+                    link.classList.remove('active');
+                });
+
+                const targetSection = document.getElementById(targetId);
+                const activeLink = document.querySelector('.summary-link[data-target="' + targetId + '"]');
+
+                if (targetSection) {
+                    targetSection.classList.add('active');
+                }
+
+                if (activeLink) {
+                    activeLink.classList.add('active');
+                }
+
+                updateExportLink(targetId);
+                preparePrintOne(targetId);
+
+                const summaryGrid = document.querySelector('.summary-grid');
+                if (summaryGrid) {
+                    window.scrollTo({
+                        top: summaryGrid.offsetTop - 10,
+                        behavior: 'smooth'
+                    });
+                }
+            }
+
+            summaryLinks.forEach(link => {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('data-target');
+
+                    if (targetId === 'all-sections') {
+                        showAllSections();
+                    } else {
+                        showOneSection(targetId);
+                    }
+                });
+            });
+
+            window.addEventListener('beforeprint', function () {
+                if (currentPrintMode === "all") {
+                    preparePrintAll();
+                } else {
+                    preparePrintOne(currentPrintMode);
+                }
+            });
+
+            window.addEventListener('afterprint', function () {
+                if (currentPrintMode === "all") {
+                    showAllSections();
+                } else {
+                    showOneSection(currentPrintMode);
+                }
+            });
+
+            showAllSections();
+        });
+    </script>
+</body>
+
+</html>

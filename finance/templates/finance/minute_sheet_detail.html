@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Minute Sheet Detail</title>
+    {% load humanize %}
+
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.4;
+            color: #1f2937;
+        }
+
+        .topbar {
+            background: #0b5ed7;
+            color: white;
+            padding: 10px 18px;
+            min-height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar h1 {
+            font-size: 18px;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .container {
+            padding: 14px;
+            max-width: 1050px;
+            margin: auto;
+        }
+
+        .box,
+        .approval-box,
+        .workflow-box {
+            background: white;
+            padding: 14px;
+            border-radius: 9px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+            margin-bottom: 12px;
+        }
+
+        h2 {
+            font-size: 16px;
+            margin: 0 0 10px;
+        }
+
+        p {
+            margin: 4px 0;
+        }
+
+        .message {
+            padding: 9px 12px;
+            border-radius: 6px;
+            margin: 0 0 10px;
+            background: #e8f5e9;
+            color: #166534;
+            font-weight: 600;
+        }
+
+        .compact-block {
+            padding: 9px 11px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+        }
+
+        .compact-grid {
+            display: grid;
+            grid-template-columns: 210px 1fr;
+            gap: 5px 12px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: #e9ecef;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .workflow-step {
+            display: grid;
+            grid-template-columns: 32px 1fr;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .workflow-step:last-child {
+            border-bottom: none;
+        }
+
+        .step-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .step-approved .step-icon {
+            background: #198754;
+            color: white;
+        }
+
+        .step-current .step-icon {
+            background: #0b5ed7;
+            color: white;
+        }
+
+        .step-rejected .step-icon,
+        .step-returned .step-icon {
+            background: #dc3545;
+            color: white;
+        }
+
+        .step-title {
+            font-weight: 700;
+        }
+
+        .step-meta {
+            color: #6b7280;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 8px 9px;
+            margin-bottom: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 13px;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 8px 14px;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #0b5ed7;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .notice {
+            padding: 10px 12px;
+            background: #fff7ed;
+            border-left: 5px solid #f59e0b;
+            border-radius: 6px;
+        }
+
+        @media (max-width: 650px) {
+            .compact-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="topbar">
+        <h1>Minute Sheet Detail</h1>
+    </div>
+
+    <div class="container">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="message">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="box">
+            <div class="compact-block" style="background:#f8fafc; border:1px solid #ddd;">
+                <p>
+                    <strong>Name:</strong>
+                    {{ minute_sheet.requested_by.get_full_name|default:minute_sheet.requested_by.username }}
+                </p>
+                <p><strong>Department:</strong> {{ minute_sheet.department.name|default:"-" }}</p>
+                <p><strong>Unit:</strong> {{ minute_sheet.department_unit.name|default:minute_sheet.unit_name|default:"-" }}</p>
+                <p><strong>Reference No:</strong> {{ minute_sheet.reference_no }}</p>
+                {% if finance_request %}
+                    <p><strong>Finance Request No:</strong> {{ finance_request.request_no }}</p>
+                {% endif %}
+            </div>
+
+            {% if minute_sheet.budget_line and request.user != minute_sheet.requested_by %}
+                <div class="compact-block" style="background:#e9f7ef; border-left:5px solid #198754;">
+                    <p><strong>Task Name:</strong> {{ minute_sheet.budget_line.task_in_mtef }}</p>
+                    <p><strong>Task Code:</strong> {{ minute_sheet.budget_line.task_code }}</p>
+                    <p><strong>Financial Year:</strong> {{ minute_sheet.budget_line.financial_year }}</p>
+                    <p><strong>Month:</strong> {{ minute_sheet.budget_line.month }}</p>
+                    <p>
+                        <strong>Monthly Approved Fund:</strong>
+                        {{ minute_sheet.budget_line.monthly_approved_amount|floatformat:2|intcomma }} TZS
+                    </p>
+                    <p>
+                        <strong>Already Disbursed:</strong>
+                        {{ minute_sheet.budget_line.amount_disbursed|floatformat:2|intcomma }} TZS
+                    </p>
+                    <p>
+                        <strong>Available Fund:</strong>
+                        {{ available_fund|floatformat:2|intcomma }} TZS
+                    </p>
+                </div>
+            {% endif %}
+
+            <div class="compact-block" style="background:#ffffff; border:1px solid #eee;">
+                <p><strong>Subject:</strong> {{ minute_sheet.subject }}</p>
+                <p><strong>Activities:</strong> {{ minute_sheet.activity_series }}</p>
+                <p>
+                    <strong>Status:</strong>
+                    <span class="status-badge">{{ minute_sheet.get_status_display }}</span>
+                </p>
+            </div>
+
+            <div class="compact-block" style="background:#eef4ff; border-left:5px solid #0b5ed7;">
+                <div class="compact-grid">
+                    <strong>Date Created:</strong>
+                    <span>{{ minute_sheet.created_at|date:"d/m/Y H:i" }}</span>
+
+                    <strong>Start Date:</strong>
+                    <span>{{ minute_sheet.start_date|date:"d/m/Y"|default:"-" }}</span>
+
+                    <strong>End Date:</strong>
+                    <span>{{ minute_sheet.end_date|date:"d/m/Y"|default:"-" }}</span>
+
+                    <strong>Approved Date:</strong>
+                    <span>
+                        {% if minute_sheet.status == "APPROVED" %}
+                            {{ minute_sheet.updated_at|date:"d/m/Y H:i" }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <div class="compact-block" style="background:#f3f4f6; border-left:5px solid #6b7280;">
+                <div class="compact-grid">
+                    <strong>Requested Amount:</strong>
+                    <span>{{ minute_sheet.requested_amount|floatformat:2|intcomma }} TZS</span>
+
+                    {% if minute_sheet.director_approved_amount > 0 %}
+                        <strong>Director Approved Amount:</strong>
+                        <span>{{ minute_sheet.director_approved_amount|floatformat:2|intcomma }} TZS</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="compact-block" style="background:#fff; border:1px solid #ddd;">
+                <strong>Latest Remarks:</strong>
+                <p>{{ minute_sheet.director_remarks|default:"-" }}</p>
+            </div>
+        </div>
+
+        <div class="workflow-box">
+            <h2>Approval Status</h2>
+
+            {% if current_workflow_step %}
+                <div class="notice">
+                    Waiting for:
+                    <strong>{{ current_workflow_step.get_step_name_display }}</strong>
+                    {% if current_workflow_step.actor %}
+                        — {{ current_workflow_step.actor.get_full_name|default:current_workflow_step.actor.username }}
+                    {% endif %}
+                </div>
+            {% elif workflow_complete %}
+                <div class="notice" style="background:#e9f7ef; border-left-color:#198754;">
+                    Approval completed.
+                </div>
+            {% elif minute_sheet.status == "REJECTED" %}
+                <div class="notice" style="background:#fdecec; border-left-color:#dc3545;">
+                    This Minute Sheet was rejected.
+                </div>
+            {% elif minute_sheet.status == "DRAFT" %}
+                <div class="notice">
+                    This Minute Sheet is in draft or has been returned for correction.
+                </div>
+            {% else %}
+                <div class="notice">
+                    No active approval step is available.
+                </div>
+            {% endif %}
+        </div>
+
+        {% if can_review %}
+            <div class="approval-box">
+                <h2>{{ current_workflow_step.get_step_name_display }} Review</h2>
+
+                <form method="post" id="workflowReviewForm">
+                    {% csrf_token %}
+
+                    <label for="decision">Select Decision</label>
+                    <select name="action" id="decision" required>
+                        <option value="">-- Select Action --</option>
+                        {% if can_approve %}
+                            <option value="approve">
+                                {% if current_workflow_step.step_name == "DIRECTOR" %}
+                                    Approve
+                                {% else %}
+                                    Approve and Forward
+                                {% endif %}
+                            </option>
+                        {% endif %}
+                        {% if can_return %}
+                            <option value="return">Return for Correction</option>
+                        {% endif %}
+                        {% if can_reject %}
+                            <option value="reject">Reject</option>
+                        {% endif %}
+                    </select>
+
+                    {% if current_workflow_step.step_name == "DIRECTOR" %}
+                        <div class="compact-block" style="background:#eef4ff; border-left:5px solid #0b5ed7;">
+                            <p>
+                                <strong>Requested Amount:</strong>
+                                {{ minute_sheet.requested_amount|floatformat:2|intcomma }} TZS
+                            </p>
+                            <p>
+                                <strong>Available Fund:</strong>
+                                {{ available_fund|floatformat:2|intcomma }} TZS
+                            </p>
+                        </div>
+
+                        <div id="amountBox">
+                            <label for="amount">Approved Amount</label>
+                            <input
+                                type="number"
+                                id="amount"
+                                name="amount"
+                                min="0.01"
+                                max="{{ available_fund }}"
+                                step="0.01"
+                                value="{{ minute_sheet.requested_amount }}"
+                                required
+                            >
+                            <small style="display:block; margin-top:-6px; margin-bottom:10px; color:#6b7280;">
+                                The approved amount cannot exceed either the requested amount
+                                or the available fund.
+                            </small>
+                        </div>
+                    {% else %}
+                        <div id="amountBox" class="hidden"></div>
+                    {% endif %}
+
+                    <div id="remarksBox" class="hidden">
+                        <label for="remarks">Remarks</label>
+                        <textarea
+                            id="remarks"
+                            name="remarks"
+                            placeholder="Enter review remarks..."
+                        ></textarea>
+                    </div>
+
+                    <button
+                        type="submit"
+                        id="submitDecision"
+                        class="btn btn-primary"
+                        style="display:none;"
+                        disabled
+                    >
+                        Submit Decision
+                    </button>
+                </form>
+            </div>
+        {% elif current_workflow_step %}
+        {% elif workflow_complete %}
+        {% endif %}
+
+        <p>
+            <a href="{% url 'finance:dashboard' %}" class="btn btn-secondary">
+                ← Back to Dashboard
+            </a>
+        </p>
+    </div>
+
+    <script>
+        const decision = document.getElementById("decision");
+        const amountBox = document.getElementById("amountBox");
+        const amountInput = document.getElementById("amount");
+        const remarksBox = document.getElementById("remarksBox");
+        const remarksInput = document.getElementById("remarks");
+        const submitButton = document.getElementById("submitDecision");
+
+        function updateDecisionForm() {
+            if (!decision) {
+                return;
+            }
+
+            const selectedAction = decision.value;
+            const currentRole = "{{ current_workflow_step.step_name|default:'' }}";
+            const rolesRequiringAmount = [
+                "DIRECTOR"
+            ];
+
+            if (amountBox && ![
+                "HEAD_OF_UNIT",
+                "DIRECTOR"
+            ].includes(currentRole)) {
+                amountBox.classList.add("hidden");
+            }
+
+            remarksBox.classList.add("hidden");
+            submitButton.style.display = "none";
+            submitButton.disabled = true;
+
+            submitButton.classList.remove(
+                "btn-primary",
+                "btn-warning",
+                "btn-danger"
+            );
+
+            if (!selectedAction) {
+                return;
+            }
+
+            remarksBox.classList.remove("hidden");
+            submitButton.style.display = "inline-block";
+            submitButton.disabled = false;
+
+            if (selectedAction === "approve") {
+                if (currentRole === "DIRECTOR") {
+                    submitButton.textContent = "Approve";
+                } else {
+                    submitButton.textContent = "Approve and Forward";
+                }
+                submitButton.classList.add("btn-primary");
+
+                if (
+                    rolesRequiringAmount.includes(currentRole)
+                    && amountBox
+                    && amountInput
+                ) {
+                    amountBox.classList.remove("hidden");
+                    amountInput.required = true;
+                } else if (amountInput) {
+                    amountInput.required = false;
+                }
+
+                remarksInput.required = false;
+            } else if (selectedAction === "return") {
+                submitButton.textContent = "Return for Correction";
+                submitButton.classList.add("btn-warning");
+                if (amountInput) {
+                    amountInput.required = false;
+                }
+                remarksInput.required = true;
+            } else if (selectedAction === "reject") {
+                submitButton.textContent = "Reject Request";
+                submitButton.classList.add("btn-danger");
+                if (amountInput) {
+                    amountInput.required = false;
+                }
+                remarksInput.required = true;
+            }
+        }
+
+        if (decision) {
+            decision.addEventListener("change", updateDecisionForm);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html>
+{% load tz %}
+<head>
+    <meta charset="utf-8">
+    <title>My Submission Details</title>
+
+    <!-- SweetAlert2 CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            padding: 30px 20px;
+            margin: 0;
+        }
+
+        .card {
+            background: white;
+            width: 100%;
+            max-width: 600px;
+            margin: auto;
+            padding: 20px 25px;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+            box-sizing: border-box;
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+
+        .badge-pending-hou {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-pending-director {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .badge-approved {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .badge-rejected {
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        .badge-returned {
+            background: #cff4fc;
+            color: #055160;
+        }
+
+        .badge-closed {
+            background: #e2e3e5;
+            color: #41464b;
+        }
+
+        .btn {
+            display: inline-block;
+            margin-top: 10px;
+            margin-right: 10px;
+            padding: 8px 14px;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary {
+            background: #0b5ed7;
+        }
+
+        .btn-primary:hover {
+            background: #084298;
+        }
+
+        .btn-warning {
+            background: #fd7e14;
+        }
+
+        .btn-warning:hover {
+            background: #cc5f04;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background: #b02a37;
+        }
+
+        .btn-success {
+            background: #198754;
+        }
+
+        .btn-success:hover {
+            background: #146c43;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5c636a;
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #212529;
+            font-size: 20px;
+        }
+
+        h3 {
+            margin-top: 15px;
+            margin-bottom: 8px;
+            color: #084298;
+            font-size: 15px;
+            font-weight: bold;
+            background: linear-gradient(to right, #e2e8f0 0%, transparent 100%);
+            border-left: 5px solid #0b5ed7;
+            padding: 5px 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .muted {
+            color: #6c757d;
+            font-style: italic;
+            font-size: 13px;
+            margin-top: 15px;
+        }
+
+        .justified {
+            text-align: justify;
+            line-height: 1.4;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+
+        ul {
+            padding-left: 20px;
+            margin-top: 2px;
+            margin-bottom: 5px;
+            color: #495057;
+        }
+
+        li {
+            margin-bottom: 2px;
+        }
+
+        .section-box {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 6px 10px;
+            margin-top: 5px;
+            font-size: 13px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .section-box p {
+            margin: 0;
+        }
+
+        .info-row {
+            margin-bottom: 5px;
+            font-size: 13px;
+            color: #212529;
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .info-row strong {
+            color: #084298;
+            margin-right: 5px;
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            .card {
+                padding: 15px;
+                border-radius: 10px;
+            }
+
+            .btn {
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+                margin-right: 0;
+                text-align: center;
+                margin-top: 8px;
+            }
+
+            .top-actions {
+                flex-direction: column;
+                gap: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+
+        <div class="top-actions">
+            {% if request.user.is_superuser or request.user.profile.role == "ADMIN" %}
+            <a class="btn btn-secondary" href="{% url 'admin_dashboard' %}" id="backBtn">Back to Dashboard</a>
+            {% elif request.user.profile.role == "DIRECTOR" %}
+            <a class="btn btn-secondary" href="{% url 'director_requests' %}" id="backBtn">Back to Dashboard</a>
+            {% elif role == "ASSISTANT_DIRECTOR" %}
+            <a class="btn btn-secondary" href="{% url 'assistant_director_dashboard' %}" id="backBtn">Back to Dashboard</a>
+            {% elif request.user.profile.role == "HEAD_OF_UNIT" %}
+            <a class="btn btn-secondary" href="{% url 'head_of_unit_requests' %}" id="backBtn">Back to Dashboard</a>
+            {% else %}
+            <a class="btn btn-secondary" href="{% url 'requester_dashboard' %}" id="backBtn">Back to Dashboard</a>
+            {% endif %}
+
+            <a class="btn btn-danger" href="{% url 'logout' %}" id="logoutBtn">Logout</a>
+        </div>
+
+        <h2>My Submission Details</h2>
+
+        {% if req.raw_status == "APPROVED" %}
+        <div class="badge badge-approved">{{ req.display_status|default:"Approved" }}</div>
+        {% elif req.raw_status == "RETURNED_HOU" or req.raw_status == "RETURNED_DIRECTOR" %}
+        <div class="badge badge-returned">{{ req.display_status }}</div>
+        {% elif req.raw_status == "REJECTED_HOU" or req.raw_status == "REJECTED_DIRECTOR" %}
+        <div class="badge badge-rejected">{{ req.display_status }}</div>
+        {% elif req.raw_status == "CLOSED" %}
+        <div class="badge badge-closed">{{ req.display_status|default:"Closed" }}</div>
+        {% elif req.raw_status == "PENDING_DIRECTOR" %}
+        <div class="badge badge-pending-director">{{ req.display_status|default:"Under Director Review" }}</div>
+        {% else %}
+        <div class="badge badge-pending-hou">{{ req.display_status|default:"Under Head of Unit Review" }}</div>
+        {% endif %}
+
+        <div class="info-row"><strong>Permit Number:</strong> {{ req.reference_no }}</div>
+        <div class="info-row">
+            <strong>Request Type:</strong>
+            {% if req.is_group_request %}
+            Group
+            {% else %}
+            Individual
+            {% endif %}
+        </div>
+        <div class="info-row"><strong>Requester:</strong> {{ req.requester_name }}</div>
+        <div class="info-row"><strong>Requester Employee ID:</strong> {{ req.requester_employee_id|default:"Not assigned" }}</div>
+        <div class="info-row"><strong>Unit:</strong> {{ req.requester.profile.get_unit_name_display|default:"Not assigned" }}</div>
+        <div class="info-row"><strong>Head of Unit:</strong> {{ req.requester.profile.head_of_unit|default:"Not assigned" }}</div>
+        <div class="info-row"><strong>Phone Number:</strong> {{ req.requester.profile.phone_number|default:"Not assigned" }}</div>
+        <div class="info-row"><strong>Check Number:</strong> {{ req.requester.profile.check_number|default:"Not assigned" }}</div>
+
+        <h3>Purpose</h3>
+        <div class="section-box">
+            <p class="justified">{{ req.purpose }}</p>
+        </div>
+
+        <h3>Travel Details</h3>
+        <div class="section-box">
+            <div class="info-row"><strong>Destination:</strong> {{ req.destination }}</div>
+            <div class="info-row"><strong>Start Time:</strong> {{ req.start_time|timezone:"Africa/Dar_es_Salaam"|date:"d M Y H:i" }}</div>
+            <div class="info-row"><strong>End Time:</strong> {{ req.end_time|timezone:"Africa/Dar_es_Salaam"|date:"d M Y H:i" }}</div>
+            <div class="info-row"><strong>Created At:</strong> {{ req.created_at|timezone:"Africa/Dar_es_Salaam"|date:"d M Y H:i" }}</div>
+            {% if req.resubmitted_at %}
+            <div class="info-row"><strong>Re-submitted At:</strong> {{ req.resubmitted_at|timezone:"Africa/Dar_es_Salaam"|date:"d M Y H:i" }}</div>
+            {% endif %}
+        </div>
+
+        <h3>Acting Officer During Absence</h3>
+        <div class="section-box">
+            {% if req.acting_officer_name or req.acting_officer_employee_id or req.acting_officer_phone %}
+            {% if req.acting_officer_name %}
+            <p><strong>Full Name:</strong> {{ req.acting_officer_name }}</p>
+            {% endif %}
+            {% if req.acting_officer_employee_id %}
+            <p><strong>Employee ID:</strong> {{ req.acting_officer_employee_id }}</p>
+            {% endif %}
+            {% if req.acting_officer_phone %}
+            <p><strong>Phone Number:</strong> {{ req.acting_officer_phone }}</p>
+            {% endif %}
+            {% else %}
+            <p>No acting officer provided.</p>
+            {% endif %}
+        </div>
+
+        <h3>Task Approval</h3>
+        <div class="section-box">
+            {% if req.task_approval_file %}
+            <p>
+                Uploaded:
+                <a href="{{ req.task_approval_file.url }}" target="_blank">
+                    {{ req.task_approval_file.name }}
+                </a>
+            </p>
+            {% else %}
+            <p>No task approval uploaded.</p>
+            {% endif %}
+        </div>
+
+        {% if req.is_group_request %}
+        <h3>Group Information</h3>
+        <div class="section-box">
+            <p><strong>Group Leader:</strong> {{ req.group_leader_name }}{% if req.group_leader_employee_id %} ({{ req.group_leader_employee_id }}){% endif %}</p>
+            <p style="margin-top: 10px;"><strong>Group Members:</strong></p>
+            <ul>
+                {% for member in req.members.all %}
+                <li>{{ member.full_name }}{% if member.employee_id %} ({{ member.employee_id }}){% endif %}</li>
+                {% empty %}
+                <li>No members added.</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <h3>Approval Workflow & Comments</h3>
+        <div class="section-box">
+            <p><strong>Current Status:</strong> {{ req.display_status|default:req.get_status_display }}</p>
+
+            <p style="margin-top: 15px;"><strong>Head of Unit Comment:</strong></p>
+            {% if req.hou_comment %}
+            <p class="justified">"{{ req.hou_comment }}"</p>
+            {% else %}
+            <p class="justified muted" style="margin-top:5px;">No comment yet.</p>
+            {% endif %}
+
+            <p style="margin-top: 15px;"><strong>Director Comment:</strong></p>
+            {% if req.director_comment %}
+            <p class="justified">"{{ req.director_comment }}"</p>
+            {% else %}
+            <p class="justified muted" style="margin-top:5px;">No comment yet.</p>
+            {% endif %}
+        </div>
+
+        {% if req.hou_approved_by or req.hou_approved_at %}
+        <h3>Head of Unit Approval Details</h3>
+        <div class="section-box">
+            {% if req.hou_approved_by %}
+            <p><strong>Approved By:</strong>
+                {% if req.hou_approved_by.get_full_name %}
+                {{ req.hou_approved_by.get_full_name }}
+                {% else %}
+                {{ req.hou_approved_by.username }}
+                {% endif %}
+            </p>
+            {% endif %}
+
+            {% if req.hou_approved_at %}
+            <p><strong>Approved At:</strong> {{ req.hou_approved_at|timezone:"Africa/Dar_es_Salaam"|date:"d M Y H:i" }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if req.raw_status == "APPROVED" or req.raw_status == "CLOSED" %}
+        <h3>Director Approval Details</h3>
+        <div class="section-box">
+            {% if req.director_approved_by %}
+            <p><strong>Approved By:</strong>
+                {% if req.director_approved_by.get_full_name %}
+                {{ req.director_approved_by.get_full_name }}
+                {% else %}
+                {{ req.director_approved_by.username }}
+                {% endif %}
+            </p>
+            {% endif %}
+
+            {% if req.director_approved_at %}
+            <p><strong>Approved At:</strong> {{ req.director_approved_at|timezone:"Africa/Dar_es_Salaam"|date:"d M Y H:i" }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if req.raw_status == "REJECTED_HOU" or req.raw_status == "REJECTED_DIRECTOR" %}
+        <h3>Rejection Details</h3>
+        <div class="section-box">
+            {% if req.rejected_by %}
+            <p><strong>Rejected By:</strong>
+                {% if req.rejected_by.get_full_name %}
+                {{ req.rejected_by.get_full_name }}
+                {% else %}
+                {{ req.rejected_by.username }}
+                {% endif %}
+            </p>
+            {% endif %}
+
+            {% if req.rejected_by_role %}
+            <p><strong>Role:</strong> {{ req.rejected_by_role }}</p>
+            {% endif %}
+
+            {% if req.rejected_at %}
+            <p><strong>Rejected At:</strong> {{ req.rejected_at|timezone:"Africa/Dar_es_Salaam"|date:"d M Y H:i" }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <h3>Summary Report</h3>
+        <div class="section-box">
+            {% if req.report_file %}
+            <p>
+                Uploaded:
+                <a href="{{ req.report_file.url }}" target="_blank">
+                    {{ req.report_file.name }}
+                </a>
+            </p>
+            {% else %}
+            <p>No report uploaded yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- ACTION BUTTONS SECTION -->
+        <div style="margin-top: 25px;">
+            {% if req.raw_status == "APPROVED" %}
+            <a class="btn btn-success" href="{% url 'upload_summary_report' req.pk %}">Upload Summary Report</a>
+            <a class="btn btn-primary" href="{% url 'export_permit_pdf' req.pk %}">Download Permit PDF</a>
+
+            {% elif req.raw_status == "CLOSED" %}
+            <p class="muted">Summary report uploaded successfully. Request is now closed.</p>
+            <a class="btn btn-primary" href="{% url 'export_permit_pdf' req.pk %}">Download Permit PDF</a>
+
+            {% else %}
+            <p class="muted">Summary report upload will be available after the request is fully approved.</p>
+            {% endif %}
+
+            {% if req.raw_status == "RETURNED_HOU" or req.raw_status == "RETURNED_DIRECTOR" %}
+            <a class="btn btn-warning" href="{% url 'edit_request' req.pk %}">Edit</a>
+            <a class="btn btn-primary" href="{% url 'resubmit_request' req.pk %}" id="resubmitBtn">Re-submit</a>
+
+            <form id="delete-request-form" action="{% url 'delete_request' req.pk %}" method="POST" style="display:none;">
+                {% csrf_token %}
+            </form>
+            <button type="button" class="btn btn-danger" id="deleteBtn">Delete</button>
+
+            {% elif req.raw_status == "PENDING_HOU" %}
+            <p class="muted">Your request is under review by the Head of Unit.</p>
+
+            {% elif req.raw_status == "PENDING_DIRECTOR" %}
+            <p class="muted">Your request is under review by the Director.</p>
+
+            {% elif req.raw_status == "REJECTED_HOU" or req.raw_status == "REJECTED_DIRECTOR" %}
+            <p class="muted">This request was rejected and can no longer be edited.</p>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <!-- ─── SweetAlert2 Scripts ─── -->
+    <script>
+        /* ─── Helper Functions ─── */
+        function showSuccess(message) {
+            return Swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: message,
+                confirmButtonColor: '#198754',
+                confirmButtonText: 'OK'
+            });
+        }
+
+        function showError(message) {
+            return Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: message,
+                confirmButtonColor: '#dc3545',
+                confirmButtonText: 'OK'
+            });
+        }
+
+        function showWarning(message) {
+            return Swal.fire({
+                icon: 'warning',
+                title: 'Warning',
+                text: message,
+                confirmButtonColor: '#b45309',
+                confirmButtonText: 'OK'
+            });
+        }
+
+        function showInfo(message) {
+            return Swal.fire({
+                icon: 'info',
+                title: 'Information',
+                text: message,
+                confirmButtonColor: '#0b5ed7',
+                confirmButtonText: 'OK'
+            });
+        }
+
+        /* ─── Confirmation Dialogs ─── */
+        document.addEventListener("DOMContentLoaded", function () {
+
+            /* Logout Confirmation */
+            const logoutBtn = document.getElementById("logoutBtn");
+            if (logoutBtn) {
+                logoutBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    const href = this.getAttribute("href");
+
+                    Swal.fire({
+                        icon: 'question',
+                        title: 'Logout?',
+                        text: 'Are you sure you want to logout?',
+                        showCancelButton: true,
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Yes, Logout',
+                        cancelButtonText: 'Cancel',
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = href;
+                        }
+                    });
+                });
+            }
+
+            /* Re-submit Confirmation */
+            const resubmitBtn = document.getElementById("resubmitBtn");
+            if (resubmitBtn) {
+                resubmitBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    const href = this.getAttribute("href");
+
+                    Swal.fire({
+                        icon: 'question',
+                        title: 'Re-submit Request?',
+                        text: 'Are you sure you want to re-submit this request for review?',
+                        showCancelButton: true,
+                        confirmButtonColor: '#0b5ed7',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Yes, Re-submit',
+                        cancelButtonText: 'Cancel',
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = href;
+                        }
+                    });
+                });
+            }
+
+            /* Delete Confirmation */
+            const deleteBtn = document.getElementById("deleteBtn");
+            if (deleteBtn) {
+                deleteBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Delete Request?',
+                        html: '<div style="text-align:left; font-size:14px; line-height:1.6;">This action <strong>cannot be undone</strong>. The request and all associated data will be permanently removed.</div>',
+                        showCancelButton: true,
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Yes, Delete It',
+                        cancelButtonText: 'Cancel',
+                        reverseButtons: true,
+                        width: 480
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            document.getElementById('delete-request-form').submit();
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+
+    <!-- ─── Django Messages as SweetAlert2 Popups ─── -->
+    {% if messages %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            {% for message in messages %}
+            {% if message.tags == 'success' %}
+            showSuccess("{{ message|escapejs }}");
+            {% elif message.tags == 'error' or message.tags == 'danger' %}
+            showError("{{ message|escapejs }}");
+            {% elif message.tags == 'warning' %}
+            showWarning("{{ message|escapejs }}");
+            {% elif message.tags == 'info' %}
+            showInfo("{{ message|escapejs }}");
+            {% else %}
+            showInfo("{{ message|escapejs }}");
+            {% endif %}
+            {% endfor %}
+        });
+    </script>
+    {% endif %}
+
+</body>
+
+</html>

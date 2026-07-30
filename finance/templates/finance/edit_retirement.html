@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Edit Retirement</title>
+
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+        }
+
+        .topbar {
+            background: #0b5ed7;
+            color: white;
+            padding: 14px 25px;
+        }
+
+        .container {
+            padding: 25px;
+            max-width: 900px;
+            margin: auto;
+        }
+
+        form {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 9px;
+            margin-bottom: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            background: #0b5ed7;
+            color: white;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="topbar">
+        <h2>Edit Retirement (Draft)</h2>
+    </div>
+
+    <div class="container">
+
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+
+            <button type="submit" name="action" value="draft">
+                Save as Draft
+            </button>
+            
+            <button type="submit" name="action" value="submit">
+                Submit Retirement
+            </button>
+        </form>
+
+    </div>
+
+</body>
+
+</html>

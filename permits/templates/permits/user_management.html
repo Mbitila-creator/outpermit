@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>User Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            padding: 30px;
+            margin: 0;
+        }
+
+        .card {
+            background: white;
+            max-width: 1200px;
+            margin: auto;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        }
+
+        h2, h3 {
+            margin-top: 0;
+        }
+
+        .menu {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+            margin-bottom: 22px;
+        }
+
+        .menu a {
+            display: inline-block;
+            padding: 6px 10px;
+            background: #0b5ed7;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            line-height: 1.2;
+            white-space: nowrap;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        }
+
+        .menu a:hover {
+            background: #084298;
+            transform: translateY(-4px) scale(1.04);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+        }
+
+        .menu a.active {
+            background: #084298;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            font-weight: 700;
+            margin: 10px 0 6px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px 16px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 5px 8px;
+            background: #0b5ed7;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 11px;
+            cursor: pointer;
+            line-height: 1.2;
+            margin: 2px 2px 2px 0;
+        }
+
+        .btn:hover {
+            background: #084298;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5c636a;
+        }
+
+        .btn-warning {
+            background: #fd7e14;
+        }
+
+        .btn-warning:hover {
+            background: #dc6502;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 14px;
+            font-size: 11px;
+        }
+
+        th, td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-size: 11px;
+        }
+
+        .errors {
+            background: #fff5f5;
+            border: 1px solid #fecaca;
+            color: #7f1d1d;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+        }
+
+        .checkbox-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .checkbox-wrap input {
+            width: auto;
+            padding: 0;
+            margin: 0;
+        }
+
+        .muted {
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+        .search-form {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin: 12px 0 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-form input {
+            flex: 1;
+            min-width: 260px;
+        }
+
+        .search-form .btn {
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+
+        .filter-panel {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 12px 0 18px;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .filter-grid label {
+            margin-top: 0;
+            font-size: 12px;
+        }
+
+        .filter-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 14px;
+        }
+
+        .results-summary {
+            color: #4b5563;
+            font-size: 12px;
+            margin: 8px 0 4px;
+        }
+
+        .no-results {
+            margin-top: 10px;
+            color: #6b7280;
+            font-size: 12px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+
+            .card {
+                padding: 18px;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                white-space: nowrap;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="card">
+    <h2>User Management</h2>
+
+    <div class="menu">
+        <a href="{% url 'system_home' %}">Home</a>
+        <a href="{% url 'admin_dashboard' %}">Admin Dashboard</a>
+        <a
+            {% if section == "existing" %}class="active"{% endif %}
+            href="{% url 'user_management' %}?section=existing"
+        >Existing Users</a>
+        <a
+            {% if section != "existing" %}class="active"{% endif %}
+            href="{% url 'user_management' %}"
+        >Create User</a>
+        <a href="{% url 'logout' %}">Logout</a>
+    </div>
+
+    {% if section != "existing" %}
+    <div class="section">
+        <h3>Create User</h3>
+
+        {% if create_form.errors %}
+        <div class="errors">
+            {{ create_form.errors }}
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'create_user_account' %}">
+            {% csrf_token %}
+
+            <div class="grid">
+                <div>
+                    <label>Username</label>
+                    {{ create_form.username }}
+                </div>
+
+                <div>
+                    <label>Email</label>
+                    {{ create_form.email }}
+                </div>
+
+                <div>
+                    <label>First Name</label>
+                    {{ create_form.first_name }}
+                </div>
+
+                <div>
+                    <label>Last Name</label>
+                    {{ create_form.last_name }}
+                </div>
+
+                <div>
+                    <label>Employee ID</label>
+                    {{ create_form.employee_id }}
+                </div>
+
+                <div>
+                    <label>Check Number</label>
+                    {{ create_form.check_number }}
+                </div>
+
+                <div>
+                    <label>Phone Number</label>
+                    {{ create_form.phone_number }}
+                </div>
+
+                <div>
+                    <label>Department</label>
+                    {{ create_form.department }}
+                </div>
+
+                <div>
+                    <label>Department Unit</label>
+                    {{ create_form.department_unit }}
+                </div>
+
+                <div>
+                    <label>Head of Unit</label>
+                    {{ create_form.head_of_unit }}
+                </div>
+
+                <div>
+                    <label>Role</label>
+                    {{ create_form.role }}
+                </div>
+
+                <div>
+                    <label>Password</label>
+                    {{ create_form.password }}
+                </div>
+
+                <div>
+                    <label>Confirm Password</label>
+                    {{ create_form.confirm_password }}
+                </div>
+
+                <div>
+                    <label>Staff Access</label>
+                    <div class="checkbox-wrap">
+                        {{ create_form.is_staff }}
+                        <span class="muted">Enable admin/staff privileges</span>
+                    </div>
+                </div>
+            </div>
+
+            <br>
+
+            <button type="submit" class="btn">Create User</button>
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+        </form>
+    </div>
+    {% endif %}
+
+    {% if section == "existing" %}
+    <div class="section">
+        <h3>Existing Users</h3>
+
+        <form method="get" action="{% url 'user_management' %}" class="filter-panel">
+            <input type="hidden" name="section" value="existing">
+
+            <div class="filter-grid">
+                <div>
+                    <label for="id_user_search">Search</label>
+                    <input
+                        type="text"
+                        id="id_user_search"
+                        name="q"
+                        value="{{ query }}"
+                        placeholder="Name, username, employee ID, email, phone..."
+                        autocomplete="off"
+                    >
+                </div>
+
+                <div>
+                    <label for="id_filter_department">Department</label>
+                    <select id="id_filter_department" name="department">
+                        <option value="">All Departments</option>
+                        {% for department in departments %}
+                        <option
+                            value="{{ department.id }}"
+                            {% if department_filter == department.id|stringformat:"s" %}selected{% endif %}
+                        >{{ department }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="id_filter_unit">Department Unit</label>
+                    <select id="id_filter_unit" name="department_unit">
+                        <option value="">All Department Units</option>
+                        {% for unit in department_units %}
+                        <option
+                            value="{{ unit.id }}"
+                            data-department-id="{{ unit.department_id }}"
+                            {% if unit_filter == unit.id|stringformat:"s" %}selected{% endif %}
+                        >{{ unit }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="id_filter_role">Approval Role</label>
+                    <select id="id_filter_role" name="role">
+                        <option value="">All Roles</option>
+                        {% for approval_role in approval_roles %}
+                        <option
+                            value="{{ approval_role.code }}"
+                            {% if role_filter == approval_role.code %}selected{% endif %}
+                        >{{ approval_role }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="id_filter_status">Account Status</label>
+                    <select id="id_filter_status" name="account_status">
+                        <option value="">All Accounts</option>
+                        <option value="active" {% if account_status_filter == "active" %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if account_status_filter == "inactive" %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="id_filter_staff">Staff Access</label>
+                    <select id="id_filter_staff" name="staff_access">
+                        <option value="">All Access Types</option>
+                        <option value="staff" {% if staff_filter == "staff" %}selected{% endif %}>Staff Access</option>
+                        <option value="normal" {% if staff_filter == "normal" %}selected{% endif %}>Normal User</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="filter-actions">
+                <button type="submit" class="btn">Apply Filters</button>
+                <a
+                    href="{% url 'user_management' %}?section=existing"
+                    class="btn btn-secondary"
+                >Clear Filters</a>
+            </div>
+        </form>
+
+        <div class="search-form">
+            <input
+                type="text"
+                id="liveUserSearch"
+                placeholder="Quickly search within the displayed results..."
+                autocomplete="off"
+            >
+        </div>
+
+        <div class="results-summary">
+            Displaying {{ users|length }} matching user{{ users|length|pluralize }}.
+        </div>
+
+        <div class="table-wrap">
+            <table id="usersTable">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>Employee ID</th>
+                        <th>Check No.</th>
+                        <th>Phone</th>
+                        <th>Department</th>
+                        <th>Department Unit</th>
+                        <th>Head of Unit</th>
+                        <th>Role</th>
+                        <th>Workflow Role</th>
+                        <th>Staff</th>
+                        <th>Account Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody id="usersTableBody">
+                    {% for u in users %}
+                    <tr class="user-row">
+                        <td>{{ u.username }}</td>
+                        <td>{{ u.first_name }} {{ u.last_name }}</td>
+                        <td>{{ u.email|default:"-" }}</td>
+                        <td>{{ u.profile.employee_id|default:"-" }}</td>
+                        <td>{{ u.profile.check_number|default:"-" }}</td>
+                        <td>{{ u.profile.phone_number|default:"-" }}</td>
+                        <td>{{ u.profile.department|default:"-" }}</td>
+                        <td>{{ u.profile.department_unit|default:"-" }}</td>
+                        <td>{{ u.profile.head_of_unit|default:"-" }}</td>
+                        <td>{{ u.profile.get_role_display }}</td>
+                        <td>{{ u.profile.approval_role|default:"-" }}</td>
+                        <td>{% if u.is_staff %}Yes{% else %}No{% endif %}</td>
+                        <td>{% if u.is_active %}Active{% else %}Inactive{% endif %}</td>
+                        <td>
+                            <a class="btn btn-warning" href="{% url 'edit_user_account' u.id %}">Edit</a>
+                            <a class="btn btn-secondary" href="{% url 'reset_user_password' u.id %}">Reset Password</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="emptyRow">
+                        <td colspan="14">No users found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div id="noLiveResults" class="no-results">No matching users found.</div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById("liveUserSearch");
+    const tableBody = document.getElementById("usersTableBody");
+    const rows = tableBody ? tableBody.querySelectorAll(".user-row") : [];
+    const noResults = document.getElementById("noLiveResults");
+    const emptyRow = document.getElementById("emptyRow");
+
+    if (!searchInput || !tableBody || rows.length === 0) {
+        return;
+    }
+
+    searchInput.addEventListener("input", function () {
+        const query = this.value.toLowerCase().trim();
+        let visibleCount = 0;
+
+        rows.forEach(function (row) {
+            const text = row.textContent.toLowerCase();
+
+            if (text.includes(query)) {
+                row.style.display = "";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
+            }
+        });
+
+        if (emptyRow) {
+            emptyRow.style.display = "none";
+        }
+
+        if (visibleCount === 0) {
+            noResults.style.display = "block";
+        } else {
+            noResults.style.display = "none";
+        }
+    });
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    function getCodeFromText(text) {
+        return (text || "").split(" - ")[0].trim();
+    }
+
+    function setupDepartmentUnitFilter(departmentSelectId, unitSelectId) {
+        const departmentSelect = document.getElementById(departmentSelectId);
+        const unitSelect = document.getElementById(unitSelectId);
+
+        if (!departmentSelect || !unitSelect) {
+            return;
+        }
+
+        const originalOptions = Array.from(unitSelect.options).map(function (option) {
+            return {
+                value: option.value,
+                text: option.text,
+                selected: option.selected
+            };
+        });
+
+        function rebuildUnitOptions() {
+            const selectedDepartmentText = departmentSelect.options[departmentSelect.selectedIndex]
+                ? departmentSelect.options[departmentSelect.selectedIndex].text
+                : "";
+            const selectedDepartmentCode = getCodeFromText(selectedDepartmentText);
+            const currentValue = unitSelect.value;
+
+            unitSelect.innerHTML = "";
+
+            originalOptions.forEach(function (item, index) {
+                const isEmpty = item.value === "";
+                const unitDepartmentCode = getCodeFromText(item.text);
+
+                if (isEmpty || !selectedDepartmentCode || unitDepartmentCode === selectedDepartmentCode) {
+                    const option = document.createElement("option");
+                    option.value = item.value;
+                    option.text = item.text;
+                    unitSelect.appendChild(option);
+                }
+            });
+
+            const matchingValues = Array.from(unitSelect.options).map(function (option) {
+                return option.value;
+            });
+
+            if (matchingValues.includes(currentValue)) {
+                unitSelect.value = currentValue;
+            } else {
+                unitSelect.value = "";
+            }
+
+            const hasRealUnits = Array.from(unitSelect.options).some(function (option) {
+                return option.value !== "";
+            });
+
+            if (!selectedDepartmentCode || !hasRealUnits) {
+                unitSelect.disabled = true;
+                unitSelect.value = "";
+            } else {
+                unitSelect.disabled = false;
+            }
+        }
+
+        departmentSelect.addEventListener("change", rebuildUnitOptions);
+        rebuildUnitOptions();
+    }
+
+    setupDepartmentUnitFilter("id_department", "id_department_unit");
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const departmentSelect = document.getElementById("id_filter_department");
+    const unitSelect = document.getElementById("id_filter_unit");
+
+    if (!departmentSelect || !unitSelect) {
+        return;
+    }
+
+    const originalUnitOptions = Array.from(unitSelect.options).map(function (option) {
+        return {
+            value: option.value,
+            text: option.text,
+            departmentId: option.dataset.departmentId || "",
+            selected: option.selected
+        };
+    });
+
+    function rebuildFilterUnits() {
+        const departmentId = departmentSelect.value;
+        const currentUnitId = unitSelect.value;
+
+        unitSelect.innerHTML = "";
+
+        originalUnitOptions.forEach(function (item) {
+            if (
+                item.value === "" ||
+                departmentId === "" ||
+                item.departmentId === departmentId
+            ) {
+                const option = document.createElement("option");
+                option.value = item.value;
+                option.text = item.text;
+                option.dataset.departmentId = item.departmentId;
+                unitSelect.appendChild(option);
+            }
+        });
+
+        const availableValues = Array.from(unitSelect.options).map(function (option) {
+            return option.value;
+        });
+
+        if (availableValues.includes(currentUnitId)) {
+            unitSelect.value = currentUnitId;
+        } else {
+            unitSelect.value = "";
+        }
+    }
+
+    departmentSelect.addEventListener("change", rebuildFilterUnits);
+    rebuildFilterUnits();
+});
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    function normalizeText(value) {
+        return (value || "").toLowerCase().replace(/\s+/g, " ").trim();
+    }
+
+    function getSelectedDepartmentCode(departmentSelect) {
+        if (!departmentSelect || departmentSelect.selectedIndex < 0) {
+            return "";
+        }
+
+        const selectedText = departmentSelect.options[departmentSelect.selectedIndex].text || "";
+        return normalizeText(selectedText.split(" - ")[0]);
+    }
+
+    function getSelectedDepartmentName(departmentSelect) {
+        if (!departmentSelect || departmentSelect.selectedIndex < 0) {
+            return "";
+        }
+
+        const selectedText = departmentSelect.options[departmentSelect.selectedIndex].text || "";
+        const parts = selectedText.split(" - ");
+
+        if (parts.length >= 2) {
+            return normalizeText(parts.slice(1).join(" - "));
+        }
+
+        return normalizeText(selectedText);
+    }
+
+    function setupHeadOfUnitFilter() {
+        const departmentSelect = document.getElementById("id_department");
+        const headSelect = document.getElementById("id_head_of_unit");
+
+        if (!departmentSelect || !headSelect) {
+            return;
+        }
+
+        const originalHeadOptions = Array.from(headSelect.options).map(function (option) {
+            return {
+                value: option.value,
+                text: option.text,
+                selected: option.selected
+            };
+        });
+
+        function buildHeadLookup() {
+            const lookup = {};
+            const userRows = document.querySelectorAll("#usersTableBody .user-row");
+
+            userRows.forEach(function (row) {
+                const cells = row.querySelectorAll("td");
+
+                if (cells.length < 13) {
+                    return;
+                }
+
+                const username = normalizeText(cells[0].textContent);
+                const fullName = normalizeText(cells[1].textContent);
+                const department = normalizeText(cells[6].textContent);
+                const role = normalizeText(cells[9].textContent);
+
+                if (role.includes("head of unit")) {
+                    lookup[username] = department;
+                    lookup[fullName] = department;
+
+                    const firstNameOnly = fullName.split(" ")[0];
+                    if (firstNameOnly) {
+                        lookup[firstNameOnly] = department;
+                    }
+                }
+            });
+
+            return lookup;
+        }
+
+        const headLookup = buildHeadLookup();
+
+        function optionMatchesDepartment(optionText, selectedDepartmentCode, selectedDepartmentName) {
+            if (!selectedDepartmentCode && !selectedDepartmentName) {
+                return true;
+            }
+
+            const normalizedOption = normalizeText(optionText);
+
+            for (const key in headLookup) {
+                if (normalizedOption.includes(key)) {
+                    const headDepartment = headLookup[key];
+
+                    if (
+                        headDepartment.includes(selectedDepartmentCode) ||
+                        headDepartment.includes(selectedDepartmentName)
+                    ) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        function rebuildHeadOptions() {
+            const selectedDepartmentCode = getSelectedDepartmentCode(departmentSelect);
+            const selectedDepartmentName = getSelectedDepartmentName(departmentSelect);
+            const currentValue = headSelect.value;
+
+            headSelect.innerHTML = "";
+
+            originalHeadOptions.forEach(function (item) {
+                const isEmpty = item.value === "";
+
+                if (
+                    isEmpty ||
+                    optionMatchesDepartment(item.text, selectedDepartmentCode, selectedDepartmentName)
+                ) {
+                    const option = document.createElement("option");
+                    option.value = item.value;
+                    option.text = item.text;
+                    headSelect.appendChild(option);
+                }
+            });
+
+            const availableValues = Array.from(headSelect.options).map(function (option) {
+                return option.value;
+            });
+
+            if (availableValues.includes(currentValue)) {
+                headSelect.value = currentValue;
+            } else {
+                headSelect.value = "";
+            }
+        }
+
+        departmentSelect.addEventListener("change", rebuildHeadOptions);
+        rebuildHeadOptions();
+    }
+
+    setupHeadOfUnitFilter();
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Re-submit Request</title>
+    <style>
+        body{
+            font-family: Arial, sans-serif;
+            background:#f5f7fb;
+            padding:30px;
+        }
+        .card{
+            background:white;
+            max-width:600px;
+            margin:auto;
+            padding:25px;
+            border-radius:12px;
+            box-shadow:0 6px 18px rgba(0,0,0,0.08);
+        }
+        .btn{
+            display:inline-block;
+            margin-top:20px;
+            margin-right:10px;
+            padding:10px 16px;
+            border:none;
+            border-radius:8px;
+            font-weight:600;
+            text-decoration:none;
+            cursor:pointer;
+        }
+        .btn-success{
+            background:#198754;
+            color:white;
+        }
+        .btn-secondary{
+            background:#6c757d;
+            color:white;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>Re-submit Request</h2>
+    <p>Are you sure you want to re-submit this corrected request?</p>
+    <p><strong>Reference No:</strong> {{ req.reference_no }}</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success">Yes, Re-submit</button>
+        <a href="{% url 'request_detail' req.pk %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+</body>
+</html>

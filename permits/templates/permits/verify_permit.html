@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Permit Verification</title>
+    <style>
+        body{
+            font-family: Arial, sans-serif;
+            background:#f5f7fb;
+            padding:30px;
+            margin:0;
+        }
+
+        .card{
+            background:white;
+            max-width:760px;
+            margin:auto;
+            padding:25px;
+            border-radius:12px;
+            box-shadow:0 6px 18px rgba(0,0,0,0.08);
+        }
+
+        h2{
+            margin-top:0;
+            margin-bottom:10px;
+        }
+
+        .status-box{
+            padding:14px 16px;
+            border-radius:10px;
+            font-weight:700;
+            margin-bottom:20px;
+        }
+
+        .valid{
+            background:#d1e7dd;
+            color:#0f5132;
+        }
+
+        .expired{
+            background:#fff3cd;
+            color:#856404;
+        }
+
+        .invalid{
+            background:#f8d7da;
+            color:#842029;
+        }
+
+        .info-table{
+            width:100%;
+            border-collapse:collapse;
+        }
+
+        .info-table td{
+            padding:10px 8px;
+            border-bottom:1px solid #eee;
+            vertical-align:top;
+        }
+
+        .label{
+            font-weight:700;
+            width:220px;
+            color:#374151;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+
+    <h2>Permit Verification</h2>
+
+    {% if is_active %}
+        <div class="status-box valid">
+            ✅ This permit is valid and currently active.
+        </div>
+    {% elif is_valid and is_expired %}
+        <div class="status-box expired">
+            ⚠ This permit was approved but has already expired.
+        </div>
+    {% elif is_valid %}
+        <div class="status-box valid">
+            ✅ This permit is valid.
+        </div>
+    {% else %}
+        <div class="status-box invalid">
+            ❌ This permit is not valid for use.
+        </div>
+    {% endif %}
+
+    <table class="info-table">
+        <tr>
+            <td class="label">Reference No</td>
+            <td>{{ req.reference_no }}</td>
+        </tr>
+        <tr>
+            <td class="label">Requester</td>
+            <td>{{ req.requester_name }}</td>
+        </tr>
+        <tr>
+            <td class="label">Unit</td>
+            <td>{{ req.unit_name|default:"N/A" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Request Type</td>
+            <td>
+                {% if req.is_group_request %}
+                    Group
+                {% else %}
+                    Individual
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td class="label">Destination</td>
+            <td>{{ req.destination }}</td>
+        </tr>
+        <tr>
+            <td class="label">Purpose</td>
+            <td>{{ req.purpose }}</td>
+        </tr>
+        <tr>
+            <td class="label">Start Time</td>
+            <td>{{ req.start_time|date:"d M Y H:i" }}</td>
+        </tr>
+        <tr>
+            <td class="label">End Time</td>
+            <td>{{ req.end_time|date:"d M Y H:i" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Current Status</td>
+            <td>{{ req.display_status|default:req.get_status_display }}</td>
+        </tr>
+        <tr>
+            <td class="label">Approved By</td>
+            <td>
+                {% if approved_by_name %}
+                    {{ approved_by_name }}{% if approved_by_role %} ({{ approved_by_role }}){% endif %}
+                {% else %}
+                    N/A
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td class="label">Approved At</td>
+            <td>
+                {% if req.director_approved_at %}
+                    {{ req.director_approved_at|date:"d M Y H:i" }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+</div>
+
+</body>
+</html>

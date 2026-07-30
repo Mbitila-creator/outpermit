@@ -1,0 +1,337 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>{{ page_title }}</title>
+    <style>
+        :root {
+            --primary: #0b5ed7;
+            --primary2: #084298;
+            --bg: #f5f7fb;
+            --card: #ffffff;
+            --border: #e5e7eb;
+            --muted: #6b7280;
+            --shadow: 0 8px 18px rgba(0, 0, 0, .08);
+            --radius: 14px;
+            --danger: #dc3545;
+            --warning: #fd7e14;
+            --success: #198754;
+            --info: #0dcaf0;
+            --secondary: #6c757d;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--bg);
+            color: #111827;
+        }
+
+        .topbar {
+            background: linear-gradient(90deg, var(--primary2), var(--primary));
+            color: #fff;
+            padding: 18px 22px;
+        }
+
+        .topbar h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .topbar p {
+            margin: 6px 0 0;
+            font-size: 13px;
+            opacity: .92;
+        }
+
+        .nav {
+            margin-top: 12px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            text-decoration: none;
+            color: #fff;
+            background: rgba(255, 255, 255, .15);
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .container {
+            max-width: 1180px;
+            margin: 22px auto;
+            padding: 0 16px 32px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+            align-items: center;
+        }
+
+        .toolbar a,
+        .toolbar button {
+            text-decoration: none;
+            border: 0;
+            cursor: pointer;
+            background: #fff;
+            color: #0b3a75;
+            border: 1px solid var(--border);
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            box-shadow: var(--shadow);
+        }
+
+        .toolbar button:hover,
+        .toolbar a:hover {
+            transform: translateY(-1px);
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 14px 16px;
+            font-weight: 700;
+            background: #eef5ff;
+            border-bottom: 1px solid var(--border);
+            color: #0b3a75;
+        }
+
+        .card-body {
+            padding: 14px 16px;
+        }
+
+        .section-note {
+            margin: -4px 0 12px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            min-width: 860px;
+        }
+
+        th,
+        td {
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        th {
+            background: #f8fafc;
+        }
+
+        .num {
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .badge-success {
+            background: #e8f7ee;
+            color: #146c43;
+        }
+
+        .badge-danger {
+            background: #fdecec;
+            color: #b02a37;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #9a6700;
+        }
+
+        .badge-primary {
+            background: #e7f1ff;
+            color: #0b5ed7;
+        }
+
+        .badge-secondary {
+            background: #f1f3f5;
+            color: #495057;
+        }
+
+        .action-link {
+            display: inline-block;
+            text-decoration: none;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1px solid var(--border);
+            background: #fff;
+            color: #0b5ed7;
+        }
+
+        .empty {
+            color: var(--muted);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="topbar">
+        <h1>{{ page_title }}</h1>
+        <p>Detailed analytics view for unit: {{ unit_name }}</p>
+
+        <div class="nav">
+            <a href="{% url 'system_home' %}">Home</a>
+            <a href="{% url 'task_dashboard' %}">Tasks Dashboard</a>
+            <a href="{% url 'task_analytics' %}">Back to Analytics</a>
+            <a href="{% url 'logout' %}">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="toolbar">
+            <a href="{% url 'task_analytics' %}">← Back to Analytics</a>
+            <button type="button" onclick="window.print()">Print / Save as PDF</button>
+        </div>
+
+        <div class="card">
+            <div class="card-header">{{ page_title }}</div>
+            <div class="card-body">
+                {% if detail_type == "completion" %}
+                <p class="section-note">
+                    This table lists all tasks under <strong>{{ unit_name }}</strong> with current status, assignee, progress, due date, and direct access to each task.
+                </p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="num">#</th>
+                                <th>Task</th>
+                                <th>Status</th>
+                                <th>Assignee</th>
+                                <th class="num">Progress</th>
+                                <th>Due Date</th>
+                                <th class="num">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in detail_rows %}
+                            <tr>
+                                <td class="num">{{ forloop.counter }}</td>
+                                <td>{{ row.title }}</td>
+                                <td>
+                                    {% if row.status == "Completed" %}
+                                    <span class="badge badge-success">{{ row.status }}</span>
+                                    {% elif row.status == "Cancelled" %}
+                                    <span class="badge badge-secondary">{{ row.status }}</span>
+                                    {% elif row.status == "Returned" %}
+                                    <span class="badge badge-warning">{{ row.status }}</span>
+                                    {% elif row.status == "On hold" or row.status == "On Hold" %}
+                                    <span class="badge badge-warning">{{ row.status }}</span>
+                                    {% else %}
+                                    <span class="badge badge-primary">{{ row.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ row.assignee_name }}</td>
+                                <td class="num">{{ row.progress }}%</td>
+                                <td>{{ row.due_date }}</td>
+                                <td class="num">
+                                    <a class="action-link" href="{% url 'task_detail' row.task_id %}">View Task</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="empty">No task details available for this unit.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="section-note">
+                    This table lists delayed tasks under <strong>{{ unit_name }}</strong>, including overdue tasks and tasks completed late.
+                </p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="num">#</th>
+                                <th>Task</th>
+                                <th>Status</th>
+                                <th>Assignee</th>
+                                <th class="num">Progress</th>
+                                <th>Due Date</th>
+                                <th class="num">Delay Days</th>
+                                <th class="num">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in detail_rows %}
+                            <tr>
+                                <td class="num">{{ forloop.counter }}</td>
+                                <td>{{ row.title }}</td>
+                                <td>
+                                    {% if row.status == "Open Overdue" %}
+                                    <span class="badge badge-danger">{{ row.status }}</span>
+                                    {% else %}
+                                    <span class="badge badge-warning">{{ row.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ row.assignee_name }}</td>
+                                <td class="num">{{ row.progress }}%</td>
+                                <td>{{ row.due_date }}</td>
+                                <td class="num">{{ row.delay_days }}</td>
+                                <td class="num">
+                                    <a class="action-link" href="{% url 'task_detail' row.task_id %}">View Task</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="empty">No delayed task details available for this unit.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

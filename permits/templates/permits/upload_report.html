@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Upload Summary Report</title>
+    <!-- SweetAlert2 CSS & JS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            padding: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+            max-width: 700px;
+            margin: auto;
+        }
+
+        h2 {
+            color: #0b5ed7;
+            margin-top: 0;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        input[type="file"] {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .btn {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 16px;
+            background: #0b5ed7;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            background: #084298;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 18px;
+            color: #0b5ed7;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back-link:hover {
+            color: #084298;
+        }
+
+        .permit-box {
+            background: #eef5ff;
+            border: 1px solid #cfe2ff;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 18px;
+        }
+
+        /* Error list styling */
+        .errorlist {
+            list-style: none;
+            padding: 0;
+            margin: 6px 0 0 0;
+        }
+
+        .errorlist li {
+            color: #dc3545;
+            font-size: 13px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card">
+        <h2>Upload Summary Report</h2>
+
+        <div class="permit-box">
+            <strong>Permit Number:</strong> {{ req.reference_no }}
+        </div>
+
+        <form id="uploadForm" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <label for="{{ form.report_file.id_for_label }}">Report File</label>
+            {{ form.report_file }}
+
+            {% if form.report_file.errors %}
+            <ul class="errorlist">
+                {% for error in form.report_file.errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            <button type="button" class="btn" onclick="confirmUpload()">Upload Report</button>
+        </form>
+
+        <a class="back-link" href="{% url 'request_detail' req.id %}">← Back to Request Details</a>
+    </div>
+
+    <!-- ==================== SweetAlert2 Logic ==================== -->
+    <script>
+        /* ---------- Reusable popup helpers ---------- */
+        function showSuccess(msg) {
+            Swal.fire({ icon: 'success', title: 'Success', text: msg, confirmButtonColor: '#198754' });
+        }
+        function showError(msg) {
+            Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonColor: '#dc3545' });
+        }
+        function showWarning(msg) {
+            Swal.fire({ icon: 'warning', title: 'Warning', text: msg, confirmButtonColor: '#ffc107' });
+        }
+        function showInfo(msg) {
+            Swal.fire({ icon: 'info', title: 'Info', text: msg, confirmButtonColor: '#3498db' });
+        }
+
+        /* ---------- Upload confirmation with file validation ---------- */
+        function confirmUpload() {
+            var form = document.getElementById('uploadForm');
+            var fileInput = form.querySelector('input[type="file"]');
+
+            /* --- No file selected --- */
+            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                showWarning('Please select a file before uploading.');
+                return;
+            }
+
+            var file = fileInput.files[0];
+            var fileName = file.name;
+            var fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+
+            /* --- File size check (10 MB limit) --- */
+            if (file.size > 10 * 1024 * 1024) {
+                showError('File size (' + fileSizeMB + ' MB) exceeds the 10 MB limit. Please choose a smaller file.');
+                return;
+            }
+
+            /* --- Allowed extensions check --- */
+            var allowedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'];
+            var extension = fileName.split('.').pop().toLowerCase();
+
+            if (allowedExtensions.indexOf(extension) === -1) {
+                showError(
+                    'File type ".' + extension + '" is not allowed.\n' +
+                    'Accepted formats: ' + allowedExtensions.join(', ')
+                );
+                return;
+            }
+
+            /* --- Confirmation dialog --- */
+            Swal.fire({
+                title: 'Upload Report?',
+                html:
+                    '<div style="text-align:left; font-size:14px; line-height:1.7;">' +
+                    '<strong>Permit:</strong> {{ req.reference_no|escapejs }}<br>' +
+                    '<strong>File:</strong> ' + fileName + '<br>' +
+                    '<strong>Size:</strong> ' + fileSizeMB + ' MB' +
+                    '</div>',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#0b5ed7',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, Upload',
+                cancelButtonText: 'Cancel',
+                reverseButtons: true
+            }).then(function (result) {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+        }
+
+        /* ---------- Django messages → SweetAlert2 ---------- */
+        {% if messages %}
+        {% for message in messages %}
+        {% if 'success' in message.tags %}
+        showSuccess("{{ message|escapejs }}");
+        {% elif 'error' in message.tags %}
+        showError("{{ message|escapejs }}");
+        {% elif 'warning' in message.tags %}
+        showWarning("{{ message|escapejs }}");
+        {% else %}
+        showInfo("{{ message|escapejs }}");
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+
+        /* ---------- Show form errors as popup ---------- */
+        {% if form.errors %}
+        document.addEventListener('DOMContentLoaded', function () {
+            var errorMessages = [];
+            {% for field, errors in form.errors.items %}
+            {% for error in errors %}
+            errorMessages.push("{{ error|escapejs }}");
+            {% endfor %}
+            {% endfor %}
+            if (errorMessages.length > 0) {
+                showError(errorMessages.join('\n'));
+            }
+        });
+        {% endif %}
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,420 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Login - External Work Permit System</title>
+
+    <!-- SweetAlert2 CSS & JS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Font Awesome Eye Icon -->
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+            padding: 0;
+        }
+
+        .wrapper {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            width: 100%;
+            max-width: 420px;
+            padding: 28px;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .logo {
+            width: 90px;
+            height: auto;
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: #0b5ed7;
+            text-align: center;
+        }
+
+        p.subtitle {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #6c757d;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            margin-bottom: 14px;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.2s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #0b5ed7;
+            box-shadow: 0 0 0 3px rgba(11, 94, 215, 0.15);
+        }
+
+        .password-wrapper {
+            position: relative;
+            margin-bottom: 14px;
+        }
+
+        .password-wrapper input {
+            width: 100%;
+            padding-right: 45px;
+            margin-bottom: 0;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #6c757d;
+            font-size: 18px;
+            transition: color 0.2s ease;
+        }
+
+        .toggle-password:hover {
+            color: #0b5ed7;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 11px 14px;
+            border: none;
+            background: #0b5ed7;
+            color: white;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s ease;
+        }
+
+        .btn:hover {
+            background: #084298;
+        }
+
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .errorlist {
+            color: #dc3545;
+            margin: 0 0 10px 0;
+            padding-left: 18px;
+            font-size: 13px;
+            list-style: none;
+        }
+
+        .errorlist li {
+            font-weight: 600;
+        }
+
+        .help {
+            margin-top: 14px;
+            font-size: 13px;
+            color: #6c757d;
+            text-align: center;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            10%,
+            30%,
+            50%,
+            70%,
+            90% {
+                transform: translateX(-4px);
+            }
+
+            20%,
+            40%,
+            60%,
+            80% {
+                transform: translateX(4px);
+            }
+        }
+
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+        <div class="card" id="loginCard">
+            <div class="logo-container">
+                <img src="{% static 'logo/moest_logo.png' %}" alt="MoEST Logo" class="logo">
+            </div>
+
+            <h2>MoEST System Login</h2>
+
+            <form id="loginForm" method="post">
+                {% csrf_token %}
+
+                {{ form.non_field_errors }}
+
+                <label for="{{ form.username.id_for_label }}">Username</label>
+                {{ form.username }}
+                {{ form.username.errors }}
+
+                <label for="{{ form.password.id_for_label }}">Password</label>
+
+                <div class="password-wrapper">
+                    {{ form.password }}
+                    <i class="fa-solid fa-eye toggle-password" id="togglePassword"></i>
+                </div>
+
+                {{ form.password.errors }}
+
+                <button type="submit" class="btn" id="loginBtn">
+                    Login
+                </button>
+            </form>
+
+            <div class="help">
+                Use your assigned username and password.
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Django messages -->
+    <div id="djangoMessages" style="display: none;">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="django-message"
+                    data-tag="{{ message.tags|escape }}"
+                    data-text="{{ message|escape }}">
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- Hidden Django form errors -->
+    <div id="djangoFormErrors" style="display: none;">
+        {% if form.errors %}
+            {% for error in form.non_field_errors %}
+                <div class="django-form-error" data-text="{{ error|escape }}"></div>
+            {% endfor %}
+
+            {% for field in form %}
+                {% for error in field.errors %}
+                    <div class="django-form-error" data-text="{{ error|escape }}"></div>
+                {% endfor %}
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <script>
+        function showSuccess(msg) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: msg,
+                confirmButtonColor: '#198754'
+            });
+        }
+
+        function showError(msg) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: msg,
+                confirmButtonColor: '#dc3545'
+            });
+        }
+
+        function showWarning(msg) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Warning',
+                text: msg,
+                confirmButtonColor: '#ffc107'
+            });
+        }
+
+        function showInfo(msg) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Info',
+                text: msg,
+                confirmButtonColor: '#3498db'
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const loginForm = document.getElementById('loginForm');
+            const loginBtn = document.getElementById('loginBtn');
+            const loginCard = document.getElementById('loginCard');
+
+            const usernameField = document.getElementById('{{ form.username.id_for_label }}');
+            const passwordField = document.getElementById('{{ form.password.id_for_label }}');
+            const togglePassword = document.getElementById('togglePassword');
+
+            /* ---------- Password Visibility Toggle ---------- */
+            if (passwordField && togglePassword) {
+                togglePassword.addEventListener('click', function () {
+                    if (passwordField.type === 'password') {
+                        passwordField.type = 'text';
+                        this.classList.remove('fa-eye');
+                        this.classList.add('fa-eye-slash');
+                    } else {
+                        passwordField.type = 'password';
+                        this.classList.remove('fa-eye-slash');
+                        this.classList.add('fa-eye');
+                    }
+                });
+            }
+
+            /* ---------- Client-side validation before submit ---------- */
+            if (loginForm) {
+                loginForm.addEventListener('submit', function (e) {
+                    const username = usernameField ? usernameField.value.trim() : '';
+                    const password = passwordField ? passwordField.value.trim() : '';
+
+                    if (!username && !password) {
+                        e.preventDefault();
+                        showWarning('Please enter your username and password.');
+
+                        if (usernameField) {
+                            usernameField.focus();
+                        }
+
+                        return;
+                    }
+
+                    if (!username) {
+                        e.preventDefault();
+                        showWarning('Please enter your username.');
+
+                        if (usernameField) {
+                            usernameField.focus();
+                        }
+
+                        return;
+                    }
+
+                    if (!password) {
+                        e.preventDefault();
+                        showWarning('Please enter your password.');
+
+                        if (passwordField) {
+                            passwordField.focus();
+                        }
+
+                        return;
+                    }
+
+                    if (loginBtn) {
+                        loginBtn.disabled = true;
+                        loginBtn.textContent = 'Logging in...';
+                    }
+                });
+            }
+
+            /* ---------- Display Django messages ---------- */
+            const djangoMessages = document.querySelectorAll('.django-message');
+
+            djangoMessages.forEach(function (messageElement) {
+                const tag = messageElement.dataset.tag || '';
+                const text = messageElement.dataset.text || '';
+
+                if (tag.includes('success')) {
+                    showSuccess(text);
+                } else if (tag.includes('error')) {
+                    showError(text);
+                } else if (tag.includes('warning')) {
+                    showWarning(text);
+                } else {
+                    showInfo(text);
+                }
+            });
+
+            /* ---------- Display form errors ---------- */
+            const formErrorElements = document.querySelectorAll('.django-form-error');
+            const errorMessages = [];
+
+            formErrorElements.forEach(function (errorElement) {
+                const text = errorElement.dataset.text || '';
+
+                if (text) {
+                    errorMessages.push(text);
+                }
+            });
+
+            if (errorMessages.length > 0) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Login Failed',
+                    html: errorMessages.join('<br>'),
+                    confirmButtonColor: '#dc3545',
+                    confirmButtonText: 'Try Again'
+                });
+
+                if (loginCard) {
+                    loginCard.classList.add('shake');
+
+                    setTimeout(function () {
+                        loginCard.classList.remove('shake');
+                    }, 600);
+                }
+
+                if (passwordField) {
+                    passwordField.value = '';
+                }
+
+                if (usernameField) {
+                    usernameField.focus();
+                    usernameField.select();
+                }
+            }
+        });
+    </script>
+
+</body>
+
+</html>

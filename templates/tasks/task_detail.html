@@ -1,0 +1,869 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Task Detail</title>
+  <style>
+    :root {
+      --primary: #0b5ed7;
+      --primary2: #084298;
+      --success: #198754;
+      --danger: #dc3545;
+      --warning: #b45309;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --border: #e5e7eb;
+      --muted: #6b7280;
+      --shadow: 0 10px 25px rgba(0, 0, 0, .08);
+      --radius: 14px;
+      --info-bg: #eef5ff;
+      --soft: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: #111827;
+    }
+
+    .topbar {
+      background: linear-gradient(90deg, var(--primary2), var(--primary));
+      color: #fff;
+      padding: 18px 22px;
+    }
+
+    .topbar h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .topbar p {
+      margin: 6px 0 0;
+      font-size: 13px;
+      opacity: .92;
+    }
+
+    .nav {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .nav a {
+      text-decoration: none;
+      color: #fff;
+      background: rgba(255, 255, 255, .15);
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 22px auto;
+      padding: 0 16px 32px;
+    }
+
+    .intro-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+
+    .intro-card h2 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      color: #0b3a75;
+    }
+
+    .intro-card p {
+      margin: 0;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 18px;
+    }
+
+    @media (max-width:900px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+
+    .header {
+      padding: 14px 16px;
+      font-weight: 700;
+      background: #eef5ff;
+      border-bottom: 1px solid var(--border);
+      color: #0b3a75;
+    }
+
+    .body {
+      padding: 16px;
+    }
+
+    .meta {
+      line-height: 1.8;
+      font-size: 14px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #eef2ff;
+      color: #3730a3;
+    }
+
+    .badge-success {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .badge-danger {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .badge-warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .btn {
+      display: inline-block;
+      text-decoration: none;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .btn-warning {
+      background: #f59e0b;
+      color: #fff;
+    }
+
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .item {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .item-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .item-meta {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .item-note {
+      margin-top: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #111827;
+      white-space: pre-wrap;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width:700px) {
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .summary-box {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--soft);
+      padding: 12px;
+    }
+
+    .summary-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .summary-value {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .progress-wrap {
+      margin-top: 8px;
+      margin-bottom: 8px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: #374151;
+      font-weight: 700;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 12px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary2), var(--primary));
+      border-radius: 999px;
+      transition: width .3s ease;
+    }
+
+    .progress-fill.success {
+      background: linear-gradient(90deg, #157347, var(--success));
+    }
+
+    .progress-fill.warning {
+      background: linear-gradient(90deg, #b45309, #d97706);
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      outline: none;
+      background: #fff;
+      font-size: 14px;
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    .field-error {
+      color: var(--danger);
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
+    .error-box {
+      background: #fff5f5;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .file-link {
+      display: inline-block;
+      margin-top: 8px;
+      text-decoration: none;
+      color: var(--primary2);
+      font-weight: 700;
+    }
+
+    .soft-box {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fafafa;
+      padding: 12px;
+      margin-top: 12px;
+    }
+
+    .manager-note-box {
+      border: 1px solid #fed7aa;
+      background: #fff7ed;
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+
+    .manager-note-title {
+      font-weight: 700;
+      color: #9a3412;
+      margin-bottom: 6px;
+    }
+
+    .manager-note-text {
+      white-space: pre-wrap;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #431407;
+    }
+
+    .manager-note-meta {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #7c2d12;
+      line-height: 1.6;
+    }
+
+    .inline-manager-panel {
+      display: none;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fafafa;
+      padding: 12px;
+      margin-top: 12px;
+    }
+
+    .inline-manager-panel.active {
+      display: block;
+    }
+
+    .inline-manager-title {
+      margin: 0 0 10px;
+      font-size: 14px;
+      color: #0b3a75;
+      font-weight: 700;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <h1>{{ task.title }}</h1>
+    <p>Task detail, assignees, and progress updates.</p>
+
+    <div class="nav">
+      <a href="{% url 'system_home' %}">Home</a>
+      <a href="{% url 'requester_dashboard' %}">Permits</a>
+      <a href="{% url 'task_dashboard' %}">Tasks Dashboard</a>
+      <a href="{% url 'my_tasks' %}">My Tasks</a>
+      <a href="{% url 'logout' %}">Logout</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="intro-card">
+      <h2>Task Visibility</h2>
+      <p>
+        {% if request.user.profile.role == "HEAD_OF_UNIT" %}
+        You are viewing this task because it is assigned to at least one staff member who belongs to your unit{% if request.user.profile.unit_name %}: <strong>{{ request.user.profile.unit_name }}</strong>{% endif %}.
+        {% elif request.user.profile.role == "DIRECTOR" or request.user.profile.role == "ADRD" or request.user.profile.role == "ADSTI" or request.user.profile.role == "ADMIN" or request.user.is_superuser %}
+        You are viewing this task with full cross-unit access.
+        {% else %}
+        You are viewing this task because it was assigned to you or created by you.
+        {% endif %}
+      </p>
+    </div>
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="card">
+      <div class="body">{{ message }}</div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="summary-grid">
+      <div class="summary-box">
+        <div class="summary-label">Overall Task Progress</div>
+        <div class="summary-value">{{ task.progress_percent }}%</div>
+      </div>
+      <div class="summary-box">
+        <div class="summary-label">Assignments Completed</div>
+        <div class="summary-value">{{ task.completed_assignment_count }}/{{ task.assignment_count }}</div>
+      </div>
+      <div class="summary-box">
+        <div class="summary-label">Task Status</div>
+        <div class="summary-value" style="font-size:18px;">{{ task.get_status_display }}</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div>
+        <div class="card">
+          <div class="header">Task Information</div>
+          <div class="body">
+            <div class="meta">
+              <strong>Title:</strong> {{ task.title }}<br>
+              <strong>Description:</strong> {{ task.description|default:"N/A" }}<br>
+              <strong>Created by:</strong> {{ task.created_by.get_full_name|default:task.created_by.username }}<br>
+              <strong>Task Unit:</strong> {{ task.unit_name|default:"N/A" }}<br>
+              <strong>Priority:</strong> <span class="badge">{{ task.get_priority_display }}</span><br>
+              <strong>Status:</strong>
+              <span class="badge {% if task.status == 'COMPLETED' %}badge-success{% elif task.status == 'RETURNED' %}badge-warning{% elif task.is_overdue %}badge-danger{% elif task.status == 'IN_PROGRESS' or task.status == 'ON_HOLD' %}badge-warning{% endif %}">
+                {{ task.get_status_display }}
+              </span><br>
+              <strong>Start date:</strong> {{ task.start_date|default:"N/A" }}<br>
+              <strong>Due date:</strong>
+              {{ task.due_date|default:"N/A" }}
+              {% if task.is_overdue %}
+              <span class="badge badge-danger">Overdue</span>
+              {% endif %}
+              <br>
+              <strong>Completed at:</strong> {{ task.completed_at|default:"N/A" }}
+              {% if task.management_note_updated_at %}
+              <br><strong>{{ saved_role_reason_label }} note updated at:</strong> {{ task.management_note_updated_at }}
+              {% endif %}
+            </div>
+
+            {% if task.management_note %}
+            <div class="manager-note-box">
+              <div class="manager-note-title">{{ saved_role_reason_label }} Reason or Comment</div>
+              <div class="manager-note-text">{{ task.management_note }}</div>
+              {% if task.management_note_by %}
+              <div class="manager-note-meta">
+                By: {{ task.management_note_by.get_full_name|default:task.management_note_by.username }}
+              </div>
+              {% endif %}
+            </div>
+            {% endif %}
+
+            {% if task.status == "RETURNED" %}
+            <div class="manager-note-box">
+              <div class="manager-note-title">Returned Task Information</div>
+              <div class="manager-note-text">{{ task.returned_reason|default:"No return reason provided." }}</div>
+              <div class="manager-note-meta">
+                <strong>Returned by:</strong>
+                {{ task.returned_by.get_full_name|default:task.returned_by.username|default:"N/A" }}<br>
+                <strong>Returned at:</strong> {{ task.returned_at|default:"N/A" }}
+              </div>
+            </div>
+            {% endif %}
+
+            <div class="progress-wrap">
+              <div class="progress-label">
+                <span>Overall Progress</span>
+                <span>{{ task.progress_percent }}%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill {% if task.progress_percent >= 100 %}success{% elif task.progress_percent > 0 %}warning{% endif %}" style="width: {{ task.progress_percent }}%;"></div>
+              </div>
+            </div>
+
+            {% if my_assignment %}
+            <div class="soft-box">
+              <div class="item-title">My Assignment</div>
+              <div class="item-meta">
+                Status:
+                <span class="badge {% if my_assignment.status == 'COMPLETED' %}badge-success{% elif my_assignment.status == 'RETURNED' %}badge-warning{% elif my_assignment.is_overdue %}badge-danger{% elif my_assignment.status == 'IN_PROGRESS' or my_assignment.status == 'ACCEPTED' %}badge-warning{% endif %}">
+                  {{ my_assignment.get_status_display }}
+                </span><br>
+                My progress: {{ my_assignment.progress_percent }}%<br>
+                Assigned at: {{ my_assignment.assigned_at }}<br>
+                Accepted at: {{ my_assignment.accepted_at|default:"N/A" }}<br>
+                Started at: {{ my_assignment.started_at|default:"N/A" }}<br>
+                Last updated at: {{ my_assignment.last_updated_at|default:"N/A" }}<br>
+                Completed at: {{ my_assignment.completed_at|default:"N/A" }}
+                {% if my_assignment.returned_at %}
+                <br>Returned at: {{ my_assignment.returned_at }}
+                {% endif %}
+              </div>
+
+              {% if my_assignment.returned_reason %}
+              <div class="manager-note-box">
+                <div class="manager-note-title">My Return Reason</div>
+                <div class="manager-note-text">{{ my_assignment.returned_reason }}</div>
+              </div>
+              {% endif %}
+
+              <div class="progress-wrap">
+                <div class="progress-label">
+                  <span>My Progress</span>
+                  <span>{{ my_assignment.progress_percent }}%</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill {% if my_assignment.progress_percent >= 100 %}success{% elif my_assignment.progress_percent > 0 %}warning{% endif %}" style="width: {{ my_assignment.progress_percent }}%;"></div>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+
+            <div class="actions">
+              {% if my_assignment and my_assignment.status == "ASSIGNED" and task.status != "ON_HOLD" and task.status != "CANCELLED" and task.status != "RETURNED" %}
+              <a href="{% url 'accept_task' my_assignment.pk %}" class="btn btn-success">Accept Task</a>
+              {% endif %}
+
+              {% if allow_task_completion and my_assignment and my_assignment.status != "COMPLETED" and my_assignment.status != "RETURNED" and task.status != "CANCELLED" and task.status != "ON_HOLD" and task.status != "RETURNED" %}
+              <a href="{% url 'complete_task' my_assignment.pk %}" class="btn btn-primary">Mark My Assignment Completed</a>
+              {% endif %}
+
+              {% if my_assignment and my_assignment.status != "COMPLETED" and my_assignment.status != "RETURNED" and task.status != "CANCELLED" and task.status != "ON_HOLD" and task.status != "RETURNED" and request.user.profile.role != "DIRECTOR" %}
+              <a href="{% url 'return_task' task.pk %}" class="btn btn-warning">Return Task</a>
+              {% endif %}
+
+              {% if can_manage and task.status == "RETURNED" %}
+              <a href="{% url 'reassign_returned_task' task.pk %}" class="btn btn-primary">Re-Assign Task</a>
+              {% endif %}
+
+              <a href="{% url 'my_tasks' %}" class="btn btn-secondary">Back</a>
+
+              {% if can_manage %}
+              {% if task.status == "ON_HOLD" %}
+              <a href="{% url 'resume_task' task.pk %}" class="btn btn-success">Resume Task</a>
+              {% endif %}
+
+              {% if task.status != "ON_HOLD" and task.status != "CANCELLED" and task.status != "RETURNED" %}
+              <button type="button" class="btn btn-warning" onclick="toggleManagerPanel('hold-panel')">Hold Task</button>
+              {% endif %}
+
+              {% if task.status != "CANCELLED" and task.status != "RETURNED" %}
+              <button type="button" class="btn btn-danger" onclick="toggleManagerPanel('cancel-panel')">Cancel Task</button>
+              {% endif %}
+              {% endif %}
+
+              {% if can_delete %}
+              <a href="{% url 'delete_task' task.pk %}" class="btn btn-danger">Remove Task</a>
+              {% endif %}
+            </div>
+
+            {% if can_manage and task.status != "ON_HOLD" and task.status != "CANCELLED" and task.status != "RETURNED" %}
+            <div id="hold-panel" class="inline-manager-panel">
+              <div class="inline-manager-title">{{ role_reason_label }} Reason or Comment</div>
+              <form method="post" action="{% url 'hold_task' task.pk %}">
+                {% csrf_token %}
+                <div class="field">
+                  <textarea name="management_note" rows="4" placeholder="Enter reason or comment..."></textarea>
+                </div>
+                <div class="actions">
+                  <button type="submit" class="btn btn-warning">OK</button>
+                  <button type="button" class="btn btn-secondary" onclick="closeManagerPanel('hold-panel')">Close</button>
+                </div>
+              </form>
+            </div>
+            {% endif %}
+
+            {% if can_manage and task.status != "CANCELLED" and task.status != "RETURNED" %}
+            <div id="cancel-panel" class="inline-manager-panel">
+              <div class="inline-manager-title">{{ role_reason_label }} Reason or Comment</div>
+              <form method="post" action="{% url 'cancel_task' task.pk %}">
+                {% csrf_token %}
+                <div class="field">
+                  <textarea name="management_note" rows="4" placeholder="Enter reason or comment..."></textarea>
+                </div>
+                <div class="actions">
+                  <button type="submit" class="btn btn-danger">OK</button>
+                  <button type="button" class="btn btn-secondary" onclick="closeManagerPanel('cancel-panel')">Close</button>
+                </div>
+              </form>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="header">Progress Updates</div>
+          <div class="body">
+            {% if updates %}
+            <div class="list">
+              {% for update in updates %}
+              <div class="item">
+                <div class="item-title">
+                  {{ update.updated_by.get_full_name|default:update.updated_by.username }}
+                </div>
+                <div class="item-meta">
+                  Update progress: {{ update.progress_percent }}%<br>
+                  Date: {{ update.created_at }}<br>
+                  {% if update.assignment %}
+                  Assignment for:
+                  {{ update.assignment.assigned_to.get_full_name|default:update.assignment.assigned_to.username }}<br>
+                  Assignment status at save time:
+                  <span class="badge">{{ update.assignment.get_status_display }}</span>
+                  {% else %}
+                  Update scope: Task-level update
+                  {% endif %}
+                </div>
+
+                {% if update.comment %}
+                <div class="item-note">{{ update.comment }}</div>
+                {% endif %}
+
+                {% if update.attachment %}
+                <a href="{{ update.attachment.url }}" target="_blank" class="file-link">Open Attachment</a>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty">No updates yet.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="header">Assignees</div>
+          <div class="body">
+            {% if assignments %}
+            <div class="list">
+              {% for item in assignments %}
+              <div class="item">
+                <div class="item-title">
+                  {{ item.assigned_to.get_full_name|default:item.assigned_to.username }}
+                </div>
+                <div class="item-meta">
+                  Assigned by: {{ item.assigned_by.get_full_name|default:item.assigned_by.username }}<br>
+                  Status:
+                  <span class="badge {% if item.status == 'COMPLETED' %}badge-success{% elif item.status == 'RETURNED' %}badge-warning{% elif item.is_overdue %}badge-danger{% elif item.status == 'IN_PROGRESS' or item.status == 'ACCEPTED' %}badge-warning{% endif %}">
+                    {{ item.get_status_display }}
+                  </span><br>
+                  Progress: {{ item.progress_percent }}%<br>
+                  {% if item.is_overdue %}
+                  <span class="badge badge-danger">Overdue</span><br>
+                  {% endif %}
+                  {% if item.assigned_to.profile.unit_name %}
+                  Staff Unit: {{ item.assigned_to.profile.unit_name }}<br>
+                  {% endif %}
+                  Assigned at: {{ item.assigned_at }}<br>
+                  Accepted at: {{ item.accepted_at|default:"N/A" }}<br>
+                  Started at: {{ item.started_at|default:"N/A" }}<br>
+                  Last updated at: {{ item.last_updated_at|default:"N/A" }}<br>
+                  Completed at: {{ item.completed_at|default:"N/A" }}
+                  {% if item.returned_at %}
+                  <br>Returned at: {{ item.returned_at }}
+                  {% endif %}
+                </div>
+
+                {% if item.returned_reason %}
+                <div class="manager-note-box">
+                  <div class="manager-note-title">Return Reason</div>
+                  <div class="manager-note-text">{{ item.returned_reason }}</div>
+                </div>
+                {% endif %}
+
+                <div class="progress-wrap">
+                  <div class="progress-label">
+                    <span>Assignment Progress</span>
+                    <span>{{ item.progress_percent }}%</span>
+                  </div>
+                  <div class="progress-bar">
+                    <div class="progress-fill {% if item.progress_percent >= 100 %}success{% elif item.progress_percent > 0 %}warning{% endif %}" style="width: {{ item.progress_percent }}%;"></div>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty">No assignees found.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if allow_task_progress_update %}
+        <div class="card">
+          <div class="header">Add Progress Update</div>
+          <div class="body">
+            {% if can_update and task.status != "RETURNED" %}
+            {% if update_form.non_field_errors %}
+            <div class="error-box">{{ update_form.non_field_errors }}</div>
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data">
+              {% csrf_token %}
+
+              <div class="field">
+                <label>Comment</label>
+                {{ update_form.comment }}
+                {% if update_form.comment.errors %}
+                <div class="field-error">{{ update_form.comment.errors }}</div>
+                {% endif %}
+              </div>
+
+              <div class="field">
+                <label>Progress Percent</label>
+                {{ update_form.progress_percent }}
+                {% if update_form.progress_percent.errors %}
+                <div class="field-error">{{ update_form.progress_percent.errors }}</div>
+                {% endif %}
+              </div>
+
+              <div class="field">
+                <label>Attachment</label>
+                {{ update_form.attachment }}
+                {% if update_form.attachment.errors %}
+                <div class="field-error">{{ update_form.attachment.errors }}</div>
+                {% endif %}
+              </div>
+
+              <div class="hint">
+                {% if task.status == "CANCELLED" %}
+                This task has been cancelled, so no more updates can be submitted.
+                {% elif task.status == "ON_HOLD" %}
+                This task is currently on hold, so updates are temporarily paused until it is resumed.
+                {% elif my_assignment %}
+                This update will be recorded against your assignment and will update your individual progress first.
+                {% else %}
+                This will be saved as a task-level update.
+                {% endif %}
+              </div>
+
+              <div class="actions">
+                <a href="{% url 'my_tasks' %}" class="btn btn-secondary">Back</a>
+
+                {% if can_delete %}
+                <a href="{% url 'delete_task' task.pk %}" class="btn btn-danger">Remove Task</a>
+                {% endif %}
+
+                <button type="submit" class="btn btn-primary">Save Update</button>
+              </div>
+            </form>
+            {% else %}
+            <div class="empty">
+              {% if task.status == "RETURNED" %}
+              This task has been returned and cannot receive new progress updates until it is re-assigned.
+              {% else %}
+              You can view this task, but you are not allowed to add progress updates for it.
+              {% endif %}
+            </div>
+            <div class="actions">
+              <a href="{% url 'my_tasks' %}" class="btn btn-secondary">Back</a>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        {% else %}
+        <div class="card">
+          <div class="header">Progress Update Disabled</div>
+          <div class="body">
+            <div class="empty">
+              Task progress update is currently disabled by the System Administrator.
+            </div>
+            <div class="actions">
+              <a href="{% url 'my_tasks' %}" class="btn btn-secondary">Back</a>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function closeAllManagerPanels() {
+      const panels = document.querySelectorAll('.inline-manager-panel');
+      panels.forEach(function (panel) {
+        panel.classList.remove('active');
+      });
+    }
+
+    function toggleManagerPanel(panelId) {
+      const panel = document.getElementById(panelId);
+      if (!panel) return;
+
+      const isActive = panel.classList.contains('active');
+      closeAllManagerPanels();
+
+      if (!isActive) {
+        panel.classList.add('active');
+        const textarea = panel.querySelector('textarea');
+        if (textarea) {
+          textarea.focus();
+        }
+      }
+    }
+
+    function closeManagerPanel(panelId) {
+      const panel = document.getElementById(panelId);
+      if (!panel) return;
+      panel.classList.remove('active');
+    }
+  </script>
+</body>
+
+</html>

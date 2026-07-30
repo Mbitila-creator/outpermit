@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>ADSTI Dashboard</title>
+    <!-- SweetAlert2 CSS & JS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            padding: 30px;
+            margin: 0;
+        }
+
+        .card {
+            background: white;
+            max-width: 1100px;
+            margin: auto;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #6c757d;
+            margin-bottom: 18px;
+        }
+
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 15px 0 20px 0;
+        }
+
+        .stats a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .stat-box {
+            width: 100px;
+            height: 52px;
+            border-radius: 8px;
+            padding: 6px 6px;
+            color: white;
+            font-weight: 700;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            box-sizing: border-box;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .stats a:hover .stat-box {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+        }
+
+        .stat-box h3 {
+            margin: 0;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .stat-box .number {
+            font-size: 14px;
+            margin-top: 2px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .total {
+            background: #0b5ed7;
+        }
+
+        .submitted {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .returned {
+            background: #0dcaf0;
+            color: #083344;
+        }
+
+        .approved {
+            background: #198754;
+        }
+
+        .rejected {
+            background: #dc3545;
+        }
+
+        .closed {
+            background: #6c757d;
+        }
+
+        .overdue {
+            background: #fd7e14;
+        }
+
+        .menu {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+            margin-bottom: 18px;
+        }
+
+        .menu a {
+            display: inline-block;
+            padding: 6px 10px;
+            background: #0b5ed7;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        .menu a:hover {
+            background: #084298;
+        }
+
+        /* Logout button distinct style */
+        .menu a.btn-logout {
+            background: #dc3545;
+        }
+
+        .menu a.btn-logout:hover {
+            background: #bb2d3b;
+        }
+
+        .section-title {
+            margin-top: 10px;
+            margin-bottom: 14px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+        }
+
+        th {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .badge-submitted {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-returned {
+            background: #cff4fc;
+            color: #055160;
+        }
+
+        .badge-approved {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .badge-rejected {
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        .badge-closed {
+            background: #e2e3e5;
+            color: #41464b;
+        }
+
+        .badge-overdue {
+            background: #ffe5d0;
+            color: #9a3412;
+        }
+
+        .btn-link {
+            display: inline-block;
+            padding: 6px 10px;
+            background: #0b5ed7;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .btn-link:hover {
+            background: #084298;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 15px;
+            }
+
+            .card {
+                padding: 18px;
+            }
+
+            .stats {
+                gap: 6px;
+            }
+
+            .stat-box {
+                width: 90px;
+                height: 48px;
+            }
+
+            th,
+            td {
+                padding: 10px 8px;
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card">
+
+        <h2>ADSTI Dashboard</h2>
+        <div class="subtitle">Welcome, {{ request.user.username }}</div>
+
+        <div class="stats">
+
+            <a href="{% url 'director_requests' %}">
+                <div class="stat-box total">
+                    <h3>Total</h3>
+                    <div class="number">{{ total_requests|default:0 }}</div>
+                </div>
+            </a>
+
+            <a href="{% url 'director_requests' %}?status=PENDING_DIRECTOR">
+                <div class="stat-box submitted">
+                    <h3>Submitted</h3>
+                    <div class="number">{{ pending_director_count|default:0 }}</div>
+                </div>
+            </a>
+
+            <a href="{% url 'director_requests' %}?status=RETURNED">
+                <div class="stat-box returned">
+                    <h3>Returned</h3>
+                    <div class="number">{{ returned_count|default:0 }}</div>
+                </div>
+            </a>
+
+            <a href="{% url 'director_requests' %}?status=APPROVED">
+                <div class="stat-box approved">
+                    <h3>Approved</h3>
+                    <div class="number">{{ approved_count|default:0 }}</div>
+                </div>
+            </a>
+
+            <a href="{% url 'director_requests' %}?status=REJECTED">
+                <div class="stat-box rejected">
+                    <h3>Rejected</h3>
+                    <div class="number">{{ rejected_count|default:0 }}</div>
+                </div>
+            </a>
+
+            <a href="{% url 'director_requests' %}?status=CLOSED">
+                <div class="stat-box closed">
+                    <h3>Closed</h3>
+                    <div class="number">{{ closed_count|default:0 }}</div>
+                </div>
+            </a>
+
+            <a href="{% url 'director_requests' %}?status=OVERDUE">
+                <div class="stat-box overdue">
+                    <h3>Overdue</h3>
+                    <div class="number">{{ overdue_count|default:0 }}</div>
+                </div>
+            </a>
+
+        </div>
+
+        <div class="menu">
+            <a href="{% url 'system_home' %}">Home</a>
+            <a href="{% url 'requester_dashboard' %}">My Requests</a>
+            <a href="{% url 'director_requests' %}">Review Requests</a>
+            <a href="#" class="btn-logout" onclick="confirmLogout(event)">Logout</a>
+        </div>
+
+        <!-- Blocking alert banner (hidden if no blocking request) -->
+        {% if has_blocking_request and blocking_message %}
+        <div id="blockingBanner" style="
+    background:#fff3cd;
+    border:1px solid #ffc107;
+    color:#856404;
+    border-radius:8px;
+    padding:12px 16px;
+    margin-bottom:18px;
+    font-size:13px;
+    font-weight:600;
+    text-align:center;
+">
+            ⚠️ {{ blocking_message }}
+        </div>
+        {% endif %}
+
+        <div class="section-title">Recent Requests</div>
+
+        <table>
+
+            <tr>
+                <th>Reference No</th>
+                <th>Requester</th>
+                <th>Request Type</th>
+                <th>Destination</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+
+            {% for r in recent_requests %}
+
+            <tr>
+
+                <td>{{ r.reference_no }}</td>
+
+                <td>
+                    {% if r.is_group_request %}
+                    {{ r.group_leader_name }} ({{ r.members.count }} members)
+                    {% else %}
+                    {{ r.requester_name }}
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if r.is_group_request %}
+                    Group
+                    {% else %}
+                    Individual
+                    {% endif %}
+                </td>
+
+                <td>{{ r.destination }}</td>
+
+                <td>
+
+                    {% if r.raw_status == "CLOSED" %}
+                    <span class="badge badge-closed">Closed</span>
+
+                    {% elif r.raw_status == "APPROVED" %}
+                    <span class="badge badge-approved">Approved</span>
+
+                    {% elif r.raw_status == "RETURNED_HOU" or r.raw_status == "RETURNED_DIRECTOR" %}
+                    <span class="badge badge-returned">{{ r.display_status|default:"Returned" }}</span>
+
+                    {% elif r.raw_status == "REJECTED_HOU" or r.raw_status == "REJECTED_DIRECTOR" %}
+                    <span class="badge badge-rejected">{{ r.display_status|default:"Rejected" }}</span>
+
+                    {% elif r.is_overdue %}
+                    <span class="badge badge-overdue">Overdue</span>
+
+                    {% else %}
+                    <span class="badge badge-submitted">{{ r.display_status|default:"Submitted" }}</span>
+                    {% endif %}
+
+                </td>
+
+                <td>
+                    <a class="btn-link" href="{% url 'director_request_detail' r.pk %}">Open</a>
+                </td>
+
+            </tr>
+
+            {% empty %}
+
+            <tr>
+                <td colspan="6">No requests available.</td>
+            </tr>
+
+            {% endfor %}
+
+        </table>
+
+    </div>
+
+    <!-- ==================== SweetAlert2 Logic ==================== -->
+    <script>
+        /* ---------- Reusable popup helpers ---------- */
+        function showSuccess(msg) {
+            Swal.fire({ icon: 'success', title: 'Success', text: msg, confirmButtonColor: '#198754' });
+        }
+        function showError(msg) {
+            Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonColor: '#dc3545' });
+        }
+        function showWarning(msg) {
+            Swal.fire({ icon: 'warning', title: 'Warning', text: msg, confirmButtonColor: '#ffc107' });
+        }
+        function showInfo(msg) {
+            Swal.fire({ icon: 'info', title: 'Info', text: msg, confirmButtonColor: '#3498db' });
+        }
+
+        /* ---------- Logout confirmation ---------- */
+        function confirmLogout(e) {
+            e.preventDefault();
+            Swal.fire({
+                title: 'Logout?',
+                text: 'Are you sure you want to end your session?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, Logout',
+                cancelButtonText: 'Cancel',
+                reverseButtons: true
+            }).then(function (result) {
+                if (result.isConfirmed) {
+                    window.location.href = "{% url 'logout' %}";
+                }
+            });
+        }
+
+        /* ---------- Blocking request popup on page load ---------- */
+        {% if has_blocking_request and blocking_message %}
+        document.addEventListener('DOMContentLoaded', function () {
+            showInfo("{{ blocking_message|escapejs }}");
+        });
+        {% endif %}
+
+        /* ---------- Django messages → SweetAlert2 ---------- */
+        {% if messages %}
+        {% for message in messages %}
+        {% if 'success' in message.tags %}
+        showSuccess("{{ message|escapejs }}");
+        {% elif 'error' in message.tags %}
+        showError("{{ message|escapejs }}");
+        {% elif 'warning' in message.tags %}
+        showWarning("{{ message|escapejs }}");
+        {% else %}
+        showInfo("{{ message|escapejs }}");
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+    </script>
+
+</body>
+
+</html>
