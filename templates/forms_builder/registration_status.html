@@ -1,0 +1,150 @@
+{% extends "events/base_public.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}
+    {% translate "Check registration status" %}
+{% endblock %}
+
+{% block extra_css %}
+    <link
+        rel="stylesheet"
+        href="{% static 'css/registration-status.css' %}"
+    >
+{% endblock %}
+
+{% block content %}
+    <section class="status-page">
+        <div class="status-container">
+            <div class="status-heading">
+                <span class="section-kicker">
+                    {% translate "Registration" %}
+                </span>
+
+                <h1>{% translate "Check registration status" %}</h1>
+
+                <p>
+                    {% translate "Enter your reference number and the email address or phone number used during registration." %}
+                </p>
+            </div>
+
+            <form method="post" class="status-form">
+                {% csrf_token %}
+
+                {% if lookup_error %}
+                    <div class="status-alert" role="alert">
+                        {% translate "We could not verify a registration with those details." %}
+                    </div>
+                {% endif %}
+
+                <div class="status-field">
+                    <label for="reference-number">
+                        {% translate "Reference number" %}
+                    </label>
+
+                    <input
+                        type="text"
+                        id="reference-number"
+                        name="reference_number"
+                        value="{{ reference_number }}"
+                        autocomplete="off"
+                        autocapitalize="characters"
+                        required
+                    >
+                </div>
+
+                <div class="status-field">
+                    <label for="registration-contact">
+                        {% translate "Registered email or phone number" %}
+                    </label>
+
+                    <input
+                        type="text"
+                        id="registration-contact"
+                        name="contact"
+                        autocomplete="email"
+                        required
+                    >
+                </div>
+
+                <button type="submit" class="primary-button status-submit">
+                    {% translate "Check status" %}
+                </button>
+            </form>
+
+            {% if submission %}
+                <section class="status-result" aria-live="polite">
+                    <div class="status-result-header">
+                        <div>
+                            <span>{% translate "Reference number" %}</span>
+                            <strong>{{ submission.reference_number }}</strong>
+                        </div>
+
+                        <span class="status-badge status-{{ submission.review_status|lower }}">
+                            {{ submission.get_review_status_display }}
+                        </span>
+                    </div>
+
+                    <dl class="status-details">
+                        <div>
+                            <dt>{% translate "Event" %}</dt>
+                            <dd>
+                                {% if request.LANGUAGE_CODE == "en" %}
+                                    {{ submission.event_form.event.title_en }}
+                                {% else %}
+                                    {{ submission.event_form.event.title_sw }}
+                                {% endif %}
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt>{% translate "Submitted on" %}</dt>
+                            <dd>{{ submission.created_at|date:"d M Y, H:i" }}</dd>
+                        </div>
+                    </dl>
+
+                    <div class="status-explanation">
+                        <a href="{% url 'forms_builder:participant_portal' submission.participant_token %}" class="primary-button status-badge-link">{% translate "Open participant portal" %}</a>
+                        {% if submission.event_form.event.payment_enabled %}
+                            <a href="{% url 'forms_builder:participant_payment' submission.participant_token %}" class="primary-button status-badge-link">{% translate "View payment status" %}</a>
+                        {% endif %}
+                        {% if submission.review_status == "APPROVED" %}
+                            <h2>{% translate "Registration approved" %}</h2>
+                            <p>
+                                {% translate "Your registration has been approved. Keep your reference number for future event services." %}
+                            </p>
+
+                            {% if submission.event_form.event.badge_enabled %}
+                                <a
+                                    href="{% url 'forms_builder:participant_badge' submission.participant_token %}"
+                                    class="primary-button status-badge-link"
+                                >
+                                    {% translate "View participant badge" %}
+                                </a>
+                            {% endif %}
+                            {% if submission.event_form.event.certificate_enabled and submission.check_in and submission.certificate_record.status == "AUTHORIZED" %}
+                                <a
+                                    href="{% url 'forms_builder:participant_certificate' submission.participant_token %}"
+                                    class="secondary-button status-badge-link"
+                                >
+                                    {% translate "View certificate" %}
+                                </a>
+                            {% endif %}
+                        {% elif submission.review_status == "REJECTED" %}
+                            <h2>{% translate "Registration not approved" %}</h2>
+                            <p>
+                                {% translate "Your registration was not approved. Contact the event organizer if you need assistance." %}
+                            </p>
+                        {% else %}
+                            <h2>{% translate "Registration pending review" %}</h2>
+                            <p>
+                                {% translate "Your registration was received and is waiting for administrative review." %}
+                            </p>
+                        {% endif %}
+                    </div>
+                </section>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}
+

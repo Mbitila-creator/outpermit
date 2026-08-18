@@ -1,0 +1,252 @@
+{% extends "events/base_public.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% translate "Events" %} |
+    {% translate "Event Management System" %}
+{% endblock %}
+
+{% block content %}
+<section class="hero-section">
+    <div class="page-container">
+        <div class="hero-content">
+            <span class="hero-label">
+                {% translate "Welcome" %}
+            </span>
+
+            <h1>
+                {% translate "Event Management System" %}
+            </h1>
+
+            <p>
+                {% translate "View available events, read the details and register easily." %}
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="events-section">
+    <div class="page-container">
+        <form
+            method="get"
+            class="event-filters"
+        >
+            <div class="filter-field search-field">
+                <label for="event-search">
+                    {% translate "Search for an event" %}
+                </label>
+
+                <input
+                    type="search"
+                    id="event-search"
+                    name="q"
+                    value="{{ search_query }}"
+                    placeholder="{% translate 'Enter a name, code or organizer' %}"
+                >
+            </div>
+
+            <div class="filter-field">
+                <label for="category-filter">
+                    {% translate "Event category" %}
+                </label>
+
+                <select
+                    id="category-filter"
+                    name="category"
+                >
+                    <option value="">
+                        {% translate "All categories" %}
+                    </option>
+
+                    {% for category in categories %}
+                        <option
+                            value="{{ category.slug }}"
+                            {% if selected_category == category.slug %}
+                                selected
+                            {% endif %}
+                        >
+                            {% if request.LANGUAGE_CODE == "en" %}
+                                {{ category.name_en }}
+                            {% else %}
+                                {{ category.name_sw }}
+                            {% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-actions">
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    {% translate "Search" %}
+                </button>
+
+                {% if search_query or selected_category %}
+                    <a
+                        href="{% url 'events:home' %}"
+                        class="secondary-button"
+                    >
+                        {% translate "Clear filters" %}
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+
+        <div class="section-heading" id="available-events">
+            <div>
+                <span class="section-kicker">
+                    {% translate "Events" %}
+                </span>
+
+                <h2>
+                    {% translate "Available events" %}
+                </h2>
+            </div>
+
+            <span class="result-count">
+                {{ events|length }}
+                {% translate "found" %}
+            </span>
+        </div>
+
+        {% if request.user.is_authenticated %}
+            <nav class="module-launcher" aria-label="{% translate 'System modules' %}">
+                <span class="module-launcher-label">{% translate "System modules" %}</span>
+
+                <div class="module-launcher-links">
+                    <a href="#available-events" class="module-launcher-link events-module-link" aria-current="page">
+                        <span class="module-link-mark">E</span>
+                        <span>{% translate "Exhibitions" %}</span>
+                    </a>
+
+                    {% if request.user.is_superuser or request.user.role == 'SYSTEM_ADMIN' or request.user.role == 'EVENT_ADMIN' or request.user.role == 'ATTENDANCE_OFFICER' or request.user.role == 'REPORT_OFFICER' or request.user.role == 'DIRECTOR' or request.user.role == 'ASSISTANT_DIRECTOR' %}
+                        <a href="{% url 'meetings:meeting_list' %}" class="module-launcher-link meetings-module-link">
+                            <span class="module-link-mark">M</span>
+                            <span>{% translate "Meetings" %}</span>
+                        </a>
+                    {% endif %}
+
+                    {% if request.user.is_superuser or request.user.role == 'SYSTEM_ADMIN' or request.user.role == 'EVENT_ADMIN' or request.user.role == 'REGISTRATION_OFFICER' or request.user.role == 'ATTENDANCE_OFFICER' or request.user.role == 'REPORT_OFFICER' or request.user.role == 'DIRECTOR' or request.user.role == 'ASSISTANT_DIRECTOR' %}
+                        <a href="{% url 'conferences:conference_list' %}" class="module-launcher-link conferences-module-link">
+                            <span class="module-link-mark">C</span>
+                            <span>{% translate "Conferences" %}</span>
+                        </a>
+                    {% endif %}
+
+                    {% if request.user.is_superuser or request.user.role == 'SYSTEM_ADMIN' or request.user.role == 'EVENT_ADMIN' or request.user.role == 'DIRECTOR' or request.user.role == 'ASSISTANT_DIRECTOR' %}
+                        <a href="{% url 'events:special_event_participant_list' %}" class="module-launcher-link special-events-module-link">
+                            <span class="module-link-mark">S</span>
+                            <span>Special Events</span>
+                        </a>
+                    {% endif %}
+                </div>
+            </nav>
+        {% endif %}
+
+        <div class="event-grid">
+            {% for event in events %}
+                <article class="event-list-card">
+                    <a
+                        href="{% url 'events:event_detail' event.slug %}"
+                        class="event-image-link"
+                    >
+                        {% if event.banner %}
+                            <img
+                                src="{{ event.banner.url }}"
+                                alt="{% if LANGUAGE_CODE == 'en' %}{{ event.title_en }}{% else %}{{ event.title_sw }}{% endif %}"
+                                class="event-card-image"
+                            >
+                        {% else %}
+                            <div class="event-image-placeholder">
+                                <span>{{ event.code }}</span>
+                            </div>
+                        {% endif %}
+                    </a>
+
+                    <div class="event-card-body">
+                        <div class="event-card-top">
+                            <span class="category-badge">
+                                {% if request.LANGUAGE_CODE == "en" %}
+                                    {{ event.category.name_en }}
+                                {% else %}
+                                    {{ event.category.name_sw }}
+                                {% endif %}
+                            </span>
+
+                            <span class="status-badge status-{{ event.status|lower }}">
+                                {{ event.get_status_display }}
+                            </span>
+                        </div>
+
+                        <h3>
+                            <a href="{% url 'events:event_detail' event.slug %}">
+                                {% if request.LANGUAGE_CODE == "en" %}
+                                    {{ event.title_en }}
+                                {% else %}
+                                    {{ event.title_sw }}
+                                {% endif %}
+                            </a>
+                        </h3>
+
+                        <p class="event-organizer">
+                            {% if request.LANGUAGE_CODE == "en" %}
+                                {{ event.organizer_name_en }}
+                            {% else %}
+                                {{ event.organizer_name_sw }}
+                            {% endif %}
+                        </p>
+
+                        <div class="event-card-meta">
+                            <div>
+                                <span class="meta-title">
+                                    {% translate "Date" %}
+                                </span>
+
+                                <span>
+                                    {{ event.starts_at|date:"d M Y" }}
+                                    –
+                                    {{ event.ends_at|date:"d M Y" }}
+                                </span>
+                            </div>
+
+                            {% if event.venue %}
+                                <div>
+                                    <span class="meta-title">
+                                        {% translate "Venue" %}
+                                    </span>
+
+                                    <span>
+                                        {{ event.venue.name }}
+                                    </span>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="event-card-actions">
+                            <a
+                                href="{% url 'events:event_detail' event.slug %}"
+                                class="primary-button"
+                            >
+                                {% translate "View details" %}
+                            </a>
+                        </div>
+                    </div>
+                </article>
+            {% empty %}
+                <div class="empty-state">
+                    <h3>
+                        {% translate "No events were found" %}
+                    </h3>
+
+                    <p>
+                        {% translate "Try changing the search term or event category." %}
+                    </p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+

@@ -1,0 +1,22 @@
+{% extends "events/base_public.html" %}
+{% load static i18n %}
+
+{% block title %}{% translate "Meeting evaluation" %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/meetings-workflow.css' %}?v=20260810b">{% endblock %}
+
+{% block content %}
+<section class="meeting-invitation-page"><article class="meeting-feedback-card">
+    <span class="meeting-invitation-kicker">{% translate "Meeting evaluation" %}</span>
+    <h1>{% if request.LANGUAGE_CODE == 'en' %}{{ meeting.event.title_en }}{% else %}{{ meeting.event.title_sw }}{% endif %}</h1>
+    <p>{{ attendee.full_name }} · {{ meeting.reference_number }}</p>
+    {% if submitted %}<div class="meeting-response-success"><strong>{% translate "Thank you for your feedback." %}</strong><p>{% translate "Your evaluation has been recorded and cannot be submitted again." %}</p></div>
+    {% elif not feedback_allowed %}<div class="meeting-scan-result warning"><span>!</span><div><strong>{% translate "Evaluation is unavailable" %}</strong><p>{{ feedback_message }}</p></div></div>
+    {% else %}<form method="post" class="meeting-feedback-form">{% csrf_token %}
+        {% if form.non_field_errors %}<div class="meeting-form-errors">{{ form.non_field_errors }}</div>{% endif %}
+        <p class="meeting-feedback-scale">{% translate "Rating scale: 1 = Very poor, 5 = Excellent." %}</p>
+        {% for field in form %}<div class="meeting-feedback-field {% if field.name == 'is_anonymous' %}is-checkbox{% endif %}">{{ field.label_tag }}{{ field }}{{ field.errors }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}</div>{% endfor %}
+        <button type="submit" class="meeting-primary-button">{% translate "Submit evaluation" %}</button>
+    </form>{% endif %}
+</article></section>
+{% endblock %}
+

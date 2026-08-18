@@ -1,0 +1,16 @@
+{% extends "events/base_public.html" %}
+{% load static %}
+{% block title %}Import Special Event researchers{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/special-event-participants.css' %}">{% endblock %}
+{% block content %}
+<section class="special-event-page"><div class="special-event-container special-narrow">
+    <header class="special-event-heading"><div><span>Special Event</span><h1>Import researcher Excel file</h1><p>Each researcher receives one secure QR code containing all of their publications.</p></div></header>
+    <div class="special-import-guide"><h2>Required worksheet columns</h2><p><strong>Na · NAME · INSTITUTION · RESEARCH TITLE · AWARD CATEGORY · YEAR</strong></p><p>Every worksheet with these exact English headings will be imported. Rows with the same normalized name and institution are grouped under one QR code. Importing a complete revised file synchronizes the records while preserving existing researcher QR codes.</p></div>
+    <form method="post" enctype="multipart/form-data" class="special-import-form">{% csrf_token %}
+        {% if form.non_field_errors %}<div class="special-form-errors">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form %}<label>{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% if field.errors %}<span class="special-field-error">{{ field.errors|striptags }}</span>{% endif %}</label>{% endfor %}
+        <div class="special-form-actions"><button type="submit" class="special-primary-button">Import researchers</button><a class="special-secondary-button" href="{% url 'events:special_event_participant_list' %}">Cancel</a></div>
+    </form>
+</div></section>
+{% endblock %}
+

@@ -1,0 +1,44 @@
+.portal-certificate-decision {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin: 20px 0;
+    padding: 20px;
+    border: 1px solid #efb3b8;
+    border-left: 6px solid #b8323c;
+    border-radius: 14px;
+    background: #fff5f5;
+    color: #67242a;
+}
+
+.portal-certificate-decision-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #b8323c;
+    color: #fff;
+    font-size: 25px;
+    font-weight: 900;
+}
+
+.portal-certificate-decision h2 { margin: 0 0 7px; color: #8e2831; }
+.portal-certificate-decision p { margin: 0 0 10px; }
+.portal-certificate-decision blockquote {
+    margin: 0 0 10px;
+    padding: 11px 14px;
+    border-left: 4px solid #d86b73;
+    border-radius: 5px;
+    background: #fff;
+    color: #3b2930;
+    font-weight: 700;
+}
+.portal-certificate-decision small { color: #72555a; }
+.state-certificate-denied { color: #a32833; }
+
+@media (max-width: 560px) {
+    .portal-certificate-decision { flex-direction: column; }
+}
+

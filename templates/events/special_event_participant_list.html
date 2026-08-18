@@ -1,0 +1,40 @@
+{% extends "events/base_public.html" %}
+{% load static %}
+
+{% block title %}Special Event researchers{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/special-event-participants.css' %}">{% endblock %}
+
+{% block content %}
+<section class="special-event-page">
+    <div class="special-event-container">
+        <header class="special-event-heading">
+            <div><span>Special Event</span><h1>Researcher QR records</h1><p>Import, search and download one verified QR record for each researcher.</p></div>
+            {% if can_import %}<a class="special-primary-button" href="{% url 'events:special_event_participant_import' %}{% if selected_event %}?event={{ selected_event.pk }}{% endif %}">Import Excel file</a>{% endif %}
+        </header>
+
+        {% if messages %}<div class="special-messages">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+
+        <form method="get" class="special-filters">
+            <label>Special event<select name="event" required>{% for event in events %}<option value="{{ event.pk }}" {% if selected_event.pk == event.pk %}selected{% endif %}>{{ event.code }} — {{ event.title_en }}</option>{% endfor %}</select></label>
+            <label>Search researchers<input type="search" name="q" value="{{ search_query }}" placeholder="Name, institution, title, category, year or row number"></label>
+            <label>Phase / worksheet<select name="sheet"><option value="">All phases</option>{% for sheet in sheet_choices %}<option value="{{ sheet }}" {% if selected_sheet == sheet %}selected{% endif %}>{{ sheet }}</option>{% endfor %}</select></label>
+            <button type="submit" class="special-primary-button">Search</button>
+        </form>
+
+        {% if selected_event %}
+            <div class="special-summary">
+                <div class="special-summary-count"><strong>{{ participant_count }}</strong><span>researcher QR records</span></div>
+                {% if participant_count %}<div class="special-summary-actions"><a class="special-secondary-button" href="{% url 'events:special_event_participant_print' %}?event={{ selected_event.pk }}{% if selected_sheet %}&amp;sheet={{ selected_sheet|urlencode }}{% endif %}" target="_blank">Open printable QR cards</a><a class="special-primary-button" href="{% url 'events:special_event_participant_cards_word' %}?event={{ selected_event.pk }}{% if selected_sheet %}&amp;sheet={{ selected_sheet|urlencode }}{% endif %}">Download editable Word cards</a></div>{% endif %}
+            </div>
+            <div class="special-table-scroll"><table><thead><tr><th>QR code</th><th>Researcher</th><th>Institution</th><th>Publications and awards</th><th>Verification</th></tr></thead><tbody>
+            {% for participant in participants_page %}<tr><td><img class="participant-qr-small" src="{% url 'events:special_event_participant_qr' participant.verification_token %}" alt="QR code for {{ participant.full_name }}"></td><td><strong>{{ participant.full_name }}</strong><br><span class="special-publication-count">{{ participant.publication_count }} publication{{ participant.publication_count|pluralize }}</span></td><td>{{ participant.institution|default:"—" }}</td><td><ol class="special-publication-list">{% for publication in participant.active_publications %}<li><strong>{{ publication.research_title }}</strong><br>{{ publication.award_category }} · {{ publication.award_year }}</li>{% endfor %}</ol></td><td><div class="special-row-links"><a href="{% url 'events:special_event_participant_verify' participant.verification_token %}" target="_blank">Open verified record</a></div></td></tr>
+            {% empty %}<tr><td colspan="5" class="special-empty">No researcher records were found for this selection.</td></tr>{% endfor %}
+            </tbody></table></div>
+            {% if participants_page.paginator.num_pages > 1 %}<nav class="special-pagination" aria-label="Researcher pages">{% if participants_page.has_previous %}<a href="?event={{ selected_event.pk }}&amp;q={{ search_query|urlencode }}&amp;sheet={{ selected_sheet|urlencode }}&amp;page={{ participants_page.previous_page_number }}">← Previous</a>{% endif %}<span>Page {{ participants_page.number }} of {{ participants_page.paginator.num_pages }}</span>{% if participants_page.has_next %}<a href="?event={{ selected_event.pk }}&amp;q={{ search_query|urlencode }}&amp;sheet={{ selected_sheet|urlencode }}&amp;page={{ participants_page.next_page_number }}">Next →</a>{% endif %}</nav>{% endif %}
+        {% else %}
+            <div class="special-empty-state"><h2>No Special Event is available</h2><p>Create an event in the Special Event category before importing researchers.</p></div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+

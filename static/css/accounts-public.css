@@ -1,0 +1,47 @@
+.staff-login-page {
+    min-height: calc(100vh - 150px);
+    padding: 48px 12px;
+    background: #f1f5f9;
+}
+
+.staff-login-card {
+    width: min(100%, 560px);
+    margin: 0 auto;
+    padding: clamp(24px, 5vw, 42px);
+    border: 1px solid #dbe3ee;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, .09);
+}
+
+.staff-login-heading h1 { margin: 8px 0; color: #17365d; font-size: clamp(30px, 6vw, 44px); }
+.staff-login-heading p, .role-guidance p { color: #56657a; line-height: 1.6; }
+.staff-login-form { display: grid; gap: 10px; margin-top: 28px; }
+.staff-login-form label { margin-top: 8px; color: #24344d; font-weight: 750; }
+.staff-login-form input { display:block; width:100%; min-width:0; min-height:50px; box-sizing:border-box; padding:11px 14px; border:1px solid #b8c4d4; border-radius:9px; font:inherit; }
+.staff-login-form input:focus { outline: 3px solid rgba(37, 99, 235, .16); border-color: #2563eb; }
+.password-input-wrap { position:relative; display:block; width:100%; min-width:0; }
+.password-input-wrap input { width:100%; box-sizing:border-box; padding-right:54px; }
+.staff-login-form .password-visibility-toggle { position:absolute; top:50%; right:7px; width:40px; min-height:38px; margin:0; padding:0; transform:translateY(-50%); border:0; border-radius:7px; background:transparent; color:#334155; font-size:21px; cursor:pointer; }
+.staff-login-form .password-visibility-toggle:hover { background:#e8eef6; color:#17365d; }
+.forgot-password-link { justify-self:end; margin-top:2px; color:#1d5f9f; font-weight:750; }
+.staff-login-form button { min-height: 50px; margin-top: 12px; border: 0; border-radius: 9px; background: #17365d; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.staff-login-form button:hover { background: #244f83; }
+.login-alert { margin-top: 20px; padding: 13px 15px; border: 1px solid #fecaca; border-radius: 9px; background: #fef2f2; color: #991b1b; }
+.role-guidance { margin-top: 30px; padding-top: 22px; border-top: 1px solid #dbe3ee; }
+.role-guidance h2 { margin: 0 0 8px; color: #24344d; font-size: 18px; }
+.role-guidance a { color: #1d5f9f; font-weight: 750; }
+
+.password-page { display:grid; min-height:calc(100vh - 150px); box-sizing:border-box; place-items:center; padding:48px max(16px,env(safe-area-inset-right)) 48px max(16px,env(safe-area-inset-left)); background:linear-gradient(145deg,#eef4fb,#f8fafc); }
+.password-card { width:min(100%,620px); min-width:0; box-sizing:border-box; margin:0 auto; padding:clamp(26px,5vw,44px); overflow:hidden; border:1px solid #d5e1ee; border-radius:20px; background:white; box-shadow:0 22px 55px rgba(15,23,42,.11); }
+.password-card::before { display:block; width:54px; height:5px; margin-bottom:24px; border-radius:999px; background:#d9ad16; content:""; }
+.password-card h1 { margin:8px 0; color:#17365d; font-size:clamp(29px,6vw,42px); }
+.password-card > p,.password-card li,.password-help { max-width:58ch; color:#56657a; line-height:1.6; }
+.password-form { display:grid; gap:10px; margin-top:24px; }
+.password-form label { margin-top:8px; color:#24344d; font-weight:750; }
+.password-form input { min-height:50px; box-sizing:border-box; width:100%; padding:11px 14px; border:1px solid #b8c4d4; border-radius:9px; font:inherit; }
+.password-form button,.password-primary-link { display:inline-flex; min-height:48px; align-items:center; justify-content:center; box-sizing:border-box; margin-top:14px; padding:11px 18px; border:0; border-radius:9px; background:#17365d; color:white; font:inherit; font-weight:800; text-decoration:none; cursor:pointer; }
+.password-form .errorlist { margin:3px 0; padding:10px 14px 10px 32px; border-radius:8px; background:#fef2f2; color:#991b1b; }
+.password-secondary-link { display:inline-block; margin-top:18px; color:#1d5f9f; font-weight:750; }
+@media(max-width:520px){.password-page{place-items:start center;padding-top:28px;padding-bottom:28px}.password-card{padding:24px 20px;border-radius:16px}.password-card h1{font-size:30px}.password-form button,.password-primary-link{width:100%}}
+

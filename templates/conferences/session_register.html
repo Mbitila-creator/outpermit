@@ -1,0 +1,99 @@
+{% extends "events/base_public.html" %}
+{% load static i18n %}
+
+{% block title %}{{ session.title }} — {% translate "Session register" %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/conferences.css' %}?v=20260815b">{% endblock %}
+
+{% block content %}
+<main class="conference-page">
+    {% if messages %}<div class="conference-messages">{% for message in messages %}<div class="conference-message conference-message-{{ message.tags }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+    <header class="conference-heading">
+        <div><span>{% translate "Session register" %}</span><h1>{{ session.title }}</h1><p>{{ session.starts_at|date:"l, d F Y · H:i" }}–{{ session.ends_at|date:"H:i" }} · {{ session.venue_name }}</p></div>
+        <a class="conference-secondary" href="{% url 'conferences:conference_detail' event_form.pk %}">← {% translate "Conference dashboard" %}</a>
+    </header>
+
+    <section class="conference-checkin-layout">
+        <div class="conference-panel conference-scan-panel">
+            <span class="conference-code">{% translate "QR check-in" %}</span>
+            <h2>{% translate "Scan participant badge" %}</h2>
+            <p>{% translate "Scan the participant badge QR, paste its decoded link, or enter the registration reference number." %}</p>
+            {% if lookup_error %}<div class="conference-message conference-message-error">{{ lookup_error }}</div>{% endif %}
+            <form method="post" id="session-checkin-form" class="conference-checkin-form">
+                {% csrf_token %}
+                <label for="checkin-identifier">{% translate "Badge QR link, participant token or reference number" %}</label>
+                <input id="checkin-identifier" name="identifier" type="text" autocomplete="off" required autofocus>
+                <button class="conference-primary" type="submit">{% translate "Check in participant" %}</button>
+            </form>
+            <button class="conference-secondary conference-camera-button" id="start-camera" type="button">{% translate "Use this device's camera" %}</button>
+            <div id="camera-area" class="conference-camera" hidden>
+                <video id="camera-preview" playsinline muted></video>
+                <p id="camera-status">{% translate "Point the camera at the participant QR code." %}</p>
+                <button class="conference-secondary" id="stop-camera" type="button">{% translate "Stop camera" %}</button>
+            </div>
+        </div>
+        <aside class="conference-panel conference-register-total"><span>{% translate "Attendance" %}</span><strong>{{ checked_in_count }} / {{ submissions|length }}</strong><p>{% translate "approved participants checked in" %}</p><a class="conference-secondary" href="{% url 'conferences:session_register_csv' event_form.pk session.pk %}">{% translate "Download attendance CSV" %}</a></aside>
+    </section>
+
+    <section class="conference-panel">
+        <div class="conference-panel-heading"><div><span>{% translate "Selected and approved" %}</span><h2>{% translate "Participant register" %}</h2></div></div>
+        <div class="conference-table-scroll"><table class="conference-table"><thead><tr><th>{% translate "Reference" %}</th><th>{% translate "Participant" %}</th><th>{% translate "Institution" %}</th><th>{% translate "Attendance" %}</th></tr></thead><tbody>
+        {% for submission in submissions %}<tr><td>{{ submission.reference_number }}</td><td>{{ submission.badge_display_name }}</td><td>{{ submission.badge_organization|default:"—" }}</td><td>{% if submission.session_attendance %}<span class="conference-status conference-status-approved">✓ {% translate "Checked in" %}</span><small>{{ submission.session_attendance.checked_in_at|date:"d M Y, H:i" }} · {{ submission.session_attendance.checked_in_by }}</small>{% else %}<span class="conference-status conference-status-pending">{% translate "Not checked in" %}</span>{% endif %}</td></tr>{% empty %}<tr><td colspan="4">{% translate "No approved participant selected this session." %}</td></tr>{% endfor %}
+        </tbody></table></div>
+    </section>
+</main>
+
+<script>
+(() => {
+    const startButton = document.getElementById("start-camera");
+    const stopButton = document.getElementById("stop-camera");
+    const area = document.getElementById("camera-area");
+    const video = document.getElementById("camera-preview");
+    const status = document.getElementById("camera-status");
+    const input = document.getElementById("checkin-identifier");
+    const form = document.getElementById("session-checkin-form");
+    let stream = null;
+    let scanning = false;
+
+    function stopCamera() {
+        scanning = false;
+        if (stream) stream.getTracks().forEach(track => track.stop());
+        stream = null;
+        area.hidden = true;
+    }
+
+    startButton.addEventListener("click", async () => {
+        if (!("BarcodeDetector" in window) || !navigator.mediaDevices) {
+            status.textContent = "Camera QR scanning is not supported by this browser. Use the QR scanner on your phone and paste the link above.";
+            area.hidden = false;
+            return;
+        }
+        try {
+            const detector = new BarcodeDetector({formats: ["qr_code"]});
+            stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: "environment"}});
+            video.srcObject = stream;
+            await video.play();
+            area.hidden = false;
+            scanning = true;
+            const scan = async () => {
+                if (!scanning) return;
+                const codes = await detector.detect(video);
+                if (codes.length) {
+                    input.value = codes[0].rawValue;
+                    stopCamera();
+                    form.submit();
+                    return;
+                }
+                window.setTimeout(scan, 350);
+            };
+            scan();
+        } catch (error) {
+            area.hidden = false;
+            status.textContent = "The camera could not be opened. Enter the participant reference number instead.";
+        }
+    });
+    stopButton.addEventListener("click", stopCamera);
+    window.addEventListener("pagehide", stopCamera);
+})();
+</script>
+{% endblock %}
+

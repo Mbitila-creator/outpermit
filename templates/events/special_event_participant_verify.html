@@ -1,0 +1,37 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ participant.full_name }}</title>
+    <link rel="stylesheet" href="{% static 'css/special-event-participants.css' %}">
+</head>
+<body class="qr-verification-body">
+    <main class="qr-minimal-record">
+        <p><strong>Name:</strong> {{ participant.full_name }}</p>
+        <p><strong>Institution:</strong> {{ participant.institution|default:"—" }}</p>
+        {% if participant.active_publications|length == 1 %}
+            {% with publication=participant.active_publications.0 %}
+            <div class="qr-publication-record">
+                <p><strong>Research Title:</strong> {{ publication.research_title|default:"—" }}</p>
+                <p><strong>Award Category:</strong> {{ publication.award_category|default:"—" }}</p>
+                <p><strong>Award Year:</strong> {{ publication.award_year|default:"—" }}</p>
+            </div>
+            {% endwith %}
+        {% else %}
+            <ol class="qr-publication-records">
+                {% for publication in participant.active_publications %}
+                <li>
+                    <p><strong>Research Title:</strong> {{ publication.research_title|default:"—" }}</p>
+                    <p><strong>Award Category:</strong> {{ publication.award_category|default:"—" }}</p>
+                    <p><strong>Award Year:</strong> {{ publication.award_year|default:"—" }}</p>
+                </li>
+                {% endfor %}
+            </ol>
+        {% endif %}
+        <p class="qr-minimal-copyright">© MoEST 2026</p>
+    </main>
+</body>
+</html>
+

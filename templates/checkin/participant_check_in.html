@@ -1,0 +1,136 @@
+{% extends "events/base_public.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% translate "Participant check-in" %}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/checkin.css' %}">
+{% endblock %}
+
+{% block content %}
+    <section class="checkin-page">
+        <div class="checkin-container">
+            <div class="checkin-heading">
+                <div>
+                    <span class="section-kicker">{% translate "Identity verification" %}</span>
+                    <h1>{% translate "Participant check-in" %}</h1>
+                </div>
+
+                <a href="{% url 'checkin:lookup' %}" class="secondary-button">
+                    {% translate "Check another participant" %}
+                </a>
+            </div>
+
+            {% if just_checked_in %}
+                <div class="checkin-result-panel checkin-result-success" role="status">
+                    <span class="checkin-result-icon" aria-hidden="true">✓</span>
+                    <h2>{% translate "Check-in successful" %}</h2>
+                    <p>{% translate "Participant checked in successfully." %}</p>
+                    {% if certificate_path %}
+                        <a href="{{ certificate_path }}" class="primary-button">
+                            {% translate "View certificate" %}
+                        </a>
+                    {% endif %}
+                    {% if evaluation_path %}
+                        <a href="{{ evaluation_path }}" class="secondary-button">
+                            {% translate "Submit event evaluation" %}
+                        </a>
+                    {% endif %}
+                </div>
+            {% elif check_in %}
+                <div class="checkin-result-panel checkin-result-error" role="alert">
+                    <span class="checkin-result-icon" aria-hidden="true">×</span>
+                    <h2>{% translate "Already checked in" %}</h2>
+                    <p>{% translate "This participant is already checked in." %}</p>
+                    {% if certificate_path %}
+                        <a href="{{ certificate_path }}" class="primary-button">
+                            {% translate "View certificate" %}
+                        </a>
+                    {% endif %}
+                    {% if evaluation_path %}
+                        <a href="{{ evaluation_path }}" class="secondary-button">
+                            {% translate "Submit event evaluation" %}
+                        </a>
+                    {% endif %}
+                </div>
+            {% elif not is_eligible %}
+                <div class="checkin-result-panel checkin-result-error" role="alert">
+                    <span class="checkin-result-icon" aria-hidden="true">×</span>
+                    <h2>{% translate "Check-in not allowed" %}</h2>
+                    <p>
+                        {% translate "This registration is not approved or is not eligible for check-in." %}
+                    </p>
+                </div>
+            {% endif %}
+
+            <article class="checkin-card participant-verification-card">
+                <div class="verification-status">
+                    <span aria-hidden="true">✓</span>
+                    <div>
+                        <strong>{% translate "Approved participant" %}</strong>
+                        <small>{% translate "Identity token verified" %}</small>
+                    </div>
+                </div>
+
+                <dl class="verification-details">
+                    <div>
+                        <dt>{% translate "Participant name" %}</dt>
+                        <dd>{{ submission.badge_display_name }}</dd>
+                    </div>
+
+                    {% if submission.badge_organization %}
+                        <div>
+                            <dt>{% translate "Organization" %}</dt>
+                            <dd>{{ submission.badge_organization }}</dd>
+                        </div>
+                    {% endif %}
+
+                    {% if submission.badge_title %}
+                        <div>
+                            <dt>{% translate "Role or title" %}</dt>
+                            <dd>{{ submission.badge_title }}</dd>
+                        </div>
+                    {% endif %}
+
+                    <div>
+                        <dt>{% translate "Reference number" %}</dt>
+                        <dd>{{ submission.reference_number }}</dd>
+                    </div>
+
+                    <div>
+                        <dt>{% translate "Event" %}</dt>
+                        <dd>
+                            {% if request.LANGUAGE_CODE == "en" %}
+                                {{ event.title_en }}
+                            {% else %}
+                                {{ event.title_sw }}
+                            {% endif %}
+                        </dd>
+                    </div>
+                </dl>
+
+                {% if check_in %}
+                    <div class="checked-in-record">
+                        <span>{% translate "Checked in at" %}</span>
+                        <strong>{{ check_in.checked_in_at|date:"d M Y, H:i:s" }}</strong>
+                        <span>{% translate "Checked in by" %}</span>
+                        <strong>{{ check_in.checked_in_by }}</strong>
+                    </div>
+                {% elif is_eligible %}
+                    <form
+                        method="post"
+                        class="checkin-confirm-form"
+                        id="automatic-check-in-form"
+                    >
+                        {% csrf_token %}
+                        <button type="submit" class="primary-button checkin-confirm-button">
+                            {% translate "Confirm participant check-in" %}
+                        </button>
+                    </form>
+                {% endif %}
+            </article>
+        </div>
+    </section>
+{% endblock %}
+

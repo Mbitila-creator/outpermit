@@ -1,0 +1,39 @@
+{% extends "events/base_public.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% translate "Exhibition booths" %} — {% if request.LANGUAGE_CODE == "en" %}{{ event.title_en }}{% else %}{{ event.title_sw }}{% endif %}{% endblock %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/booth-directory.css' %}">{% endblock %}
+
+{% block content %}
+    <section class="booth-directory-page">
+        <div class="booth-public-container">
+            <div class="booth-page-heading">
+                <div>
+                    <span class="section-kicker">{% translate "Exhibitor directory" %}</span>
+                    <h1>{% translate "Explore exhibition booths" %}</h1>
+                    <p>{% translate "Discover participating exhibitors and find their booth locations." %}</p>
+                </div>
+                <a href="{% url 'events:event_detail' event.slug %}" class="secondary-button">{% translate "Return to event" %}</a>
+            </div>
+
+            <div class="booth-grid">
+                {% for booth in booths %}
+                    <article class="booth-directory-card">
+                        <div class="booth-code">{{ booth.code }}</div>
+                        <div>
+                            <span class="booth-zone">{% if request.LANGUAGE_CODE == "en" %}{{ booth.zone_en }}{% else %}{{ booth.zone_sw }}{% endif %}</span>
+                            <h2>{% if request.LANGUAGE_CODE == "en" %}{{ booth.name_en }}{% else %}{{ booth.name_sw }}{% endif %}</h2>
+                            <p>{{ booth.assigned_submission.badge_organization|default:booth.assigned_submission.badge_display_name }}</p>
+                        </div>
+                        <a href="{% url 'forms_builder:booth_detail' booth.public_token %}" class="primary-button">{% translate "View booth" %}</a>
+                    </article>
+                {% empty %}
+                    <div class="booth-empty">{% translate "No exhibition booths are available yet." %}</div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+{% endblock %}
+

@@ -16,3 +16,8 @@ class SystemModule(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.name}"
+
+
+# Event Management shares the platform audit and geographical records while
+# retaining its original app labels for a safe migration path.
+from .event_models import BaseModel, Council, Country, District, Region

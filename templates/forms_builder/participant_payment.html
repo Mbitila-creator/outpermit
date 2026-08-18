@@ -1,0 +1,43 @@
+{% extends "events/base_public.html" %}
+{% load i18n static humanize %}
+
+{% block title %}{% translate "Registration payment" %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/participant-payment.css' %}">{% endblock %}
+
+{% block content %}
+<section class="payment-page"><div class="payment-card">
+    <span class="payment-kicker">{{ submission.reference_number }}</span>
+    <h1>{% translate "Registration payment" %}</h1>
+    <p class="payment-event">{% if request.LANGUAGE_CODE == 'en' %}{{ event.title_en }}{% else %}{{ event.title_sw }}{% endif %}</p>
+
+    <div class="payment-amount"><span>{% translate "Amount payable" %}</span><strong>{{ payment_currency }} {% if calculated_amount != None %}{{ calculated_amount|floatformat:2|intcomma }}{% else %}—{% endif %}</strong></div>
+    <div class="payment-instructions">
+        {% if request.LANGUAGE_CODE == 'en' %}{{ event.payment_instructions_en|linebreaks }}{% else %}{{ event.payment_instructions_sw|linebreaks }}{% endif %}
+    </div>
+
+    {% if calculated_amount == None %}
+        <div class="payment-error">{% translate "The payment amount could not be calculated. Contact the event organizer." %}</div>
+    {% elif latest_payment and latest_payment.status != 'REJECTED' %}
+        <section class="payment-status payment-status-{{ latest_payment.status|lower }}">
+            <span>{% translate "Payment status" %}</span>
+            <h2>{{ latest_payment.get_status_display }}</h2>
+            <dl><div><dt>{% translate "Transaction reference" %}</dt><dd>{{ latest_payment.transaction_reference|default:"—" }}</dd></div><div><dt>{% translate "Submitted on" %}</dt><dd>{{ latest_payment.created_at|date:"d M Y, H:i" }}</dd></div></dl>
+            {% if latest_payment.status == 'PENDING' %}<p>{% translate "Your payment information has been received and is awaiting verification." %}</p>{% endif %}
+            {% if latest_payment.status == 'VERIFIED' %}<p>{% translate "Your payment has been verified successfully." %}</p><a href="{% url 'forms_builder:payment_receipt' submission.participant_token %}">{% translate "Open payment receipt" %}</a>{% endif %}
+        </section>
+    {% else %}
+        {% if latest_payment.status == 'REJECTED' %}<div class="payment-error">{% translate "The previous payment was rejected. Check the details and submit again." %}</div>{% endif %}
+        {% if payment_errors.payment %}<div class="payment-error">{{ payment_errors.payment }}</div>{% endif %}
+        <form method="post" enctype="multipart/form-data" class="payment-form">
+            {% csrf_token %}
+            <label>{% translate "Payment method" %}<select name="method" required><option value="">{% translate "Select an option" %}</option>{% for value,label in payment_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+            {% if payment_errors.method %}<p class="field-error">{{ payment_errors.method }}</p>{% endif %}
+            <label>{% translate "Transaction reference" %}<input type="text" name="transaction_reference" maxlength="100"><small>{% translate "Required for bank and mobile-money payments." %}</small></label>
+            {% if payment_errors.transaction_reference %}<p class="field-error">{{ payment_errors.transaction_reference }}</p>{% endif %}
+            <label>{% translate "Payment proof" %}<input type="file" name="proof" accept="image/*,.pdf"></label>
+            <button type="submit">{% translate "Submit payment information" %}</button>
+        </form>
+    {% endif %}
+</div></section>
+{% endblock %}
+

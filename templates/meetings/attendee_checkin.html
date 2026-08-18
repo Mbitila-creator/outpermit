@@ -1,0 +1,16 @@
+{% extends "meetings/base_meetings.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Meeting participant check-in" %}{% endblock %}
+
+{% block meeting_content %}
+<header class="meeting-page-heading"><div><a href="{% url 'meetings:meeting_detail' meeting.pk %}#checkin">← {% translate "Back to meeting" %}</a><h1>{% translate "Meeting participant check-in" %}</h1><p>{{ meeting.reference_number }}</p></div></header>
+<article class="meeting-scan-card">
+    {% if just_checked_in %}<div class="meeting-scan-result success"><span>✓</span><div><strong>{% translate "Participant checked in successfully" %}</strong><p>{% translate "Attendance has been marked as present." %}</p></div></div>
+    {% elif attendee.checked_in_at %}<div class="meeting-scan-result warning"><span>✓</span><div><strong>{% translate "Participant already checked in" %}</strong><p>{{ attendee.checked_in_at|date:"d M Y, H:i:s" }}{% if attendee.checked_in_by %} · {{ attendee.checked_in_by }}{% endif %}</p></div></div>
+    {% elif not checkin_allowed %}<div class="meeting-scan-result error"><span>!</span><div><strong>{% translate "Check-in not allowed" %}</strong><p>{{ checkin_message }}</p></div></div>{% endif %}
+    <div class="meeting-scan-person"><span>{% translate "Participant" %}</span><h2>{{ attendee.full_name }}</h2><p>{{ attendee.designation|default:"" }}{% if attendee.organization %} · {{ attendee.organization }}{% endif %}</p><dl><div><dt>{% translate "Invitation response" %}</dt><dd>{{ attendee.get_response_status_display }}</dd></div><div><dt>{% translate "Meeting" %}</dt><dd>{% if request.LANGUAGE_CODE == 'en' %}{{ meeting.event.title_en }}{% else %}{{ meeting.event.title_sw }}{% endif %}</dd></div><div><dt>{% translate "Date and time" %}</dt><dd>{{ meeting.event.starts_at|date:"d M Y, H:i" }}</dd></div></dl></div>
+    {% if checkin_allowed and not attendee.checked_in_at %}<form method="post" class="meeting-scan-confirm">{% csrf_token %}<button type="submit" class="meeting-primary-button">{% translate "Confirm participant check-in" %}</button></form>{% endif %}
+</article>
+{% endblock %}
+

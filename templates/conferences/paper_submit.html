@@ -1,0 +1,28 @@
+{% extends "events/base_public.html" %}
+{% load static i18n %}
+{% block title %}{{ call.title }} — {{ call.event.code }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/conferences.css' %}?v=20260816d">{% endblock %}
+{% block content %}
+<main class="conference-page conference-paper-page">
+    <header class="conference-heading">
+        <div><span>{{ call.event.code }}</span><h1>{{ call.title }}</h1><p>{{ call.introduction }}</p></div>
+        <a class="conference-secondary" href="{% url 'conferences:public_programme' call.event.slug %}">{% translate "Conference programme" %}</a>
+    </header>
+    <section class="conference-panel conference-guidelines"><h2>{% translate "Submission guidelines" %}</h2>{{ call.guidelines|linebreaks }}</section>
+    <form method="post" enctype="multipart/form-data" class="conference-panel conference-paper-form" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="conference-message conference-message-error">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="conference-form-grid">
+            {% for field in form %}
+                <div class="conference-form-field{% if field.name == 'abstract' or field.name == 'co_authors' or field.name == 'document' or field.name == 'confirmation' %} conference-form-wide{% endif %}">
+                    {% if field.field.widget.input_type == 'checkbox' %}<label class="conference-checkbox">{{ field }} <span>{{ field.label }}</span></label>{% else %}<label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <b>*</b>{% endif %}</label>{{ field }}{% endif %}
+                    {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+                    {% for error in field.errors %}<div class="conference-field-error">{{ error }}</div>{% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+        <button class="conference-primary conference-submit-button" type="submit">{% translate "Submit abstract or paper" %}</button>
+    </form>
+</main>
+{% endblock %}
+

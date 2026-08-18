@@ -1,0 +1,38 @@
+{% extends "meetings/base_meetings.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Meeting calendar" %}{% endblock %}
+
+{% block meeting_content %}
+<header class="meeting-page-heading meeting-report-heading">
+    <div><a href="{% url 'meetings:meeting_list' %}">← {% translate "All meetings" %}</a><h1>{% translate "Meeting calendar" %}</h1><p>{% translate "View scheduled meetings by month." %}</p></div>
+    <a class="meeting-primary-button" href="{% url 'meetings:action_report' %}">{% translate "Action report" %}</a>
+</header>
+
+<div class="meeting-calendar-toolbar">
+    <a href="?month={{ previous_month|date:'Y-m' }}">← {% translate "Previous month" %}</a>
+    <div><strong>{{ selected_month|date:"F Y" }}</strong><span>{{ meeting_count }} {% translate "meetings scheduled" %}</span></div>
+    <a href="?month={{ next_month|date:'Y-m' }}">{% translate "Next month" %} →</a>
+</div>
+
+<div class="meeting-calendar-scroll">
+    <div class="meeting-calendar" role="grid">
+        <div class="meeting-calendar-weekdays" role="row">
+            <span>{% translate "Monday" %}</span><span>{% translate "Tuesday" %}</span><span>{% translate "Wednesday" %}</span><span>{% translate "Thursday" %}</span><span>{% translate "Friday" %}</span><span>{% translate "Saturday" %}</span><span>{% translate "Sunday" %}</span>
+        </div>
+        {% for week in weeks %}
+            <div class="meeting-calendar-week" role="row">
+                {% for day in week %}
+                    <div class="meeting-calendar-day {% if not day.in_month %}outside-month{% endif %}" role="gridcell">
+                        <time datetime="{{ day.date|date:'Y-m-d' }}">{{ day.date.day }}</time>
+                        {% for meeting in day.meetings %}
+                            <a href="{% url 'meetings:meeting_detail' meeting.pk %}"><strong>{{ meeting.event.starts_at|date:"H:i" }}</strong><span>{% if request.LANGUAGE_CODE == 'en' %}{{ meeting.event.title_en }}{% else %}{{ meeting.event.title_sw }}{% endif %}</span><small>{{ meeting.reference_number }} · {{ meeting.get_attendance_mode_display }}</small></a>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+

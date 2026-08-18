@@ -1,0 +1,134 @@
+{% extends "events/base_public.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}
+    {% translate "Participant badge" %} — {{ submission.badge_display_name }}
+{% endblock %}
+
+{% block extra_css %}
+    <link
+        rel="stylesheet"
+        href="{% static 'css/participant-badge.css' %}?v=20260815e"
+    >
+{% endblock %}
+
+{% block content %}
+    <section class="badge-page">
+        <div class="badge-page-heading no-print">
+            <div>
+                <span class="section-kicker">{% translate "Approved participant" %}</span>
+                <h1>{% translate "Participant badge" %}</h1>
+                <p>{% translate "Print this badge or keep it available on your phone." %}</p>
+            </div>
+
+            <button
+                type="button"
+                class="primary-button"
+                id="print-participant-badge"
+            >
+                {% translate "Print badge" %}
+            </button>
+
+        </div>
+
+        <article class="participant-badge{% if event.category.is_conference %} conference-participant-badge{% endif %}" aria-label="{% translate 'Participant badge' %}">
+            <header class="badge-header">
+                {% if event.logo %}
+                    <img src="{{ event.logo.url }}" alt="{{ event.code }}">
+                {% endif %}
+
+                <div>
+                    <span class="badge-event-code">{{ event.code }}</span>
+                    <h2>
+                        {% if request.LANGUAGE_CODE == "en" %}
+                            {{ event.title_en }}
+                        {% else %}
+                            {{ event.title_sw }}
+                        {% endif %}
+                    </h2>
+                </div>
+            </header>
+
+            <div class="badge-body" style="position: relative; overflow: hidden;">
+                {% if event.logo %}
+                    <img
+                        class="badge-logo-watermark"
+                        src="{{ event.logo.url }}"
+                        alt=""
+                        aria-hidden="true"
+                        style="position: absolute; z-index: 0; top: 50%; left: 50%; width: 58%; height: 72%; transform: translate(-50%, -50%); object-fit: contain; opacity: .055; pointer-events: none;"
+                    >
+                {% endif %}
+                <p class="badge-type">{% translate "PARTICIPANT" %}</p>
+
+                <div class="badge-person-details">
+                    <h3>{{ submission.badge_display_name }}</h3>
+
+                    {% if event.category.is_conference %}
+                        {% if submission.badge_title and submission.badge_title != "Representative" and submission.badge_title != "Mwakilishi" %}
+                            <p class="badge-title">{{ submission.badge_title }}</p>
+                        {% endif %}
+
+                        {% if submission.badge_organization %}
+                            <p class="badge-detail-label">{% translate "Institution" %}</p>
+                            <p class="badge-organization">{{ submission.badge_organization }}</p>
+                        {% endif %}
+                    {% else %}
+                        {% if submission.badge_title %}
+                            <p class="badge-title">{{ submission.badge_title }}</p>
+                        {% endif %}
+
+                        {% if submission.badge_organization %}
+                            <p class="badge-organization">{{ submission.badge_organization }}</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+
+                <div class="badge-identity">
+                    <img
+                        src="{% url 'forms_builder:participant_badge_qr' submission.participant_token %}"
+                        alt="{% translate 'Participant verification QR code' %}"
+                    >
+
+                    <div>
+                        <span>{% translate "Reference number" %}</span>
+                        <strong>{{ submission.reference_number }}</strong>
+
+                        <span class="verified-label">
+                            ✓ {% translate "Approved and verified" %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="badge-footer">
+                {% if event.venue %}
+                    <span>{{ event.venue.name }}</span>
+                {% endif %}
+
+                <span>
+                    {{ event.starts_at|date:"d M Y" }} —
+                    {{ event.ends_at|date:"d M Y" }}
+                </span>
+            </footer>
+        </article>
+    </section>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const printButton = document.getElementById(
+                "print-participant-badge"
+            );
+
+            if (printButton) {
+                printButton.addEventListener("click", function () {
+                    window.print();
+                });
+            }
+        });
+    </script>
+{% endblock %}
+

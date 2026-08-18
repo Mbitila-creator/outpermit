@@ -1,0 +1,54 @@
+{% extends "events/base_public.html" %}
+{% load static i18n %}
+
+{% block title %}{{ event_form.event.code }} — {% translate "Conference certificates" %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/conferences.css' %}?v=20260816a">{% endblock %}
+
+{% block content %}
+<main class="conference-page">
+    {% if messages %}<div class="conference-messages">{% for message in messages %}<div class="conference-message conference-message-{{ message.tags }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+    <header class="conference-heading">
+        <div><span>{{ event_form.event.code }}</span><h1>{% translate "Conference certificates" %}</h1><p>{% translate "Issue verifiable certificates only from recorded attendance, delivered presentations and completed peer reviews." %}</p></div>
+        <div class="conference-actions"><a class="conference-secondary" href="{% url 'conferences:conference_detail' event_form.pk %}">← {% translate "Conference operations" %}</a></div>
+    </header>
+
+    <section class="conference-summary">
+        <div><span>{% translate "Eligible participants" %}</span><strong>{{ eligible_participants }}</strong></div>
+        <div><span>{% translate "Eligible presenters" %}</span><strong>{{ eligible_presenters }}</strong></div>
+        <div><span>{% translate "Eligible reviewers" %}</span><strong>{{ eligible_reviewers }}</strong></div>
+        <div><span>{% translate "Certificates issued" %}</span><strong>{{ certificates|length }}</strong></div>
+    </section>
+
+    {% if can_manage %}
+    <section class="conference-panel conference-certificate-generator">
+        <div><span>{% translate "Bulk generation" %}</span><h2>{% translate "Generate eligible certificates" %}</h2><p>{% translate "Running generation again is safe; existing certificates will not be duplicated." %}</p></div>
+        <form method="post">{% csrf_token %}
+            <select name="recipient_type" aria-label="{% translate 'Certificate type' %}">
+                <option value="ALL">{% translate "All eligible types" %}</option>
+                {% for value, label in recipient_types.choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+            <button class="conference-primary" type="submit">{% translate "Generate certificates" %}</button>
+        </form>
+    </section>
+    {% endif %}
+
+    <section class="conference-panel">
+        <div class="conference-panel-heading"><div><span>{% translate "Certificate register" %}</span><h2>{% translate "Issued certificates" %}</h2></div></div>
+        <div class="conference-table-scroll"><table class="conference-table">
+            <thead><tr><th>{% translate "Recipient" %}</th><th>{% translate "Type" %}</th><th>{% translate "Certificate number" %}</th><th>{% translate "Status" %}</th><th>{% translate "Actions" %}</th></tr></thead>
+            <tbody>{% for certificate in certificates %}<tr>
+                <td><strong>{{ certificate.recipient_name }}</strong><small>{{ certificate.institution|default:"—" }}</small></td>
+                <td>{{ certificate.get_recipient_type_display }}</td>
+                <td>{{ certificate.certificate_number }}</td>
+                <td>{% if certificate.is_revoked %}<span class="conference-status conference-status-rejected">{% translate "Revoked" %}</span>{% else %}<span class="conference-status conference-status-accepted">{% translate "Valid" %}</span>{% endif %}</td>
+                <td><div class="conference-row-actions">
+                    <a href="{% url 'conferences:certificate_print' certificate.verification_token %}" target="_blank" rel="noopener">{% translate "View / print" %}</a>
+                    <a href="{% url 'conferences:certificate_verify' certificate.verification_token %}" target="_blank" rel="noopener">{% translate "Verify" %}</a>
+                    {% if can_manage and not certificate.is_revoked %}<details><summary>{% translate "Revoke" %}</summary><form method="post" action="{% url 'conferences:certificate_revoke' event_form.pk certificate.pk %}">{% csrf_token %}<textarea name="reason" rows="2" required placeholder="{% translate 'Reason for revocation' %}"></textarea><button class="conference-reject" type="submit">{% translate "Confirm revocation" %}</button></form></details>{% endif %}
+                </div></td>
+            </tr>{% empty %}<tr><td colspan="5">{% translate "No certificates have been generated yet." %}</td></tr>{% endfor %}</tbody>
+        </table></div>
+    </section>
+</main>
+{% endblock %}
+

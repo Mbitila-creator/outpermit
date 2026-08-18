@@ -1,0 +1,10 @@
+{% extends "meetings/base_meetings.html" %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block meeting_content %}
+<header class="meeting-page-heading"><div><a href="{% if series %}{% url 'meetings:series_detail' series.pk %}{% else %}{% url 'meetings:series_list' %}{% endif %}">← {% translate "Back to meeting series" %}</a><h1>{{ page_title }}</h1><p>{% translate "Set reusable defaults for recurring meetings." %}</p></div></header>
+<form method="post" class="meeting-workflow-form meeting-series-form">{% csrf_token %}{% if form.non_field_errors %}<div class="meeting-form-errors">{{ form.non_field_errors }}</div>{% endif %}<fieldset><legend>{% translate "Series identity and schedule" %}</legend><div class="meeting-form-grid">{% for field in form %}<label class="{% if field.name == 'description_sw' or field.name == 'description_en' or field.name == 'objectives_sw' or field.name == 'objectives_en' %}span-2{% endif %}">{{ field.label_tag }}{{ field }}{{ field.errors }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}</label>{% endfor %}</div></fieldset><div class="meeting-form-actions"><a href="{% url 'meetings:series_list' %}">{% translate "Cancel" %}</a><button type="submit">{{ submit_label }}</button></div></form>
+{% endblock %}
+

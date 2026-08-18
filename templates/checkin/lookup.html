@@ -1,0 +1,49 @@
+{% extends "events/base_public.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% translate "Participant check-in" %}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/checkin.css' %}">
+{% endblock %}
+
+{% block content %}
+    <section class="checkin-page">
+        <div class="checkin-container checkin-container-small">
+            <span class="section-kicker">{% translate "Event attendance" %}</span>
+            <h1>{% translate "Participant check-in" %}</h1>
+            <p class="checkin-introduction">
+                {% translate "Scan the participant badge QR code, or enter the reference number or participant token below." %}
+            </p>
+
+            <form method="post" class="checkin-card checkin-lookup-form">
+                {% csrf_token %}
+
+                {% if lookup_error %}
+                    <div class="checkin-alert checkin-alert-error" role="alert">
+                        {% translate "Participant not found or not eligible for check-in." %}
+                    </div>
+                {% endif %}
+
+                <label for="checkin-identifier">
+                    {% translate "Reference number or participant token" %}
+                </label>
+
+                <input
+                    type="text"
+                    id="checkin-identifier"
+                    name="identifier"
+                    autocomplete="off"
+                    required
+                    autofocus
+                >
+
+                <button type="submit" class="primary-button">
+                    {% translate "Find participant" %}
+                </button>
+            </form>
+        </div>
+    </section>
+{% endblock %}
+

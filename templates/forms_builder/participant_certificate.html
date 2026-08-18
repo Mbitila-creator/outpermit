@@ -1,0 +1,98 @@
+{% extends "events/base_public.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% translate "Certificate of Participation" %} — {{ submission.badge_display_name }}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/participant-certificate.css' %}">
+{% endblock %}
+
+{% block content %}
+    <section class="certificate-page">
+        <div class="certificate-actions no-print">
+            <div>
+                <span class="section-kicker">{% translate "Attendance verified" %}</span>
+                <h1>{% translate "Participant certificate" %}</h1>
+                <p>{% translate "Print the certificate or save it as a PDF from your browser." %}</p>
+            </div>
+            <div class="certificate-action-buttons">
+                <a
+                    href="{% url 'forms_builder:participant_certificate_pdf' submission.participant_token %}"
+                    class="primary-button"
+                >
+                    {% translate "Download PDF certificate" %}
+                </a>
+                <button type="button" class="secondary-button" id="print-certificate">
+                    {% translate "Print certificate" %}
+                </button>
+            </div>
+        </div>
+
+        <article class="participant-certificate" aria-label="{% translate 'Certificate of Participation' %}">
+            <div class="certificate-border">
+                <header class="certificate-header">
+                    {% if event.logo %}
+                        <img src="{{ event.logo.url }}" alt="{{ event.code }}">
+                    {% endif %}
+                    <p class="certificate-event-code">{{ event.code }}</p>
+                    <h2>
+                        {% if request.LANGUAGE_CODE == "en" %}
+                            {{ event.title_en }}
+                        {% else %}
+                            {{ event.title_sw }}
+                        {% endif %}
+                    </h2>
+                </header>
+
+                <div class="certificate-content">
+                    <p class="certificate-kicker">{% translate "Certificate of Participation" %}</p>
+                    <p>{% translate "This certificate is proudly presented to" %}</p>
+                    <h3>{{ submission.badge_display_name }}</h3>
+                    {% if submission.badge_organization %}
+                        <p class="certificate-organization">{{ submission.badge_organization }}</p>
+                    {% endif %}
+                    <p class="certificate-statement">
+                        {% blocktranslate with event_name=event_display_name %}for participating in {{ event_name }} and completing verified attendance.{% endblocktranslate %}
+                    </p>
+                </div>
+
+                <footer class="certificate-footer">
+                    <div>
+                        <span>{% translate "Event date" %}</span>
+                        <strong>{{ event_date_range }}</strong>
+                    </div>
+                    <div>
+                        <span>{% translate "Attendance verified" %}</span>
+                        <strong>{{ submission.check_in.checked_in_at|date:"d M Y, H:i" }}</strong>
+                    </div>
+                    <div>
+                        <span>{% translate "Certificate number" %}</span>
+                        <strong>{{ certificate_number }}</strong>
+                    </div>
+                    <div class="certificate-verification-qr">
+                        <img
+                            src="{% url 'forms_builder:participant_certificate_qr' submission.participant_token %}"
+                            alt="{% translate 'Certificate verification QR code' %}"
+                        >
+                        <span>{% translate "Scan to verify this certificate" %}</span>
+                    </div>
+                </footer>
+            </div>
+        </article>
+    </section>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const printButton = document.getElementById("print-certificate");
+            if (printButton) {
+                printButton.addEventListener("click", function () {
+                    window.print();
+                });
+            }
+        });
+    </script>
+{% endblock %}
+

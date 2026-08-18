@@ -1,0 +1,20 @@
+{% extends "events/base_public.html" %}
+{% load static i18n %}
+{% block title %}{{ paper.reference_number }} — {% translate "Submission status" %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/conferences.css' %}?v=20260816f">{% endblock %}
+{% block content %}
+<main class="conference-page conference-paper-page">
+    <header class="conference-heading"><div><span>{{ paper.call.event.code }}</span><h1>{% translate "Submission received" %}</h1><p>{% translate "Keep this private link and reference number to check the review decision." %}</p></div></header>
+    <section class="conference-panel conference-paper-status">
+        <div class="conference-paper-reference"><span>{% translate "Reference number" %}</span><strong>{{ paper.reference_number }}</strong></div>
+        <span class="conference-status conference-status-{{ paper.status|lower }}">{{ paper.get_status_display }}</span>
+        <h2>{{ paper.title }}</h2>
+        <dl><div><dt>{% translate "Corresponding author" %}</dt><dd>{{ paper.corresponding_author }}</dd></div><div><dt>{% translate "Institution" %}</dt><dd>{{ paper.institution }}</dd></div><div><dt>{% translate "Submission type" %}</dt><dd>{{ paper.get_submission_type_display }}</dd></div><div><dt>{% translate "Preferred format" %}</dt><dd>{{ paper.get_presentation_format_display }}</dd></div>{% if paper.assigned_session %}<div><dt>{% translate "Assigned session" %}</dt><dd>{{ paper.assigned_session.title }}</dd></div>{% endif %}</dl>
+        {% if paper.decision_message %}<div class="conference-decision-message"><h3>{% translate "Message from the review team" %}</h3>{{ paper.decision_message|linebreaks }}</div>{% endif %}
+        {% if paper.document %}<a class="conference-secondary" href="{% url 'conferences:paper_document' paper.public_token %}">{% translate "Download submitted document" %}</a>{% endif %}
+        <a class="conference-secondary" href="{% url 'conferences:paper_letter' paper.public_token %}" target="_blank">{% translate "Open official decision letter" %}</a>
+        {% if paper.presentation %}<div class="conference-decision-message"><h3>{% translate "Presentation schedule" %}</h3><p><strong>{{ paper.presentation.session.title }}</strong><br>{{ paper.presentation.starts_at|date:"l, d F Y · H:i" }}–{{ paper.presentation.ends_at|date:"H:i" }} · {{ paper.presentation.venue_name }}</p><span class="conference-status conference-status-{{ paper.presentation.status|lower }}">{{ paper.presentation.get_status_display }}</span><div class="conference-actions"><a class="conference-primary" href="{% url 'conferences:presentation_confirm' paper.public_token %}">{% translate "Confirm presentation and upload slides" %}</a>{% if paper.presentation.slides %}<a class="conference-secondary" href="{% url 'conferences:presentation_slides' paper.public_token %}">{% translate "Download slides" %}</a>{% endif %}</div></div>{% endif %}
+    </section>
+</main>
+{% endblock %}
+

@@ -1,0 +1,128 @@
+{% load static %}
+{% load i18n %}
+
+<!DOCTYPE html>
+<html lang="{{ request.LANGUAGE_CODE }}">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        {% if is_evaluation %}{% translate "Evaluation submitted" %}{% else %}{% translate "Registration successful" %}{% endif %}
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/public-event-form.css' %}"
+    >
+
+    <link
+        rel="icon"
+        href="{% static 'logo/moest_logo.png' %}"
+        type="image/x-icon"
+    >
+</head>
+
+<body>
+    <header class="site-header">
+        <div class="header-container">
+            <div class="header-navigation">
+            <button type="button" class="page-back-button" onclick="if(history.length>1){history.back()}else{location.href='{% url 'events:home' %}'}">← {% translate "Back" %}</button>
+            <a
+                href="{% url 'events:home' %}"
+                class="system-title"
+            >
+                {% translate "Event Management System" %}
+            </a>
+            <a href="{% url 'events:home' %}" class="page-back-button">{% translate "Exit" %}</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="page-wrapper">
+        <section class="form-card success-card">
+            <div class="success-icon" aria-hidden="true">
+                ✓
+            </div>
+
+            <h1>
+                {% if is_evaluation %}{% translate "Thank you for your feedback" %}{% else %}{% translate "Registration successful" %}{% endif %}
+            </h1>
+
+            <p class="success-message">
+                {% if request.LANGUAGE_CODE == "en" %}
+                    {{ event_form.success_message_en }}
+                {% else %}
+                    {{ event_form.success_message_sw }}
+                {% endif %}
+            </p>
+
+            <div class="reference-box">
+                <span class="reference-label">
+                    {% if is_evaluation %}{% translate "Evaluation reference" %}{% else %}{% translate "Reference number" %}{% endif %}
+                </span>
+
+                <strong class="reference-number">
+                    {{ submission.reference_number }}
+                </strong>
+            </div>
+
+            <div class="success-details">
+                <div>
+                    <span>{% translate "Event" %}</span>
+
+                    <strong>
+                        {% if request.LANGUAGE_CODE == "en" %}
+                            {{ event.title_en }}
+                        {% else %}
+                            {{ event.title_sw }}
+                        {% endif %}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>{% translate "Submitted on" %}</span>
+
+                    <strong>
+                        {{ submission.created_at|date:"d M Y, H:i" }}
+                    </strong>
+                </div>
+            </div>
+
+            <div class="success-actions">
+                {% if not is_evaluation %}
+                    {% if event.payment_enabled and can_access_payment %}
+                    <a href="{% url 'forms_builder:participant_payment' submission.participant_token %}" class="submit-button success-link">{% translate "Submit payment" %}</a>
+                    {% endif %}
+                    <a
+                        href="{% url 'forms_builder:registration_status' %}?reference={{ submission.reference_number|urlencode }}"
+                        class="submit-button success-link"
+                    >
+                        {% translate "Check registration status" %}
+                    </a>
+                {% endif %}
+
+                <a
+                    href="{% url 'events:event_detail' event.slug %}"
+                    class="secondary-success-link"
+                >
+                    {% translate "Return to event" %}
+                </a>
+
+                <a
+                    href="{% url 'events:home' %}"
+                    class="secondary-success-link"
+                >
+                    {% translate "View all events" %}
+                </a>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
+
+

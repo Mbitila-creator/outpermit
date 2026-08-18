@@ -1,0 +1,17 @@
+{% extends "meetings/base_meetings.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Participant QR pass" %}{% endblock %}
+
+{% block meeting_content %}
+<header class="meeting-page-heading meeting-no-print"><div><a href="{% url 'meetings:meeting_detail' meeting.pk %}#participants">← {% translate "Back to participants" %}</a><h1>{% translate "Participant QR pass" %}</h1><p>{% translate "Print this pass or send it securely to the named participant." %}</p></div><button type="button" class="meeting-link-button" onclick="window.print()">{% translate "Print pass" %}</button></header>
+<article class="meeting-staff-pass">
+    <span class="meeting-invitation-kicker">{% translate "Meeting check-in pass" %}</span>
+    <h2>{{ attendee.full_name }}</h2>
+    <p>{% if attendee.designation %}{{ attendee.designation }}{% endif %}{% if attendee.organization %}{% if attendee.designation %} · {% endif %}{{ attendee.organization }}{% endif %}</p>
+    <img src="{{ checkin_qr }}" alt="{% translate 'Participant QR check-in pass' %}">
+    <dl><div><dt>{% translate "Meeting" %}</dt><dd>{% if request.LANGUAGE_CODE == 'en' %}{{ meeting.event.title_en }}{% else %}{{ meeting.event.title_sw }}{% endif %}</dd></div><div><dt>{% translate "Reference" %}</dt><dd>{{ meeting.reference_number }}</dd></div><div><dt>{% translate "Date and time" %}</dt><dd>{{ meeting.event.starts_at|date:"d M Y, H:i" }}</dd></div></dl>
+    <small>{% translate "This pass is unique to the participant named above." %}</small>
+</article>
+{% endblock %}
+

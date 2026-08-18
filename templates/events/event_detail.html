@@ -1,0 +1,249 @@
+{% extends "events/base_public.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% if request.LANGUAGE_CODE == "en" %}
+        {{ event.title_en }}
+    {% else %}
+        {{ event.title_sw }}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<section class="event-detail-hero">
+    {% if event.banner %}
+        <div class="detail-banner">
+            <img
+                src="{{ event.banner.url }}"
+                alt="{% if LANGUAGE_CODE == 'en' %}{{ event.title_en }}{% else %}{{ event.title_sw }}{% endif %}"
+            >
+        </div>
+    {% endif %}
+
+    <div class="page-container">
+        <div class="detail-heading-card">
+            {% if event.logo %}
+                <img
+                    src="{{ event.logo.url }}"
+                    alt="{{ event.code }}"
+                    class="detail-logo"
+                >
+            {% endif %}
+
+            <div class="detail-heading-content">
+                <div class="detail-badges">
+                    <span class="category-badge">
+                        {% if request.LANGUAGE_CODE == "en" %}
+                            {{ event.category.name_en }}
+                        {% else %}
+                            {{ event.category.name_sw }}
+                        {% endif %}
+                    </span>
+
+                    <span class="event-code-badge">
+                        {{ event.code }}
+                    </span>
+                </div>
+
+                <h1>
+                    {% if request.LANGUAGE_CODE == "en" %}
+                        {{ event.title_en }}
+                    {% else %}
+                        {{ event.title_sw }}
+                    {% endif %}
+                </h1>
+
+                <p class="detail-organizer">
+                    {% if request.LANGUAGE_CODE == "en" %}
+                        {{ event.organizer_name_en|default:event.organizer_name_sw }}
+                    {% else %}
+                        {{ event.organizer_name_sw|default:event.organizer_name_en }}
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="event-detail-section">
+    <div class="page-container detail-layout">
+        <div class="detail-main">
+            <article class="content-card">
+                <h2>
+                    {% translate "About the event" %}
+                </h2>
+
+                <div class="rich-text">
+                    {% if request.LANGUAGE_CODE == "en" %}
+                        {% if event.description_en %}
+                            {{ event.description_en|linebreaks }}
+                        {% else %}
+                            <p>
+                                {% translate "No event description has been provided." %}
+                            </p>
+                        {% endif %}
+                    {% else %}
+                        {% if event.description_sw %}
+                            {{ event.description_sw|linebreaks }}
+                        {% else %}
+                            <p>
+                                {% translate "No event description has been provided." %}
+                            </p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </article>
+
+            {% if active_forms %}
+                <article class="content-card">
+                    <h2>
+                        {% translate "Event forms" %}
+                    </h2>
+
+                    <div class="event-form-list">
+                        {% for event_form in active_forms %}
+                            <div class="event-form-item">
+                                <div>
+                                    <h3>
+                                        {% if request.LANGUAGE_CODE == "en" %}
+                                            {{ event_form.name_en }}
+                                        {% else %}
+                                            {{ event_form.name_sw }}
+                                        {% endif %}
+                                    </h3>
+
+                                    <p>
+                                        {{ event_form.get_form_type_display }}
+                                    </p>
+                                </div>
+
+                                <a
+                                    href="{% url 'forms_builder:public_event_form' event.slug event_form.slug %}"
+                                    class="secondary-button"
+                                >
+                                    {% translate "Open form" %}
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </article>
+            {% endif %}
+        </div>
+
+        <aside class="detail-sidebar">
+            <div class="content-card summary-card">
+                <h2>
+                    {% translate "Important information" %}
+                </h2>
+
+                <dl class="event-summary-list">
+                    <div>
+                        <dt>{% translate "Start date" %}</dt>
+                        <dd>{{ event.starts_at|date:"d M Y, H:i" }}</dd>
+                    </div>
+
+                    <div>
+                        <dt>{% translate "End date" %}</dt>
+                        <dd>{{ event.ends_at|date:"d M Y, H:i" }}</dd>
+                    </div>
+
+                    {% if event.venue %}
+                        <div>
+                            <dt>{% translate "Venue" %}</dt>
+                            <dd>
+                                {{ event.venue.name }}
+
+                                {% if event.venue.council %}
+                                    <br>
+
+                                    {% if request.LANGUAGE_CODE == "en" %}
+                                        {{ event.venue.council.name_en }},
+                                        {{ event.venue.council.region.name_en }}
+                                    {% else %}
+                                        {{ event.venue.council.name_sw }},
+                                        {{ event.venue.council.region.name_sw }}
+                                    {% endif %}
+                                {% endif %}
+                            </dd>
+                        </div>
+                    {% endif %}
+
+                    {% if event.contact_person %}
+                        <div>
+                            <dt>{% translate "Contact person" %}</dt>
+                            <dd>{{ event.contact_person }}</dd>
+                        </div>
+                    {% endif %}
+
+                    {% if event.contact_phone %}
+                        <div>
+                            <dt>{% translate "Phone" %}</dt>
+                            <dd>
+                                <a href="tel:{{ event.contact_phone }}">
+                                    {{ event.contact_phone }}
+                                </a>
+                            </dd>
+                        </div>
+                    {% endif %}
+
+                    {% if event.contact_email %}
+                        <div>
+                            <dt>{% translate "Email" %}</dt>
+                            <dd>
+                                <a href="mailto:{{ event.contact_email }}">
+                                    {{ event.contact_email }}
+                                </a>
+                            </dd>
+                        </div>
+                    {% endif %}
+                </dl>
+
+                <div class="detail-actions">
+                    {% if registration_available %}
+                        <a
+                            href="{% url 'forms_builder:public_event_form' event.slug registration_form.slug %}"
+                            class="primary-button full-width-button"
+                        >
+                            {% translate "Register now" %}
+                        </a>
+
+                    {% elif registration_not_open %}
+                        <div class="notice notice-warning">
+                            {% translate "Registration has not opened yet." %}
+                        </div>
+
+                    {% elif registration_closed %}
+                        <div class="notice notice-danger">
+                            {% translate "The registration period has ended." %}
+                        </div>
+
+                    {% elif not registration_form %}
+                        <div class="notice notice-neutral">
+                            {% translate "The registration form has not been configured yet." %}
+                        </div>
+                    {% endif %}
+
+                    {% if event.evaluation_enabled and evaluation_form %}
+                        <a
+                            href="{% url 'forms_builder:public_event_form' event.slug evaluation_form.slug %}"
+                            class="secondary-button full-width-button"
+                        >
+                            {% translate "Submit an evaluation" %}
+                        </a>
+                    {% endif %}
+
+                    {% if event.booth_enabled %}
+                        <a
+                            href="{% url 'forms_builder:booth_directory' event.slug %}"
+                            class="secondary-button full-width-button"
+                        >
+                            {% translate "Explore exhibition booths" %}
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </aside>
+    </div>
+</section>
+{% endblock %}
+

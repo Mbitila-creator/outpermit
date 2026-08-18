@@ -1,0 +1,244 @@
+{% load i18n %}
+
+{% if question.question_type == "LONG_TEXT" %}
+    <textarea
+        id="question-{{ question.id }}"
+        name="question_{{ question.id }}"
+        rows="5"
+        placeholder="{{ placeholder }}"
+        {% if question.is_required %}required{% endif %}
+        {% if question.minimum_length %}
+            minlength="{{ question.minimum_length }}"
+        {% endif %}
+        {% if question.maximum_length %}
+            maxlength="{{ question.maximum_length }}"
+        {% endif %}
+    ></textarea>
+
+{% elif question.question_type == "EMAIL" %}
+    <input
+        type="email"
+        id="question-{{ question.id }}"
+        name="question_{{ question.id }}"
+        placeholder="{{ placeholder }}"
+        inputmode="email"
+        autocomplete="email"
+        {% if question.is_required %}required{% endif %}
+    >
+
+{% elif question.question_type == "PHONE" %}
+    <input
+        type="tel"
+        id="question-{{ question.id }}"
+        name="question_{{ question.id }}"
+        placeholder="{{ placeholder }}"
+        inputmode="tel"
+        autocomplete="tel"
+        {% if question.is_required %}required{% endif %}
+    >
+
+{% elif question.question_type == "NUMBER" %}
+    <input
+        type="number"
+        id="question-{{ question.id }}"
+        name="question_{{ question.id }}"
+        placeholder="{{ placeholder }}"
+        inputmode="decimal"
+        {% if question.minimum_value != None %}
+            min="{{ question.minimum_value }}"
+        {% endif %}
+        {% if question.maximum_value != None %}
+            max="{{ question.maximum_value }}"
+        {% endif %}
+        {% if question.is_required %}required{% endif %}
+    >
+
+{% elif question.question_type == "DATE" %}
+    <input
+        type="date"
+        id="question-{{ question.id }}"
+        name="question_{{ question.id }}"
+        {% if question.is_required %}required{% endif %}
+    >
+
+{% elif question.question_type == "DATETIME" %}
+    <input
+        type="datetime-local"
+        id="question-{{ question.id }}"
+        name="question_{{ question.id }}"
+        {% if question.is_required %}required{% endif %}
+    >
+
+{% elif question.question_type == "DROPDOWN" %}
+    <select
+        id="question-{{ question.id }}"
+        name="question_{{ question.id }}"
+        {% if question.is_required %}required{% endif %}
+    >
+        <option value="">
+            {% if language_code == "en" %}
+                {% translate "Select an option" %}
+            {% else %}
+                {% translate "Chagua" %}
+            {% endif %}
+        </option>
+
+        {% for option in question.options.all %}
+            {% if option.is_active %}
+                <option value="{{ option.value }}">
+                    {% if language_code == "en" %}
+                        {{ option.label_en }}
+                    {% else %}
+                        {{ option.label_sw }}
+                    {% endif %}
+                </option>
+            {% endif %}
+        {% endfor %}
+    </select>
+
+{% elif question.question_type == "SINGLE_CHOICE" %}
+    <div
+        class="choice-group"
+        role="radiogroup"
+        aria-labelledby="question-label-{{ question.id }}"
+    >
+        {% for option in question.options.all %}
+            {% if option.is_active %}
+                <label
+                    class="choice-item"
+                    for="question-{{ question.id }}-option-{{ option.id }}"
+                >
+                    <input
+                        type="radio"
+                        id="question-{{ question.id }}-option-{{ option.id }}"
+                        name="question_{{ question.id }}"
+                        value="{{ option.value }}"
+                        {% if question.is_required %}required{% endif %}
+                    >
+
+                    <span>
+                        {% if language_code == "en" %}
+                            {{ option.label_en }}
+                        {% else %}
+                            {{ option.label_sw }}
+                        {% endif %}
+                    </span>
+                </label>
+            {% endif %}
+        {% empty %}
+            <p class="empty-message">
+                {% translate "No options have been configured for this question." %}
+            </p>
+        {% endfor %}
+    </div>
+
+{% elif question.question_type == "MULTIPLE_CHOICE" %}
+    <div
+        class="choice-group"
+        role="group"
+        aria-labelledby="question-label-{{ question.id }}"
+    >
+        {% for option in question.options.all %}
+            {% if option.is_active %}
+                <label
+                    class="choice-item"
+                    for="question-{{ question.id }}-option-{{ option.id }}"
+                >
+                    <input
+                        type="checkbox"
+                        id="question-{{ question.id }}-option-{{ option.id }}"
+                        name="question_{{ question.id }}"
+                        value="{{ option.value }}"
+                    >
+
+                    <span>
+                        {% if language_code == "en" %}
+                            {{ option.label_en }}
+                        {% else %}
+                            {{ option.label_sw }}
+                        {% endif %}
+                    </span>
+                </label>
+            {% endif %}
+        {% empty %}
+            <p class="empty-message">
+                {% translate "No options have been configured for this question." %}
+            </p>
+        {% endfor %}
+    </div>
+
+{% elif question.question_type == "YES_NO" %}
+    <div
+        class="choice-group choice-group-inline"
+        role="radiogroup"
+        aria-labelledby="question-label-{{ question.id }}"
+    >
+        <label
+            class="choice-item"
+            for="question-{{ question.id }}-yes"
+        >
+            <input
+                type="radio"
+                id="question-{{ question.id }}-yes"
+                name="question_{{ question.id }}"
+                value="yes"
+                {% if question.is_required %}required{% endif %}
+            >
+
+            <span>{% translate "Yes" %}</span>
+        </label>
+
+        <label
+            class="choice-item"
+            for="question-{{ question.id }}-no"
+        >
+            <input
+                type="radio"
+                id="question-{{ question.id }}-no"
+                name="question_{{ question.id }}"
+                value="no"
+                {% if question.is_required %}required{% endif %}
+            >
+
+            <span>{% translate "No" %}</span>
+        </label>
+    </div>
+
+{% elif question.question_type == "FILE" %}
+    <input
+        type="file"
+        id="question-{{ question.id }}"
+        name="question_{{ question.id }}"
+        {% if question.is_required %}required{% endif %}
+    >
+
+{% elif question.question_type == "IMAGE" %}
+    <input
+        type="file"
+        id="question-{{ question.id }}"
+        name="question_{{ question.id }}"
+        accept="image/*"
+        {% if question.is_required %}required{% endif %}
+    >
+
+{% else %}
+    <input
+        type="text"
+        id="question-{{ question.id }}"
+        name="question_{{ question.id }}"
+        placeholder="{{ placeholder }}"
+        {% if question.minimum_length %}
+            minlength="{{ question.minimum_length }}"
+        {% endif %}
+        {% if question.maximum_length %}
+            maxlength="{{ question.maximum_length }}"
+        {% endif %}
+        {% if question.is_required %}required{% endif %}
+    >
+{% endif %}
+
+{% if help_text %}
+    <small class="help-text">
+        {{ help_text }}
+    </small>
+{% endif %}

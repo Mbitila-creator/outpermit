@@ -1,0 +1,127 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f7fb;
+    color: #1f2937;
+}
+
+.top-header {
+    background: #ffffff;
+    border-bottom: 1px solid #dbe3ee;
+    box-shadow: 0 3px 12px rgba(15, 23, 42, 0.06);
+}
+
+.header-content {
+    width: 100%;
+    max-width: 1200px;
+    min-height: 70px;
+    margin: 0 auto;
+    padding: 12px 24px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.system-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.language-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.language-form label {
+    font-weight: 600;
+}
+
+.language-form select {
+    min-width: 125px;
+    padding: 9px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.language-form select:focus {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+.page-container {
+    min-height: calc(100vh - 70px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+}
+
+.welcome-card {
+    width: 100%;
+    max-width: 900px;
+    padding: 45px;
+    text-align: center;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 12px 35px rgba(15, 23, 42, 0.12);
+}
+
+.welcome-card h1 {
+    margin-top: 0;
+    margin-bottom: 18px;
+    font-size: 38px;
+}
+
+.welcome-card p {
+    font-size: 18px;
+    line-height: 1.6;
+}
+
+.status-message {
+    margin-top: 24px;
+    padding: 16px;
+    background: #e8f7ee;
+    border-radius: 8px;
+    color: #166534;
+    font-weight: 600;
+}
+
+@media (max-width: 700px) {
+    .header-content {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .language-form {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .language-form select {
+        flex: 1;
+    }
+
+    .page-container {
+        padding: 20px;
+    }
+
+    .welcome-card {
+        padding: 30px 20px;
+    }
+
+    .welcome-card h1 {
+        font-size: 30px;
+    }
+}

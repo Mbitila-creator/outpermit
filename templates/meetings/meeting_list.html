@@ -1,0 +1,54 @@
+{% extends "meetings/base_meetings.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Meetings workspace" %}{% endblock %}
+
+{% block meeting_content %}
+{% translate "To be confirmed" as venue_tbc %}
+<header class="meeting-hero">
+    <div><span>{% translate "Meetings module" %}</span><h1>{% translate "Meetings workspace" %}</h1><p>{% translate "Plan meetings, manage invitations and attendance, record decisions, and follow action items." %}</p></div>
+    <div class="meeting-hero-actions">
+        <a class="meeting-secondary-button" href="{% url 'meetings:personal_meeting_workspace' %}">{% translate "My meetings" %}</a>
+        <a class="meeting-secondary-button" href="{% url 'meetings:executive_dashboard' %}">{% translate "Executive dashboard" %}</a>
+        <a class="meeting-secondary-button" href="{% url 'meetings:decision_register' %}">{% translate "Decisions register" %}</a>
+        {% if can_manage %}<a class="meeting-secondary-button" href="{% url 'meetings:action_review_center' %}">{% translate "Action Review Centre" %}</a>{% endif %}
+        <a class="meeting-secondary-button" href="{% url 'meetings:follow_up_center' %}">{% translate "Follow-up centre" %}</a>
+        <a class="meeting-secondary-button" href="{% url 'meetings:readiness_center' %}">{% translate "Readiness centre" %}</a>
+        <a class="meeting-secondary-button" href="{% url 'meetings:series_list' %}">{% translate "Meeting series" %}</a>
+        <a class="meeting-secondary-button" href="{% url 'meetings:meeting_calendar' %}">{% translate "Calendar" %}</a>
+        <a class="meeting-secondary-button" href="{% url 'meetings:resource_list' %}">{% translate "Resources" %}</a>
+        <a class="meeting-secondary-button" href="{% url 'meetings:action_report' %}">{% translate "Action report" %}</a>
+        {% if can_manage %}<a class="meeting-primary-button" href="{% url 'meetings:meeting_create' %}">＋ {% translate "Create meeting" %}</a>{% endif %}
+    </div>
+</header>
+
+<div class="meeting-stat-grid">
+    <article><span>{% translate "All meetings" %}</span><strong>{{ total_meetings }}</strong></article>
+    <article><span>{% translate "Upcoming meetings" %}</span><strong>{{ upcoming_meetings }}</strong></article>
+    <article><span>{% translate "Open action items" %}</span><strong>{{ open_actions }}</strong></article>
+    <article><span>{% translate "Minutes awaiting approval" %}</span><strong>{{ minutes_awaiting_approval }}</strong></article>
+</div>
+
+<form method="get" class="meeting-filter-card">
+    <label><span>{% translate "Search meetings" %}</span><input type="search" name="q" value="{{ search_query }}" placeholder="{% translate 'Reference, code, title or chairperson' %}"></label>
+    <label><span>{% translate "Status" %}</span><select name="status"><option value="">{% translate "All statuses" %}</option>{% for value, label in event_status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label><span>{% translate "Meeting type" %}</span><select name="type"><option value="">{% translate "All meeting types" %}</option>{% for value, label in meeting_type_choices %}<option value="{{ value }}" {% if selected_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <button type="submit">{% translate "Apply filters" %}</button>
+</form>
+
+<section class="meeting-card-list" aria-label="{% translate 'Meeting records' %}">
+    {% for meeting in meetings %}
+        <article class="meeting-list-card">
+            <div class="meeting-list-card-main">
+                <div class="meeting-card-kickers"><span>{{ meeting.reference_number }}</span><span>{{ meeting.get_meeting_type_display }}</span><span>{{ meeting.get_attendance_mode_display }}</span><span class="meeting-status meeting-status-{{ meeting.event.status|lower }}">{{ meeting.event.get_status_display }}</span><span>{% translate "Minutes" %}: {{ meeting.get_minutes_status_display }}</span><span>{% translate "Closure" %}: {{ meeting.get_closure_status_display }}</span></div>
+                <h2>{% if request.LANGUAGE_CODE == 'en' %}{{ meeting.event.title_en }}{% else %}{{ meeting.event.title_sw }}{% endif %}</h2>
+                <dl><div><dt>{% translate "Date" %}</dt><dd>{{ meeting.event.starts_at|date:"d M Y, H:i" }}</dd></div><div><dt>{% translate "Venue" %}</dt><dd>{{ meeting.event.venue|default:venue_tbc }}</dd></div><div><dt>{% translate "Chairperson" %}</dt><dd>{{ meeting.chairperson_name }}</dd></div></dl>
+            </div>
+            <div class="meeting-list-card-counts"><span><strong>{{ meeting.participant_count }}</strong>{% translate "Participants" %}</span><span><strong>{{ meeting.action_count }}</strong>{% translate "Actions" %}</span><a href="{% url 'meetings:meeting_detail' meeting.pk %}">{% translate "Open workflow" %} →</a></div>
+        </article>
+    {% empty %}
+        <div class="meeting-empty"><h2>{% translate "No meetings found" %}</h2><p>{% translate "Create the first meeting or change the search filters." %}</p></div>
+    {% endfor %}
+</section>
+{% endblock %}
+

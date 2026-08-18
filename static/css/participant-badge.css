@@ -1,0 +1,373 @@
+.badge-page {
+    width: min(100% - 24px, 780px);
+    margin: 0 auto;
+    padding: 34px 0 60px;
+}
+
+.badge-page-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 24px;
+}
+
+.badge-page-heading h1 {
+    margin: 0 0 8px;
+    color: var(--primary);
+    font-size: clamp(28px, 7vw, 40px);
+}
+
+.badge-page-heading p {
+    margin: 0;
+    color: var(--muted);
+}
+
+.participant-badge {
+    position: relative;
+    width: min(100%, 620px);
+    box-sizing: border-box;
+    overflow: hidden;
+    margin: 0 auto;
+    border: 1px solid #cdd8e6;
+    border-radius: 20px;
+    background: white;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.14);
+}
+
+.badge-logo-watermark {
+    position: absolute;
+    z-index: 0;
+    top: 50%;
+    left: 50%;
+    width: 58%;
+    height: 72%;
+    transform: translate(-50%, -50%);
+    object-fit: contain;
+    opacity: .055;
+    pointer-events: none;
+}
+
+.badge-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 24px;
+    background: linear-gradient(135deg, #17365d, #2f6fac);
+    color: white;
+}
+
+.badge-header img {
+    width: 68px;
+    height: 68px;
+    flex: 0 0 auto;
+    padding: 5px;
+    border-radius: 12px;
+    background: white;
+    object-fit: contain;
+}
+
+.badge-header h2 {
+    margin: 4px 0 0;
+    font-size: clamp(18px, 5vw, 26px);
+    line-height: 1.25;
+}
+
+.badge-event-code {
+    color: #f6dc68;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.badge-body {
+    position: relative;
+    overflow: hidden;
+    padding: 28px 24px;
+    background: rgba(255, 255, 255, .82);
+    text-align: center;
+}
+
+.badge-body > :not(.badge-logo-watermark) {
+    position: relative;
+    z-index: 1;
+}
+
+.badge-type {
+    margin: 0 0 12px;
+    color: #2f6fac;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+}
+
+.badge-body h3 {
+    margin: 0;
+    color: #17365d;
+    font-size: clamp(27px, 8vw, 42px);
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+}
+
+.badge-person-details {
+    min-height: 112px;
+}
+
+.badge-detail-label {
+    margin: 16px 0 0;
+    color: #2f6fac;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.badge-title,
+.badge-organization {
+    margin: 8px 0 0;
+    color: #475569;
+    font-size: 17px;
+}
+
+.conference-participant-badge .badge-body h3 {
+    max-width: 540px;
+    margin-inline: auto;
+    font-size: clamp(27px, 6vw, 38px);
+}
+
+.conference-participant-badge .badge-title {
+    color: #2f6fac;
+    font-weight: 700;
+}
+
+.conference-participant-badge .badge-organization {
+    margin-top: 3px;
+    color: #334f6b;
+    font-size: 16px;
+}
+
+.badge-organization {
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.badge-identity {
+    display: grid;
+    justify-items: center;
+    gap: 16px;
+    margin-top: 26px;
+    padding-top: 24px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.badge-identity img {
+    width: 170px;
+    height: 170px;
+}
+
+.badge-identity span,
+.badge-identity strong {
+    display: block;
+}
+
+.badge-identity span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.badge-identity strong {
+    margin-top: 4px;
+    color: #17365d;
+    overflow-wrap: anywhere;
+}
+
+.badge-identity .verified-label {
+    margin-top: 12px;
+    color: #166534;
+    font-size: 13px;
+}
+
+.badge-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 22px;
+    padding: 15px 20px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+}
+
+@media (min-width: 560px) {
+    .badge-identity {
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        text-align: left;
+    }
+}
+
+@media print {
+    @page {
+        size: 105mm 148mm;
+        margin: 0;
+    }
+
+    html,
+    body {
+        width: 105mm;
+        height: 148mm;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white;
+    }
+
+    .public-header,
+    .public-footer,
+    .no-print {
+        display: none !important;
+    }
+
+    .badge-page {
+        width: 105mm;
+        height: 148mm;
+        margin: 0;
+        padding: 0;
+    }
+
+    .participant-badge {
+        display: flex;
+        flex-direction: column;
+        width: 105mm;
+        height: 148mm;
+        margin: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+
+    .badge-header {
+        min-height: 24mm;
+        box-sizing: border-box;
+        gap: 3mm;
+        padding: 4mm 5mm;
+    }
+
+    .badge-header img {
+        width: 15mm;
+        height: 15mm;
+        box-sizing: border-box;
+        padding: 1mm;
+        border-radius: 2mm;
+    }
+
+    .badge-header h2 {
+        display: -webkit-box;
+        margin-top: 1mm;
+        overflow: hidden;
+        font-size: 15pt;
+        line-height: 1.12;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .badge-event-code {
+        font-size: 7.5pt;
+    }
+
+    .badge-body {
+        display: flex;
+        min-height: 0;
+        flex: 1 1 auto;
+        flex-direction: column;
+        box-sizing: border-box;
+        padding: 5mm;
+    }
+
+    .badge-type {
+        margin-bottom: 2mm;
+        font-size: 8pt;
+    }
+
+    .badge-body h3 {
+        display: -webkit-box;
+        overflow: hidden;
+        font-size: 23pt;
+        line-height: 1.05;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .badge-person-details {
+        min-height: 28mm;
+    }
+
+    .badge-detail-label {
+        margin-top: 2mm;
+        font-size: 6.5pt;
+    }
+
+    .conference-participant-badge .badge-body h3 {
+        font-size: 21pt;
+    }
+
+    .conference-participant-badge .badge-organization {
+        margin-top: .5mm;
+        font-size: 9pt;
+    }
+
+    .badge-title,
+    .badge-organization {
+        display: -webkit-box;
+        margin-top: 1.5mm;
+        overflow: hidden;
+        font-size: 10pt;
+        line-height: 1.15;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .badge-identity {
+        grid-template-columns: 34mm minmax(0, 1fr);
+        align-items: center;
+        justify-items: stretch;
+        gap: 5mm;
+        margin-top: auto;
+        padding-top: 4mm;
+        text-align: left;
+    }
+
+    .badge-identity img {
+        width: 34mm;
+        height: 34mm;
+    }
+
+    .badge-identity span {
+        font-size: 7.5pt;
+    }
+
+    .badge-identity strong {
+        font-size: 9.5pt;
+    }
+
+    .badge-identity .verified-label {
+        margin-top: 2mm;
+        font-size: 8pt;
+    }
+
+    .badge-footer {
+        min-height: 11mm;
+        box-sizing: border-box;
+        gap: 1.5mm 5mm;
+        padding: 3mm 4mm;
+        font-size: 7.5pt;
+    }
+}
+

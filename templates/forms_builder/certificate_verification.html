@@ -1,0 +1,52 @@
+{% extends "events/base_public.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% translate "Certificate verification" %}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/participant-certificate.css' %}">
+{% endblock %}
+
+{% block content %}
+    <section class="certificate-verification-page">
+        <article class="certificate-verification-card" role="status">
+            <span class="certificate-verified-icon" aria-hidden="true">✓</span>
+            <span class="section-kicker">{% translate "Authentic certificate" %}</span>
+            <h1>{% translate "Certificate verified" %}</h1>
+            <p>{% translate "This certificate is valid and was issued to a participant with verified attendance." %}</p>
+
+            <dl class="certificate-verification-details">
+                <div>
+                    <dt>{% translate "Representative" %}</dt>
+                    <dd>{{ submission.badge_display_name }}</dd>
+                </div>
+                {% if submission.badge_organization %}
+                    <div>
+                        <dt>{% translate "Organization" %}</dt>
+                        <dd>{{ submission.badge_organization }}</dd>
+                    </div>
+                {% endif %}
+                <div>
+                    <dt>{% translate "Event" %}</dt>
+                    <dd>
+                        {% if request.LANGUAGE_CODE == "en" %}{{ event.title_en }}{% else %}{{ event.title_sw }}{% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt>{% translate "Event date" %}</dt>
+                    <dd>{{ event_date_range }}</dd>
+                </div>
+                <div>
+                    <dt>{% translate "Certificate number" %}</dt>
+                    <dd>{{ certificate_number }}</dd>
+                </div>
+                <div>
+                    <dt>{% translate "Attendance verified" %}</dt>
+                    <dd>{{ submission.check_in.checked_in_at|date:"d M Y, H:i" }}</dd>
+                </div>
+            </dl>
+        </article>
+    </section>
+{% endblock %}
+

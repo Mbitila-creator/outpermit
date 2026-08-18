@@ -1,0 +1,1500 @@
+import csv
+import re
+import secrets
+from decimal import Decimal, InvalidOperation
+
+from django.conf import settings
+from django.contrib.auth.decorators import user_passes_test
+from django.db import transaction
+from django.http import HttpResponse, JsonResponse
+from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import timezone
+from django.utils.dateparse import parse_date, parse_datetime
+from django.utils.translation import gettext as _
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+
+from events.auth import User
+from events.models import Event
+from events.access import events_visible_to
+from .models import (
+    Booth,
+    BoothInterest,
+    CertificateRecord,
+    EventForm,
+    FormAnswer,
+    FormQuestion,
+    FormSubmission,
+    NotificationLog,
+    Payment,
+    QuestionOption,
+)
+from .notifications import (
+    process_due_reminders, send_payment_notification, send_submission_notification,
+)
+from .services import (
+    booth_detail_url,
+    certificate_number,
+    certificate_verification_url,
+    event_date_range,
+    generate_certificate_pdf,
+    generate_qr_png,
+    participant_check_in_url,
+    sync_badge_identity_from_answers,
+    safe_spreadsheet_value,
+    payment_amount_for_submission,
+)
+
+
+EVALUATION_REPORT_ROLES = {
+    User.Role.SYSTEM_ADMIN,
+    User.Role.EVENT_ADMIN,
+    User.Role.REPORT_OFFICER,
+    User.Role.DIRECTOR,
+    User.Role.ASSISTANT_DIRECTOR,
+}
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def run_due_reminders(request):
+    configured_token = settings.REMINDER_SCHEDULER_TOKEN
+    if not configured_token:
+        return JsonResponse(
+            {"detail": "Reminder scheduler is not configured."},
+            status=503,
+        )
+
+    authorization = request.headers.get("Authorization", "")
+    scheme, separator, supplied_token = authorization.partition(" ")
+    dedicated_token = request.headers.get("X-Reminder-Token", "")
+    authorized = (
+        bool(dedicated_token)
+        and secrets.compare_digest(dedicated_token, configured_token)
+    ) or (
+        bool(separator)
+        and scheme.lower() == "bearer"
+        and secrets.compare_digest(supplied_token, configured_token)
+    )
+    if not authorized:
+        return JsonResponse({"detail": "Forbidden."}, status=403)
+
+    processed = process_due_reminders(request=request)
+    response = JsonResponse({"processed": len(processed)})
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+def can_view_evaluation_reports(user):
+    return bool(
+        user.is_authenticated
+        and (
+            user.is_superuser
+            or user.role in EVALUATION_REPORT_ROLES
+        )
+    )
+
+
+evaluation_report_required = user_passes_test(
+    can_view_evaluation_reports,
+    login_url="login",
+)
+
+
+def localized_answer_value(answer, language):
+    selected_options = list(answer.selected_options.all())
+    if selected_options:
+        return ", ".join(
+            option.label_en if language == "en" else option.label_sw
+            for option in selected_options
+        )
+    if answer.uploaded_file:
+        return answer.uploaded_file.url
+    if answer.text_value:
+        return answer.text_value
+    if answer.number_value is not None:
+        return str(answer.number_value)
+    if answer.date_value:
+        return answer.date_value.isoformat()
+    if answer.datetime_value:
+        return answer.datetime_value.isoformat()
+    if answer.boolean_value is not None:
+        return _("Yes") if answer.boolean_value else _("No")
+    return ""
+
+
+def numeric_rating_value(answer):
+    value = answer.number_value
+    if value is None:
+        selected_options = list(answer.selected_options.all())
+        if len(selected_options) == 1:
+            try:
+                value = Decimal(selected_options[0].value)
+            except (InvalidOperation, TypeError, ValueError):
+                value = None
+    if value is not None and Decimal("1") <= value <= Decimal("5"):
+        return value
+    return None
+
+
+def get_client_ip(request):
+    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+
+    return request.META.get("REMOTE_ADDR")
+
+
+def public_booths_queryset():
+    return Booth.objects.select_related(
+        "event",
+        "event__venue",
+        "assigned_submission",
+    ).filter(
+        is_active=True,
+        event__is_active=True,
+        event__is_public=True,
+        event__booth_enabled=True,
+        assigned_submission__isnull=False,
+        status__in=[Booth.Status.ASSIGNED, Booth.Status.READY],
+    )
+
+
+@require_http_methods(["GET"])
+def booth_directory(request, event_slug):
+    event = get_object_or_404(
+        Event.objects.select_related("venue"),
+        slug=event_slug,
+        is_active=True,
+        is_public=True,
+        booth_enabled=True,
+    )
+    booths = public_booths_queryset().filter(event=event).order_by(
+        "zone_en",
+        "code",
+    )
+    return render(
+        request,
+        "forms_builder/booth_directory.html",
+        {"event": event, "booths": booths},
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def booth_detail(request, public_token):
+    booth = get_object_or_404(
+        public_booths_queryset(),
+        public_token=public_token,
+    )
+    offerings = list(
+        booth.offerings.filter(is_active=True).order_by(
+            "display_order",
+            "name_en",
+        )
+    )
+    interest_errors = {}
+    interest_values = {}
+
+    if request.method == "POST":
+        interest_values = {
+            "visitor_name": request.POST.get("visitor_name", "").strip(),
+            "email": request.POST.get("email", "").strip(),
+            "phone": request.POST.get("phone", "").strip(),
+            "message": request.POST.get("message", "").strip(),
+            "offering": request.POST.get("offering", "").strip(),
+        }
+        if not interest_values["email"] and not interest_values["phone"]:
+            interest_errors["contact"] = _(
+                "Enter an email address or phone number."
+            )
+        if interest_values["email"] and "@" not in interest_values["email"]:
+            interest_errors["email"] = _("Enter a valid email address.")
+
+        selected_offering = None
+        if interest_values["offering"]:
+            selected_offering = next(
+                (
+                    offering
+                    for offering in offerings
+                    if str(offering.pk) == interest_values["offering"]
+                ),
+                None,
+            )
+            if selected_offering is None:
+                interest_errors["offering"] = _("Select a valid option.")
+
+        if not interest_errors:
+            BoothInterest.objects.create(
+                booth=booth,
+                offering=selected_offering,
+                visitor_name=interest_values["visitor_name"],
+                email=interest_values["email"],
+                phone=interest_values["phone"],
+                message=interest_values["message"],
+                language=request.LANGUAGE_CODE,
+            )
+            return redirect(
+                f"{request.path}?interest=success#visitor-interest"
+            )
+
+    return render(
+        request,
+        "forms_builder/booth_detail.html",
+        {
+            "booth": booth,
+            "event": booth.event,
+            "submission": booth.assigned_submission,
+            "offerings": offerings,
+            "interest_errors": interest_errors,
+            "interest_values": interest_values,
+            "interest_success": request.GET.get("interest") == "success",
+        },
+    )
+
+
+@require_http_methods(["GET"])
+def booth_qr(request, public_token):
+    booth = get_object_or_404(
+        public_booths_queryset(),
+        public_token=public_token,
+    )
+    image_data = generate_qr_png(
+        booth_detail_url(
+            booth,
+            request=request,
+            language=request.LANGUAGE_CODE,
+        )
+    )
+    response = HttpResponse(image_data, content_type="image/png")
+    if request.GET.get("download") == "1":
+        response["Content-Disposition"] = (
+            f'attachment; filename="{booth.event.code}-{booth.code}-qr.png"'
+        )
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+def evaluation_forms_queryset(user):
+    return EventForm.objects.filter(
+        event__in=events_visible_to(user),
+        form_type=EventForm.FormType.EVALUATION,
+        is_active=True,
+    ).select_related("event").order_by("-event__starts_at", "name_en")
+
+
+@evaluation_report_required
+@require_http_methods(["GET"])
+def evaluation_reports(request):
+    evaluation_forms = evaluation_forms_queryset(request.user)
+    selected_form_id = request.GET.get("form", "").strip()
+    selected_form = (
+        get_object_or_404(evaluation_forms, pk=selected_form_id)
+        if selected_form_id
+        else evaluation_forms.first()
+    )
+    questions = []
+    response_rows = []
+    rating_statistics = []
+    total_responses = 0
+    overall_average = None
+
+    if selected_form:
+        questions = list(
+            FormQuestion.objects.filter(
+                section__event_form=selected_form,
+                section__is_active=True,
+                is_active=True,
+            ).select_related("section").order_by(
+                "section__display_order",
+                "display_order",
+                "id",
+            )
+        )
+        submissions = list(
+            FormSubmission.objects.filter(
+                event_form=selected_form,
+                is_active=True,
+                is_complete=True,
+            ).prefetch_related(
+                "answers__question",
+                "answers__selected_options",
+            ).order_by("-created_at")
+        )
+        total_responses = len(submissions)
+        rating_values = {question.pk: [] for question in questions}
+
+        for submission in submissions:
+            answers_by_question = {
+                answer.question_id: answer
+                for answer in submission.answers.all()
+            }
+            row_answers = []
+            for question in questions:
+                answer = answers_by_question.get(question.pk)
+                row_answers.append(
+                    localized_answer_value(answer, request.LANGUAGE_CODE)
+                    if answer
+                    else ""
+                )
+                if answer:
+                    rating_value = numeric_rating_value(answer)
+                    if rating_value is not None:
+                        rating_values[question.pk].append(rating_value)
+            response_rows.append(
+                {"submission": submission, "answers": row_answers}
+            )
+
+        all_ratings = []
+        for question in questions:
+            values = rating_values[question.pk]
+            if values:
+                average = sum(values) / len(values)
+                all_ratings.extend(values)
+                rating_statistics.append(
+                    {
+                        "label": (
+                            question.label_en
+                            if request.LANGUAGE_CODE == "en"
+                            else question.label_sw
+                        ),
+                        "average": round(average, 2),
+                        "count": len(values),
+                    }
+                )
+        if all_ratings:
+            overall_average = round(
+                sum(all_ratings) / len(all_ratings),
+                2,
+            )
+
+    return render(
+        request,
+        "forms_builder/evaluation_reports.html",
+        {
+            "evaluation_forms": evaluation_forms,
+            "selected_form": selected_form,
+            "questions": questions,
+            "response_rows": response_rows,
+            "rating_statistics": rating_statistics,
+            "total_responses": total_responses,
+            "overall_average": overall_average,
+        },
+    )
+
+
+@evaluation_report_required
+@require_http_methods(["GET"])
+def evaluation_report_csv(request):
+    selected_form = get_object_or_404(
+        evaluation_forms_queryset(request.user),
+        pk=request.GET.get("form"),
+    )
+    questions = list(
+        FormQuestion.objects.filter(
+            section__event_form=selected_form,
+            section__is_active=True,
+            is_active=True,
+        ).order_by(
+            "section__display_order",
+            "display_order",
+            "id",
+        )
+    )
+    submissions = FormSubmission.objects.filter(
+        event_form=selected_form,
+        is_active=True,
+        is_complete=True,
+    ).prefetch_related(
+        "answers__question",
+        "answers__selected_options",
+    ).order_by("created_at")
+
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response.write("\ufeff")
+    response["Content-Disposition"] = (
+        f'attachment; filename="{selected_form.event.code}-evaluation.csv"'
+    )
+    writer = csv.writer(response)
+    question_labels = [
+        question.label_en
+        if request.LANGUAGE_CODE == "en"
+        else question.label_sw
+        for question in questions
+    ]
+    writer.writerow(
+        [
+            _("Evaluation reference"),
+            _("Submitted on"),
+            _("Language"),
+            _("Email address"),
+            _("Phone number"),
+            *question_labels,
+        ]
+    )
+    for submission in submissions:
+        answers_by_question = {
+            answer.question_id: answer
+            for answer in submission.answers.all()
+        }
+        values = [
+            submission.reference_number,
+            submission.created_at.isoformat(),
+            submission.language,
+            submission.submitter_email,
+            submission.submitter_phone,
+        ]
+        values.extend(
+            localized_answer_value(
+                answers_by_question.get(question.pk),
+                request.LANGUAGE_CODE,
+            )
+            if answers_by_question.get(question.pk)
+            else ""
+            for question in questions
+        )
+        writer.writerow([safe_spreadsheet_value(value) for value in values])
+    return response
+
+
+def get_public_event_form(event_slug, form_slug):
+    event_form = get_object_or_404(
+        EventForm.objects.select_related(
+            "event",
+            "event__category",
+            "event__venue",
+            "event__venue__council",
+            "event__venue__council__region",
+        ).prefetch_related(
+            "sections__questions__options",
+        ),
+        event__slug=event_slug,
+        slug=form_slug,
+        event__is_active=True,
+        event__is_public=True,
+        is_active=True,
+        is_published=True,
+    )
+    is_evaluation = event_form.form_type == EventForm.FormType.EVALUATION
+    form_enabled = (
+        event_form.event.evaluation_enabled
+        if is_evaluation
+        else event_form.event.registration_enabled
+    )
+    if not form_enabled:
+        raise Http404("This public form is not enabled.")
+
+    return event_form
+
+
+def form_availability(event_form):
+    current_time = timezone.now()
+
+    form_not_open = (
+        event_form.opens_at
+        and current_time < event_form.opens_at
+    )
+
+    form_closed = (
+        event_form.closes_at
+        and current_time > event_form.closes_at
+    )
+
+    return form_not_open, form_closed
+
+
+def validate_question_answer(request, question):
+    field_name = f"question_{question.id}"
+    question_type = question.question_type
+
+    if question_type == FormQuestion.QuestionType.MULTIPLE_CHOICE:
+        raw_value = request.POST.getlist(field_name)
+    elif question_type in {
+        FormQuestion.QuestionType.FILE,
+        FormQuestion.QuestionType.IMAGE,
+    }:
+        raw_value = request.FILES.get(field_name)
+    else:
+        raw_value = request.POST.get(field_name, "").strip()
+
+    is_empty = (
+        raw_value is None
+        or raw_value == ""
+        or raw_value == []
+    )
+
+    if question.is_required and is_empty:
+        return None, "This field is required."
+
+    if is_empty:
+        return {
+            "question": question,
+            "empty": True,
+        }, None
+
+    result = {
+        "question": question,
+        "empty": False,
+        "text_value": "",
+        "number_value": None,
+        "date_value": None,
+        "datetime_value": None,
+        "boolean_value": None,
+        "uploaded_file": None,
+        "selected_options": [],
+    }
+
+    if question_type in {
+        FormQuestion.QuestionType.SHORT_TEXT,
+        FormQuestion.QuestionType.LONG_TEXT,
+        FormQuestion.QuestionType.EMAIL,
+        FormQuestion.QuestionType.PHONE,
+    }:
+        text_value = str(raw_value).strip()
+
+        if (
+            question.minimum_length is not None
+            and len(text_value) < question.minimum_length
+        ):
+            return None, (
+                f"Enter at least {question.minimum_length} characters."
+            )
+
+        if (
+            question.maximum_length is not None
+            and len(text_value) > question.maximum_length
+        ):
+            return None, (
+                f"Enter no more than {question.maximum_length} characters."
+            )
+
+        if (
+            question_type == FormQuestion.QuestionType.EMAIL
+            and "@" not in text_value
+        ):
+            return None, "Enter a valid email address."
+
+        result["text_value"] = text_value
+
+    elif question_type == FormQuestion.QuestionType.NUMBER:
+        try:
+            number_value = Decimal(str(raw_value))
+        except (InvalidOperation, TypeError, ValueError):
+            return None, "Enter a valid number."
+
+        if (
+            question.minimum_value is not None
+            and number_value < question.minimum_value
+        ):
+            return None, (
+                f"The minimum allowed value is "
+                f"{question.minimum_value}."
+            )
+
+        if (
+            question.maximum_value is not None
+            and number_value > question.maximum_value
+        ):
+            return None, (
+                f"The maximum allowed value is "
+                f"{question.maximum_value}."
+            )
+
+        result["number_value"] = number_value
+
+    elif question_type == FormQuestion.QuestionType.DATE:
+        date_value = parse_date(str(raw_value))
+
+        if date_value is None:
+            return None, "Enter a valid date."
+
+        result["date_value"] = date_value
+
+    elif question_type == FormQuestion.QuestionType.DATETIME:
+        datetime_value = parse_datetime(str(raw_value))
+
+        if datetime_value is None:
+            return None, "Enter a valid date and time."
+
+        if timezone.is_naive(datetime_value):
+            datetime_value = timezone.make_aware(datetime_value)
+
+        result["datetime_value"] = datetime_value
+
+    elif question_type == FormQuestion.QuestionType.YES_NO:
+        if raw_value not in {"yes", "no"}:
+            return None, "Select Yes or No."
+
+        result["boolean_value"] = raw_value == "yes"
+
+    elif question_type in {
+        FormQuestion.QuestionType.SINGLE_CHOICE,
+        FormQuestion.QuestionType.DROPDOWN,
+    }:
+        option = QuestionOption.objects.filter(
+            question=question,
+            value=raw_value,
+            is_active=True,
+        ).first()
+
+        if option is None:
+            return None, "Select a valid option."
+
+        result["selected_options"] = [option]
+
+    elif question_type == FormQuestion.QuestionType.MULTIPLE_CHOICE:
+        options = list(
+            QuestionOption.objects.filter(
+                question=question,
+                value__in=raw_value,
+                is_active=True,
+            )
+        )
+
+        if len(options) != len(set(raw_value)):
+            return None, "One or more selected options are invalid."
+
+        result["selected_options"] = options
+
+    elif question_type in {
+        FormQuestion.QuestionType.FILE,
+        FormQuestion.QuestionType.IMAGE,
+    }:
+        result["uploaded_file"] = raw_value
+
+    else:
+        result["text_value"] = str(raw_value).strip()
+
+    return result, None
+
+
+def section_is_visible_for_submission(request, section):
+    """Apply a section's configured answer condition on the server."""
+    if not section.condition_question_id or not section.condition_value:
+        return True
+
+    field_name = f"question_{section.condition_question_id}"
+    return section.condition_value in request.POST.getlist(field_name)
+
+
+@require_http_methods(["GET", "POST"])
+def public_event_form(request, event_slug, form_slug):
+    event_form = get_public_event_form(
+        event_slug=event_slug,
+        form_slug=form_slug,
+    )
+
+    form_not_open, form_closed = form_availability(event_form)
+
+    sections = (
+        event_form.sections
+        .filter(is_active=True)
+        .prefetch_related(
+            "questions__options",
+        )
+        .order_by("display_order", "id")
+    )
+
+    language_code = request.LANGUAGE_CODE
+    is_evaluation = event_form.form_type == EventForm.FormType.EVALUATION
+
+    if request.method == "POST":
+        if form_not_open:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "This form is not open yet.",
+                    "errors": {},
+                },
+                status=400,
+            )
+
+        if form_closed:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": (
+                        "The submission period for this form has ended."
+                    ),
+                    "errors": {},
+                },
+                status=400,
+            )
+
+        if is_evaluation and not event_form.allow_multiple_submissions:
+            previous_submission = None
+            if request.user.is_authenticated:
+                previous_submission = FormSubmission.objects.filter(
+                    event_form=event_form,
+                    submitted_by=request.user,
+                    is_complete=True,
+                ).first()
+            else:
+                previous_reference = request.session.get(
+                    "evaluation_submissions",
+                    {},
+                ).get(str(event_form.pk))
+                if previous_reference:
+                    previous_submission = FormSubmission.objects.filter(
+                        event_form=event_form,
+                        reference_number=previous_reference,
+                        is_complete=True,
+                    ).first()
+
+            if previous_submission:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "duplicate": True,
+                        "message": _(
+                            "You have already submitted this evaluation."
+                        ),
+                        "redirect_url": (
+                            f"/{language_code}/submissions/"
+                            f"{previous_submission.reference_number}/success/"
+                        ),
+                    },
+                    status=409,
+                )
+
+        questions = list(
+            FormQuestion.objects.filter(
+                section__event_form=event_form,
+                section__is_active=True,
+                is_active=True,
+            )
+            .select_related("section", "section__condition_question")
+            .prefetch_related("options")
+            .order_by(
+                "section__display_order",
+                "display_order",
+                "id",
+            )
+        )
+
+        errors = {}
+        validated_answers = []
+
+        for question in questions:
+            if not section_is_visible_for_submission(
+                request,
+                question.section,
+            ):
+                continue
+
+            answer_data, error = validate_question_answer(
+                request,
+                question,
+            )
+
+            if error:
+                errors[str(question.id)] = error
+            else:
+                validated_answers.append(answer_data)
+
+        if errors:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "Please correct the highlighted fields.",
+                    "errors": errors,
+                },
+                status=400,
+            )
+
+        email_answers = []
+        phone_answers = []
+        name_answers = []
+
+        for answer_data in validated_answers:
+            question = answer_data["question"]
+
+            if (
+                question.question_type
+                == FormQuestion.QuestionType.EMAIL
+            ):
+                email_answers.append(
+                    (question, answer_data.get("text_value", ""))
+                )
+
+            if (
+                question.question_type
+                == FormQuestion.QuestionType.PHONE
+            ):
+                phone_answers.append(
+                    (question, answer_data.get("text_value", ""))
+                )
+
+            labels = f"{question.label_en} {question.label_sw}".casefold()
+            if "full name" in labels or "jina kamili" in labels:
+                name_answers.append(
+                    (question, answer_data.get("text_value", ""))
+                )
+
+        def representative_answer(answers):
+            for question, value in answers:
+                labels = f"{question.label_en} {question.label_sw}".lower()
+                if "representative" in labels or "mwakilishi" in labels:
+                    return value
+            return answers[0][1] if answers else ""
+
+        submitter_email = representative_answer(email_answers)
+        submitter_phone = representative_answer(phone_answers)
+        submitter_name = representative_answer(name_answers)
+
+        def normalize_text(value):
+            return " ".join(value.casefold().split())
+
+        def normalize_phone(value):
+            digits = re.sub(r"\D", "", value)
+            if digits.startswith("0"):
+                return f"255{digits[1:]}"
+            return digits
+
+        normalized_identity = (
+            normalize_text(submitter_name),
+            normalize_text(submitter_email),
+            normalize_phone(submitter_phone),
+        )
+
+        def find_duplicate_submission():
+            if not all(normalized_identity):
+                return None
+            for candidate in FormSubmission.objects.filter(
+                event_form=event_form,
+                is_active=True,
+                is_complete=True,
+            ).only(
+                "id", "badge_name", "submitter_email", "submitter_phone"
+            ):
+                candidate_identity = (
+                    normalize_text(candidate.badge_name),
+                    normalize_text(candidate.submitter_email),
+                    normalize_phone(candidate.submitter_phone),
+                )
+                if candidate_identity == normalized_identity:
+                    return candidate
+            return None
+
+        with transaction.atomic():
+            EventForm.objects.select_for_update().get(pk=event_form.pk)
+            duplicate_submission = find_duplicate_submission()
+            if duplicate_submission is not None:
+                duplicate_message = _(
+                    "A registration with this name, email address and phone "
+                    "number already exists. Use the registration-status page "
+                    "to access your existing registration."
+                )
+                identity_errors = {
+                    str(question.pk): duplicate_message
+                    for question, _value in (
+                        name_answers + email_answers + phone_answers
+                    )
+                }
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "duplicate": True,
+                        "message": duplicate_message,
+                        "errors": identity_errors,
+                    },
+                    status=409,
+                )
+            submission = FormSubmission.objects.create(
+                event_form=event_form,
+                submitted_by=(
+                    request.user
+                    if request.user.is_authenticated
+                    else None
+                ),
+                language=language_code,
+                submitter_email=submitter_email,
+                submitter_phone=submitter_phone,
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get(
+                    "HTTP_USER_AGENT",
+                    "",
+                ),
+                is_complete=True,
+                created_by=(
+                    request.user
+                    if request.user.is_authenticated
+                    else None
+                ),
+                updated_by=(
+                    request.user
+                    if request.user.is_authenticated
+                    else None
+                ),
+            )
+
+            for answer_data in validated_answers:
+                if answer_data.get("empty"):
+                    continue
+
+                selected_options = answer_data.pop(
+                    "selected_options",
+                    [],
+                )
+
+                question = answer_data.pop("question")
+                answer_data.pop("empty", None)
+
+                answer = FormAnswer.objects.create(
+                    submission=submission,
+                    question=question,
+                    **answer_data,
+                )
+
+                if selected_options:
+                    answer.selected_options.set(
+                        selected_options
+                    )
+
+        if event_form.form_type != EventForm.FormType.EVALUATION:
+            sync_badge_identity_from_answers(submission)
+        elif not event_form.allow_multiple_submissions:
+            evaluation_submissions = request.session.get(
+                "evaluation_submissions",
+                {},
+            )
+            evaluation_submissions[str(event_form.pk)] = (
+                submission.reference_number
+            )
+            request.session["evaluation_submissions"] = (
+                evaluation_submissions
+            )
+
+        if event_form.form_type != EventForm.FormType.EVALUATION:
+            send_submission_notification(
+                submission,
+                NotificationLog.NotificationType.REGISTRATION_RECEIVED,
+                request=request,
+            )
+
+        success_url = (
+            f"/{language_code}/submissions/"
+            f"{submission.reference_number}/success/"
+        )
+        recent_submissions = request.session.get("recent_submissions", {})
+        recent_submissions[submission.reference_number] = str(
+            submission.participant_token
+        )
+        request.session["recent_submissions"] = recent_submissions
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": (
+                    event_form.success_message_en
+                    if language_code == "en"
+                    else event_form.success_message_sw
+                ),
+                "reference_number": submission.reference_number,
+                "redirect_url": success_url,
+            }
+        )
+
+    context = {
+        "event_form": event_form,
+        "event": event_form.event,
+        "sections": sections,
+        "language_code": language_code,
+        "form_not_open": form_not_open,
+        "form_closed": form_closed,
+        "is_evaluation": is_evaluation,
+    }
+
+    return render(
+        request,
+        "forms_builder/public_event_form.html",
+        context,
+    )
+
+
+def submission_success(request, reference_number):
+    submission = get_object_or_404(
+        FormSubmission.objects.select_related(
+            "event_form",
+            "event_form__event",
+            "event_form__event__venue",
+        ),
+        reference_number=reference_number,
+        is_complete=True,
+    )
+
+    return render(
+        request,
+        "forms_builder/submission_success.html",
+        {
+            "submission": submission,
+            "event_form": submission.event_form,
+            "event": submission.event_form.event,
+            "is_evaluation": (
+                submission.event_form.form_type
+                == EventForm.FormType.EVALUATION
+            ),
+            "can_access_payment": (
+                request.session.get("recent_submissions", {}).get(
+                    submission.reference_number
+                ) == str(submission.participant_token)
+            ),
+        },
+    )
+
+
+@require_http_methods(["GET"])
+def participant_portal(request, participant_token):
+    submission = get_object_or_404(
+        FormSubmission.objects.select_related(
+            "event_form__event",
+            "event_form__event__venue",
+            "check_in",
+            "booth_assignment",
+            "certificate_record",
+        ),
+        participant_token=participant_token,
+        is_active=True,
+        is_complete=True,
+        event_form__form_type__in=[
+            EventForm.FormType.REGISTRATION,
+            EventForm.FormType.EXHIBITOR,
+            EventForm.FormType.SPEAKER,
+        ],
+    )
+    event = submission.event_form.event
+    certificate_record = getattr(submission, "certificate_record", None)
+    latest_payment = submission.payments.order_by("-created_at").first()
+    evaluation_form = None
+    selected_conference_sessions = list(
+        event.conference_sessions.filter(
+            registration_option_value__in=submission.answers.filter(
+                selected_options__is_active=True
+            ).values_list("selected_options__value", flat=True),
+            is_active=True,
+        ).order_by("starts_at", "display_order", "id")
+    )
+    if event.evaluation_enabled:
+        evaluation_form = EventForm.objects.filter(
+            event=event,
+            form_type=EventForm.FormType.EVALUATION,
+            is_published=True,
+            is_active=True,
+        ).first()
+    return render(
+        request,
+        "forms_builder/participant_portal.html",
+        {
+            "submission": submission,
+            "event": event,
+            "latest_payment": latest_payment,
+            "checked_in": hasattr(submission, "check_in"),
+            "certificate_authorized": (
+                certificate_record is not None
+                and certificate_record.status
+                == CertificateRecord.Status.AUTHORIZED
+            ),
+            "certificate_record": certificate_record,
+            "booth": getattr(submission, "booth_assignment", None),
+            "evaluation_form": evaluation_form,
+            "selected_conference_sessions": selected_conference_sessions,
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def participant_payment(request, participant_token):
+    submission = get_object_or_404(
+        FormSubmission.objects.select_related("event_form__event"),
+        participant_token=participant_token,
+        is_active=True,
+        is_complete=True,
+        event_form__form_type__in=[
+            EventForm.FormType.REGISTRATION,
+            EventForm.FormType.EXHIBITOR,
+            EventForm.FormType.SPEAKER,
+        ],
+        event_form__event__payment_enabled=True,
+    )
+    event = submission.event_form.event
+    calculated_amount = payment_amount_for_submission(submission)
+    pricing_rule = getattr(event, "quantity_pricing_rule", None)
+    payment_currency = (
+        pricing_rule.currency
+        if pricing_rule and pricing_rule.is_active
+        else event.payment_currency
+    )
+    latest_payment = submission.payments.order_by("-created_at").first()
+    errors = {}
+
+    if request.method == "POST":
+        method = request.POST.get("method", "").strip()
+        transaction_reference = request.POST.get(
+            "transaction_reference", ""
+        ).strip()
+        proof = request.FILES.get("proof")
+        valid_methods = {value for value, label in Payment.Method.choices}
+        if method not in valid_methods:
+            errors["method"] = _("Select a valid payment method.")
+        if method != Payment.Method.CASH and not transaction_reference:
+            errors["transaction_reference"] = _(
+                "Enter the transaction reference."
+            )
+        if latest_payment and latest_payment.status in {
+            Payment.Status.PENDING,
+            Payment.Status.VERIFIED,
+        }:
+            errors["payment"] = _(
+                "A payment is already pending or verified for this registration."
+            )
+        if calculated_amount is None:
+            errors["payment"] = _(
+                "The payment amount could not be calculated. Contact the event organizer."
+            )
+
+        if not errors:
+            payment = Payment.objects.create(
+                submission=submission,
+                amount=calculated_amount,
+                currency=payment_currency,
+                method=method,
+                transaction_reference=transaction_reference,
+                proof=proof,
+                paid_at=timezone.now(),
+            )
+            send_payment_notification(
+                payment,
+                NotificationLog.NotificationType.PAYMENT_RECEIVED,
+                request=request,
+            )
+            return redirect(
+                "forms_builder:participant_payment",
+                participant_token=submission.participant_token,
+            )
+
+    return render(
+        request,
+        "forms_builder/participant_payment.html",
+        {
+            "submission": submission,
+            "event": event,
+            "latest_payment": latest_payment,
+            "payment_errors": errors,
+            "payment_methods": Payment.Method.choices,
+            "calculated_amount": calculated_amount,
+            "payment_currency": payment_currency,
+        },
+    )
+
+
+@require_http_methods(["GET"])
+def payment_receipt(request, participant_token):
+    submission = get_object_or_404(
+        FormSubmission.objects.select_related("event_form__event"),
+        participant_token=participant_token,
+        is_active=True,
+    )
+    payment = submission.payments.filter(
+        status=Payment.Status.VERIFIED,
+    ).order_by("-verified_at", "-created_at").first()
+    if payment is None:
+        raise Http404("No verified payment was found.")
+    return render(request, "forms_builder/payment_receipt.html", {
+        "submission": submission,
+        "event": submission.event_form.event,
+        "payment": payment,
+        "receipt_number": f"PAY-{payment.created_at.year}-{payment.pk:06d}",
+    })
+
+
+def _verified_receipt_payment(participant_token, payment_id):
+    return get_object_or_404(
+        Payment.objects.select_related(
+            "submission__event_form__event",
+            "verified_by",
+        ),
+        pk=payment_id,
+        submission__participant_token=participant_token,
+        submission__is_active=True,
+        status=Payment.Status.VERIFIED,
+    )
+
+
+@require_http_methods(["GET"])
+def payment_receipt_verification(request, participant_token, payment_id):
+    payment = _verified_receipt_payment(participant_token, payment_id)
+    return render(request, "forms_builder/payment_receipt_verification.html", {
+        "payment": payment,
+        "submission": payment.submission,
+        "event": payment.submission.event_form.event,
+        "receipt_number": f"PAY-{payment.created_at.year}-{payment.pk:06d}",
+    })
+
+
+@require_http_methods(["GET"])
+def payment_receipt_qr(request, participant_token, payment_id):
+    payment = _verified_receipt_payment(participant_token, payment_id)
+    path = reverse(
+        "forms_builder:payment_receipt_verification",
+        kwargs={
+            "participant_token": participant_token,
+            "payment_id": payment.pk,
+        },
+    )
+    verification_url = (
+        f"{settings.PUBLIC_BASE_URL.rstrip('/')}{path}"
+        if settings.PUBLIC_BASE_URL
+        else request.build_absolute_uri(path)
+    )
+    response = HttpResponse(
+        generate_qr_png(verification_url),
+        content_type="image/png",
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+@require_http_methods(["GET", "POST"])
+def registration_status(request):
+    submission = None
+    lookup_error = ""
+    reference_number = request.GET.get("reference", "").strip().upper()
+
+    if request.method == "POST":
+        reference_number = (
+            request.POST.get("reference_number", "").strip().upper()
+        )
+        contact = request.POST.get("contact", "").strip()
+        candidate = (
+            FormSubmission.objects
+            .select_related("event_form__event")
+            .filter(
+                reference_number=reference_number,
+                is_complete=True,
+                event_form__form_type__in=[
+                    EventForm.FormType.REGISTRATION,
+                    EventForm.FormType.EXHIBITOR,
+                    EventForm.FormType.SPEAKER,
+                ],
+            )
+            .first()
+        )
+
+        email_matches = (
+            candidate
+            and candidate.submitter_email
+            and candidate.submitter_email.casefold() == contact.casefold()
+        )
+        normalized_contact = "".join(contact.split())
+        phone_matches = (
+            candidate
+            and candidate.submitter_phone
+            and "".join(candidate.submitter_phone.split())
+            == normalized_contact
+        )
+
+        if candidate and (email_matches or phone_matches):
+            submission = candidate
+        else:
+            lookup_error = (
+                "We could not verify a registration with those details."
+            )
+
+    return render(
+        request,
+        "forms_builder/registration_status.html",
+        {
+            "submission": submission,
+            "lookup_error": lookup_error,
+            "reference_number": reference_number,
+        },
+    )
+
+
+def get_approved_badge_submission(participant_token):
+    return get_object_or_404(
+        FormSubmission.objects.select_related(
+            "event_form",
+            "event_form__event",
+            "event_form__event__venue",
+        ),
+        participant_token=participant_token,
+        review_status=FormSubmission.ReviewStatus.APPROVED,
+        is_complete=True,
+        is_active=True,
+        event_form__event__badge_enabled=True,
+        event_form__form_type__in=[
+            EventForm.FormType.REGISTRATION,
+            EventForm.FormType.EXHIBITOR,
+            EventForm.FormType.SPEAKER,
+        ],
+    )
+
+
+@require_http_methods(["GET"])
+def participant_badge(request, participant_token):
+    submission = get_approved_badge_submission(participant_token)
+
+    return render(
+        request,
+        "forms_builder/participant_badge.html",
+        {
+            "submission": submission,
+            "event": submission.event_form.event,
+        },
+    )
+
+
+@require_http_methods(["GET"])
+def participant_certificate(request, participant_token):
+    submission = get_object_or_404(
+        FormSubmission.objects.select_related(
+            "event_form",
+            "event_form__event",
+            "event_form__event__venue",
+            "check_in",
+            "certificate_record",
+        ),
+        participant_token=participant_token,
+        review_status=FormSubmission.ReviewStatus.APPROVED,
+        is_complete=True,
+        is_active=True,
+        event_form__event__certificate_enabled=True,
+        check_in__isnull=False,
+        certificate_record__status=CertificateRecord.Status.AUTHORIZED,
+        event_form__form_type__in=[
+            EventForm.FormType.REGISTRATION,
+            EventForm.FormType.EXHIBITOR,
+            EventForm.FormType.SPEAKER,
+        ],
+    )
+
+    return render(
+        request,
+        "forms_builder/participant_certificate.html",
+        {
+            "submission": submission,
+            "event": submission.event_form.event,
+            "event_display_name": (
+                submission.event_form.event.title_en
+                if request.LANGUAGE_CODE == "en"
+                else submission.event_form.event.title_sw
+            ),
+            "certificate_number": certificate_number(submission),
+            "event_date_range": event_date_range(
+                submission.event_form.event,
+                language=request.LANGUAGE_CODE,
+            ),
+            "verification_url": certificate_verification_url(
+                submission,
+                request=request,
+                language=request.LANGUAGE_CODE,
+            ),
+        },
+    )
+
+
+def get_certificate_submission(participant_token):
+    return get_object_or_404(
+        FormSubmission.objects.select_related(
+            "event_form",
+            "event_form__event",
+            "event_form__event__venue",
+            "check_in",
+            "certificate_record",
+        ),
+        participant_token=participant_token,
+        review_status=FormSubmission.ReviewStatus.APPROVED,
+        is_complete=True,
+        is_active=True,
+        event_form__event__certificate_enabled=True,
+        check_in__isnull=False,
+        certificate_record__status=CertificateRecord.Status.AUTHORIZED,
+        event_form__form_type__in=[
+            EventForm.FormType.REGISTRATION,
+            EventForm.FormType.EXHIBITOR,
+            EventForm.FormType.SPEAKER,
+        ],
+    )
+
+
+@require_http_methods(["GET"])
+def participant_certificate_qr(request, participant_token):
+    submission = get_certificate_submission(participant_token)
+    verification_url = certificate_verification_url(
+        submission,
+        request=request,
+        language=submission.language,
+    )
+    response = HttpResponse(
+        generate_qr_png(verification_url),
+        content_type="image/png",
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@require_http_methods(["GET"])
+def participant_certificate_pdf(request, participant_token):
+    submission = get_certificate_submission(participant_token)
+    verification_url = certificate_verification_url(
+        submission,
+        request=request,
+        language=request.LANGUAGE_CODE,
+    )
+    response = HttpResponse(
+        generate_certificate_pdf(
+            submission,
+            verification_url,
+            language=request.LANGUAGE_CODE,
+        ),
+        content_type="application/pdf",
+    )
+    response["Content-Disposition"] = (
+        f'attachment; filename="{submission.reference_number}-certificate.pdf"'
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@require_http_methods(["GET"])
+def certificate_verification(request, participant_token):
+    submission = get_certificate_submission(participant_token)
+    event = submission.event_form.event
+    return render(
+        request,
+        "forms_builder/certificate_verification.html",
+        {
+            "submission": submission,
+            "event": event,
+            "certificate_number": certificate_number(submission),
+            "event_date_range": event_date_range(
+                event,
+                language=request.LANGUAGE_CODE,
+            ),
+        },
+    )
+
+
+@require_http_methods(["GET"])
+def participant_badge_qr(request, participant_token):
+    submission = get_approved_badge_submission(participant_token)
+    check_in_url = participant_check_in_url(
+        submission,
+        request=request,
+        language=submission.language,
+    )
+    response = HttpResponse(
+        generate_qr_png(check_in_url),
+        content_type="image/png",
+    )
+
+    if request.GET.get("download") == "1":
+        response["Content-Disposition"] = (
+            "attachment; "
+            f'filename="{submission.reference_number}-badge-qr.png"'
+        )
+
+    response["X-Content-Type-Options"] = "nosniff"
+    return response

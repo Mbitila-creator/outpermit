@@ -1,0 +1,522 @@
+import csv
+from io import BytesIO
+from io import StringIO
+from urllib.parse import urljoin
+
+import qrcode
+from PIL import Image, ImageDraw, ImageFont
+from django.conf import settings
+from django.urls import reverse
+from django.utils import timezone, translation
+from django.utils.formats import date_format
+from django.utils.translation import gettext as _
+
+from .models import FormQuestion, QuantityPricingRule
+
+
+def payment_amount_for_submission(submission):
+    """Calculate a fixed fee or a configured first-plus-additional quantity fee."""
+    event = submission.event_form.event
+    try:
+        rule = event.quantity_pricing_rule
+    except QuantityPricingRule.DoesNotExist:
+        return event.participation_fee
+    if not rule.is_active:
+        return event.participation_fee
+
+    answer = submission.answers.filter(
+        question=rule.quantity_question,
+    ).first()
+    if not answer or answer.number_value is None:
+        return None
+    quantity = answer.number_value
+    if quantity < 1 or quantity != quantity.to_integral_value():
+        return None
+    return (
+        rule.first_unit_amount
+        + ((int(quantity) - 1) * rule.additional_unit_amount)
+    )
+
+
+def public_form_path(event_form, language="sw"):
+    with translation.override(language):
+        return reverse(
+            "forms_builder:public_event_form",
+            kwargs={
+                "event_slug": event_form.event.slug,
+                "form_slug": event_form.slug,
+            },
+        )
+
+
+def public_form_url(event_form, request=None, language="sw"):
+    path = public_form_path(event_form, language=language)
+    base_url = settings.PUBLIC_BASE_URL
+
+    if base_url:
+        return urljoin(f"{base_url}/", path.lstrip("/"))
+
+    if request is not None:
+        return request.build_absolute_uri(path)
+
+    return path
+
+
+def booth_detail_url(booth, request=None, language="sw"):
+    with translation.override(language):
+        path = reverse(
+            "forms_builder:booth_detail",
+            kwargs={"public_token": booth.public_token},
+        )
+    base_url = settings.PUBLIC_BASE_URL
+
+    if base_url:
+        return urljoin(f"{base_url}/", path.lstrip("/"))
+
+    if request is not None:
+        return request.build_absolute_uri(path)
+
+    return path
+
+
+def participant_badge_path(submission, language="sw"):
+    with translation.override(language):
+        return reverse(
+            "forms_builder:participant_badge",
+            kwargs={"participant_token": submission.participant_token},
+        )
+
+
+def participant_certificate_path(submission, language="sw"):
+    with translation.override(language):
+        return reverse(
+            "forms_builder:participant_certificate",
+            kwargs={"participant_token": submission.participant_token},
+        )
+
+
+def certificate_number(submission):
+    certificate = getattr(submission, "certificate_record", None)
+    if certificate and certificate.certificate_number:
+        return certificate.certificate_number
+    event_year = timezone.localtime(
+        submission.event_form.event.starts_at
+    ).year
+    short_token = str(submission.participant_token).replace("-", "")[:10].upper()
+    return f"CERT-{event_year}-{short_token}"
+
+
+def event_date_range(event, language="sw"):
+    starts_at = timezone.localtime(event.starts_at)
+    ends_at = timezone.localtime(event.ends_at)
+    swahili_months = (
+        "Januari",
+        "Februari",
+        "Machi",
+        "Aprili",
+        "Mei",
+        "Juni",
+        "Julai",
+        "Agosti",
+        "Septemba",
+        "Oktoba",
+        "Novemba",
+        "Desemba",
+    )
+
+    def month_name(value):
+        if language == "sw":
+            return swahili_months[value.month - 1]
+        return date_format(value, "F")
+
+    with translation.override(language):
+        if starts_at.date() == ends_at.date():
+            return f"{starts_at.day} {month_name(starts_at)} {starts_at.year}"
+
+        if starts_at.year == ends_at.year and starts_at.month == ends_at.month:
+            return (
+                f"{starts_at.day}–{ends_at.day} "
+                f"{month_name(ends_at)} {ends_at.year}"
+            )
+
+        if starts_at.year == ends_at.year:
+            return (
+                f"{starts_at.day} {month_name(starts_at)}–"
+                f"{ends_at.day} {month_name(ends_at)} {ends_at.year}"
+            )
+
+        return (
+            f"{starts_at.day} {month_name(starts_at)} {starts_at.year}–"
+            f"{ends_at.day} {month_name(ends_at)} {ends_at.year}"
+        )
+
+
+def certificate_verification_url(submission, request=None, language="sw"):
+    with translation.override(language):
+        path = reverse(
+            "forms_builder:certificate_verification",
+            kwargs={"participant_token": submission.participant_token},
+        )
+    base_url = settings.PUBLIC_BASE_URL
+
+    if base_url:
+        return urljoin(f"{base_url}/", path.lstrip("/"))
+
+    if request is not None:
+        return request.build_absolute_uri(path)
+
+    return path
+
+
+def participant_badge_url(submission, request=None, language="sw"):
+    path = participant_badge_path(submission, language=language)
+    base_url = settings.PUBLIC_BASE_URL
+
+    if base_url:
+        return urljoin(f"{base_url}/", path.lstrip("/"))
+
+    if request is not None:
+        return request.build_absolute_uri(path)
+
+    return path
+
+
+def participant_check_in_url(submission, request=None, language="sw"):
+    with translation.override(language):
+        path = reverse(
+            "checkin:participant",
+            kwargs={"participant_token": submission.participant_token},
+        )
+    path = f"{path}?auto=1"
+    base_url = settings.PUBLIC_BASE_URL
+
+    if base_url:
+        return urljoin(f"{base_url}/", path.lstrip("/"))
+
+    if request is not None:
+        return request.build_absolute_uri(path)
+
+    return path
+
+
+def sync_badge_identity_from_answers(submission):
+    badge_name = ""
+    badge_organization = ""
+    badge_position = ""
+
+    answers = submission.answers.select_related("question").all()
+    for answer in answers:
+        label_en = answer.question.label_en.strip().casefold()
+        label_sw = answer.question.label_sw.strip().casefold()
+        value = answer.text_value.strip()
+
+        if not value:
+            continue
+
+        if label_en in {
+            "representative name",
+            "participant name",
+            "full name",
+        } or label_sw in {
+            "jina la mwakilishi",
+            "jina la mshiriki",
+            "jina kamili",
+        }:
+            badge_name = value
+
+        if label_en in {
+            "institution name",
+            "organization name",
+            "organisation name",
+        } or label_sw in {
+            "jina la taasisi",
+            "jina la shirika",
+        }:
+            badge_organization = value
+
+        if label_en in {
+            "position / title",
+            "position",
+            "job title",
+        } or label_sw in {
+            "cheo / wadhifa",
+            "cheo",
+            "wadhifa",
+        }:
+            badge_position = value
+
+    submission.badge_name = badge_name or submission.badge_name
+    submission.badge_organization = (
+        badge_organization or submission.badge_organization
+    )
+    if submission.event_form.event.category.is_conference:
+        submission.badge_title = badge_position
+    else:
+        submission.badge_title = (
+            "Representative" if submission.language == "en" else "Mwakilishi"
+        )
+    submission.save(
+        update_fields=[
+            "badge_name",
+            "badge_organization",
+            "badge_title",
+            "updated_at",
+        ]
+    )
+
+
+def generate_qr_png(value):
+    qr_code = qrcode.QRCode(
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=4,
+    )
+    qr_code.add_data(value)
+    qr_code.make(fit=True)
+
+    image = qr_code.make_image(
+        fill_color="#000000",
+        back_color="#ffffff",
+    )
+
+    output = BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
+
+
+def _certificate_font(size, bold=False):
+    font_names = (
+        ("DejaVuSans-Bold.ttf", "Arial Bold.ttf")
+        if bold
+        else ("DejaVuSans.ttf", "Arial.ttf")
+    )
+    for font_name in font_names:
+        try:
+            return ImageFont.truetype(font_name, size=size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
+
+
+def generate_certificate_pdf(submission, verification_url, language="sw"):
+    event = submission.event_form.event
+    short_certificate_number = certificate_number(submission)
+    formatted_event_dates = event_date_range(event, language=language)
+    event_name = event.title_en if language == "en" else event.title_sw
+
+    with translation.override(language):
+        labels = {
+            "title": _("Certificate of Participation"),
+            "presented": _("This certificate is proudly presented to"),
+            "statement": _(
+                "for participating in %(event_name)s and completing "
+                "verified attendance."
+            ) % {"event_name": event_name},
+            "verified": _("Attendance verified"),
+            "event_date": _("Event date"),
+            "number": _("Certificate number"),
+            "scan": _("Scan to verify this certificate"),
+        }
+
+    width, height = 1684, 1191
+    image = Image.new("RGB", (width, height), "#fbfaf4")
+    draw = ImageDraw.Draw(image)
+    navy = "#173c59"
+    gold = "#aa7c24"
+    teal = "#1b7085"
+
+    draw.rectangle((32, 32, width - 32, height - 32), outline=gold, width=8)
+    draw.rectangle((50, 50, width - 50, height - 50), outline=navy, width=3)
+    draw.line((75, 75, 220, 75), fill=teal, width=12)
+    draw.line((75, 75, 75, 220), fill=teal, width=12)
+    draw.line((width - 75, height - 75, width - 220, height - 75), fill=teal, width=12)
+    draw.line((width - 75, height - 75, width - 75, height - 220), fill=teal, width=12)
+
+    def centered(text, y, font, fill=navy):
+        box = draw.textbbox((0, 0), text, font=font)
+        x = (width - (box[2] - box[0])) / 2
+        draw.text((x, y), text, font=font, fill=fill)
+
+    centered(event.code, 105, _certificate_font(28, bold=True), gold)
+    centered(event_name, 155, _certificate_font(42, bold=True))
+    centered(labels["title"], 265, _certificate_font(56, bold=True), gold)
+    centered(labels["presented"], 370, _certificate_font(28), navy)
+    centered(submission.badge_display_name, 430, _certificate_font(68, bold=True), navy)
+    draw.line((350, 525, width - 350, 525), fill=gold, width=3)
+
+    if submission.badge_organization:
+        centered(
+            submission.badge_organization,
+            550,
+            _certificate_font(30, bold=True),
+            teal,
+        )
+
+    centered(labels["statement"], 630, _certificate_font(27), navy)
+
+    checked_at = timezone.localtime(submission.check_in.checked_in_at)
+    draw.text(
+        (135, 870),
+        labels["event_date"],
+        font=_certificate_font(20),
+        fill="#607284",
+    )
+    draw.text(
+        (135, 905),
+        formatted_event_dates,
+        font=_certificate_font(25, bold=True),
+        fill=navy,
+    )
+    draw.text(
+        (135, 985),
+        labels["number"],
+        font=_certificate_font(20),
+        fill="#607284",
+    )
+    draw.text(
+        (135, 1020),
+        short_certificate_number,
+        font=_certificate_font(23, bold=True),
+        fill=navy,
+    )
+
+    qr_image = Image.open(BytesIO(generate_qr_png(verification_url))).convert("RGB")
+    qr_image = qr_image.resize((210, 210))
+    image.paste(qr_image, (width - 355, 830))
+    qr_label = labels["scan"]
+    box = draw.textbbox((0, 0), qr_label, font=_certificate_font(18))
+    draw.text(
+        (width - 250 - (box[2] - box[0]) / 2, 1050),
+        qr_label,
+        font=_certificate_font(18),
+        fill=navy,
+    )
+
+    output = BytesIO()
+    image.save(output, format="PDF", resolution=150)
+    return output.getvalue()
+
+
+def safe_spreadsheet_value(value):
+    if value is None:
+        return ""
+
+    text = str(value)
+
+    if text.lstrip().startswith(("=", "+", "-", "@")):
+        return f"'{text}"
+
+    return text
+
+
+def answer_export_value(answer):
+    selected_options = list(answer.selected_options.all())
+
+    if selected_options:
+        labels = [
+            option.label_en
+            if answer.submission.language == "en"
+            else option.label_sw
+            for option in selected_options
+        ]
+        return ", ".join(labels)
+
+    if answer.uploaded_file:
+        return answer.uploaded_file.url
+
+    if answer.boolean_value is not None:
+        if answer.submission.language == "en":
+            return "Yes" if answer.boolean_value else "No"
+        return "Ndiyo" if answer.boolean_value else "Hapana"
+
+    for value in (
+        answer.text_value,
+        answer.number_value,
+        answer.date_value,
+        answer.datetime_value,
+    ):
+        if value not in (None, ""):
+            return value
+
+    return ""
+
+
+def submissions_csv(submissions):
+    submissions = list(submissions)
+    form_ids = {item.event_form_id for item in submissions}
+    questions = list(
+        FormQuestion.objects.filter(
+            section__event_form_id__in=form_ids,
+        )
+        .select_related("section__event_form__event")
+        .order_by(
+            "section__event_form_id",
+            "section__display_order",
+            "display_order",
+            "id",
+        )
+    )
+
+    output = StringIO()
+    writer = csv.writer(output)
+    fixed_headers = [
+        "Reference Number",
+        "Event",
+        "Form",
+        "Email",
+        "Phone",
+        "Language",
+        "Complete",
+        "Review Status",
+        "Reviewed By",
+        "Reviewed On",
+        "Internal Review Notes",
+        "Submitted On",
+    ]
+    question_headers = [
+        f"{question.section.event_form.event.code} — {question.label_en}"
+        for question in questions
+    ]
+    writer.writerow(fixed_headers + question_headers)
+
+    for submission in submissions:
+        answer_map = {
+            answer.question_id: answer_export_value(answer)
+            for answer in submission.answers.all()
+        }
+        submitted_on = timezone.localtime(submission.created_at).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+        reviewed_on = (
+            timezone.localtime(submission.reviewed_at).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            if submission.reviewed_at
+            else ""
+        )
+        fixed_values = [
+            submission.reference_number,
+            submission.event_form.event.code,
+            submission.event_form.name_en,
+            submission.submitter_email,
+            submission.submitter_phone,
+            submission.language,
+            "Yes" if submission.is_complete else "No",
+            submission.get_review_status_display(),
+            str(submission.reviewed_by or ""),
+            reviewed_on,
+            submission.review_notes,
+            submitted_on,
+        ]
+        question_values = [
+            answer_map.get(question.id, "")
+            if question.section.event_form_id == submission.event_form_id
+            else ""
+            for question in questions
+        ]
+        writer.writerow(
+            [safe_spreadsheet_value(value) for value in fixed_values + question_values]
+        )
+
+    return output.getvalue()
+

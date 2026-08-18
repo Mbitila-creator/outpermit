@@ -1,0 +1,551 @@
+{% load static %}
+{% load i18n %}
+{% load form_text %}
+
+<!DOCTYPE html>
+<html lang="{{ request.LANGUAGE_CODE }}">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="description"
+        content="{% translate 'Complete and submit the event form.' %}"
+    >
+
+    <title>
+        {% if request.LANGUAGE_CODE == "en" %}
+            {{ event_form.name_en }}
+        {% else %}
+            {{ event_form.name_sw }}
+        {% endif %}
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/public-event-form.css' %}"
+    >
+
+    <link
+        rel="icon"
+        href="{% static 'logo/moest_logo.png' %}"
+        type="image/x-icon"
+    >
+</head>
+
+<body>
+    <header class="site-header">
+        <div class="header-container">
+            <div class="header-navigation">
+                <button
+                    type="button"
+                    class="page-back-button"
+                    id="registration-back-button"
+                    data-fallback-url="{% url 'events:event_detail' event.slug %}"
+                >
+                    <span aria-hidden="true">←</span>
+                    {% translate "Back" %}
+                </button>
+
+                <a
+                    href="{% url 'events:home' %}"
+                    class="system-title"
+                >
+                    {% translate "Event Management System" %}
+                </a>
+                <a href="{% url 'events:home' %}" class="page-back-button">{% translate "Exit" %}</a>
+            </div>
+
+            <nav
+                class="language-navigation"
+                aria-label="{% translate 'Language' %}"
+            >
+                <span class="language-navigation-label">
+                    {% translate "Language" %}:
+                </span>
+
+                {% language "sw" %}
+                    <a
+                        href="{% url 'forms_builder:public_event_form' event.slug event_form.slug %}"
+                        class="language-link"
+                        lang="sw"
+                        {% if request.LANGUAGE_CODE == "sw" %}aria-current="page"{% endif %}
+                    >
+                        Kiswahili
+                    </a>
+                {% endlanguage %}
+
+                {% language "en" %}
+                    <a
+                        href="{% url 'forms_builder:public_event_form' event.slug event_form.slug %}"
+                        class="language-link"
+                        lang="en"
+                        {% if request.LANGUAGE_CODE == "en" %}aria-current="page"{% endif %}
+                    >
+                        English
+                    </a>
+                {% endlanguage %}
+            </nav>
+        </div>
+    </header>
+
+    <main class="page-wrapper">
+        {% if event_form.show_event_summary %}
+        <section class="event-card">
+            {% if event.banner %}
+                <div class="event-banner">
+                    <img
+                        src="{{ event.banner.url }}"
+                        alt="{% if language_code == 'en' %}{{ event.title_en }}{% else %}{{ event.title_sw }}{% endif %}"
+                    >
+                </div>
+            {% endif %}
+
+            <div class="event-content">
+                {% if event.logo %}
+                    <img
+                        src="{{ event.logo.url }}"
+                        class="event-logo"
+                        alt="{{ event.code }}"
+                    >
+                {% endif %}
+
+                <div class="event-heading">
+                    <span class="event-code">
+                        {{ event.code }}
+                    </span>
+
+                    <h1>
+                        {% if request.LANGUAGE_CODE == "en" %}
+                            {{ event.title_en }}
+                        {% else %}
+                            {{ event.title_sw }}
+                        {% endif %}
+                    </h1>
+
+                    {% if request.LANGUAGE_CODE == "en" %}
+                        {% if event.description_en %}
+                            <div class="event-description">
+                                {{ event.description_en|linebreaks }}
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        {% if event.description_sw %}
+                            <div class="event-description">
+                                {{ event.description_sw|linebreaks }}
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+
+                <div class="event-meta-grid">
+                    <div class="meta-item">
+                        <span class="meta-label">
+                            {% translate "Organizer" %}
+                        </span>
+
+                        <span class="meta-value">
+                            {% if request.LANGUAGE_CODE == "en" %}
+                                {{ event.organizer_name_en|default:event.organizer_name_sw }}
+                            {% else %}
+                                {{ event.organizer_name_sw|default:event.organizer_name_en }}
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="meta-item">
+                        <span class="meta-label">
+                            {% translate "Start date" %}
+                        </span>
+
+                        <span class="meta-value">
+                            {{ event.starts_at|date:"d M Y, H:i" }}
+                        </span>
+                    </div>
+
+                    <div class="meta-item">
+                        <span class="meta-label">
+                            {% translate "End date" %}
+                        </span>
+
+                        <span class="meta-value">
+                            {{ event.ends_at|date:"d M Y, H:i" }}
+                        </span>
+                    </div>
+
+                    {% if event.venue %}
+                        <div class="meta-item">
+                            <span class="meta-label">
+                                {% translate "Venue" %}
+                            </span>
+
+                            <span class="meta-value">
+                                {{ event.venue.name }}
+
+                                {% if event.venue.council %}
+                                    <br>
+
+                                    {% if request.LANGUAGE_CODE == "en" %}
+                                        {{ event.venue.council.name_en }},
+                                        {{ event.venue.council.region.name_en }}
+                                    {% else %}
+                                        {{ event.venue.council.name_sw }},
+                                        {{ event.venue.council.region.name_sw }}
+                                    {% endif %}
+                                {% endif %}
+                            </span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="form-card">
+            <div class="form-header">
+                <div class="form-official-heading">
+                    {% if event.logo %}
+                        <img
+                            src="{{ event.logo.url }}"
+                            class="form-official-logo"
+                            alt="{% if request.LANGUAGE_CODE == 'en' %}{{ event.organizer_name_en|default:event.organizer_name_sw }}{% else %}{{ event.organizer_name_sw|default:event.organizer_name_en }}{% endif %}"
+                        >
+                    {% elif event.category.is_conference %}
+                        <img
+                            src="{% static 'logo/moest_logo.png' %}"
+                            class="form-official-logo form-official-logo--ministry"
+                            alt="Ministry of Education, Science and Technology logo"
+                        >
+                    {% endif %}
+
+                    {% if event.organizer_name_sw or event.organizer_name_en %}
+                        <p class="form-official-organizer">
+                            {% if request.LANGUAGE_CODE == "en" %}
+                                {{ event.organizer_name_en|default:event.organizer_name_sw }}
+                            {% else %}
+                                {{ event.organizer_name_sw|default:event.organizer_name_en }}
+                            {% endif %}
+                        </p>
+                    {% endif %}
+
+                    {% if event.category.is_conference %}
+                        <a class="form-programme-link" href="{% url 'conferences:public_programme' event.slug %}">
+                            {% translate "View conference programme" %}
+                        </a>
+                        <a class="form-programme-link" href="{% url 'conferences:paper_submit' event.slug %}">
+                            {% translate "Submit abstract or paper" %}
+                        </a>
+                    {% endif %}
+
+                </div>
+
+                <h2 class="form-introduction-title">
+                    {% translate "Introduction" %}
+                </h2>
+
+                {% if request.LANGUAGE_CODE == "en" %}
+                    {% if event_form.introduction_en %}
+                        <div class="form-introduction">
+                            {{ event_form.introduction_en|simple_rich_text }}
+                        </div>
+                    {% endif %}
+                {% else %}
+                    {% if event_form.introduction_sw %}
+                        <div class="form-introduction">
+                            {{ event_form.introduction_sw|simple_rich_text }}
+                        </div>
+                    {% endif %}
+                {% endif %}
+
+                <h2 class="form-questionnaire-title">
+                    {% if request.LANGUAGE_CODE == "en" %}
+                        {{ event_form.name_en }}
+                    {% else %}
+                        {{ event_form.name_sw }}
+                    {% endif %}
+                </h2>
+            </div>
+
+            {% if form_not_open %}
+                <div
+                    class="alert alert-warning"
+                    role="alert"
+                >
+                    {% translate "This form is not open yet." %}
+                </div>
+
+            {% elif form_closed %}
+                <div
+                    class="alert alert-danger"
+                    role="alert"
+                >
+                    {% translate "The submission period for this form has ended." %}
+                </div>
+
+            {% else %}
+                <form
+                    method="post"
+                    enctype="multipart/form-data"
+                    id="dynamic-event-form"
+                >
+                    {% csrf_token %}
+
+                    {% if sections %}
+                        <div
+                            class="wizard-progress"
+                            aria-label="{% translate 'Form progress' %}"
+                        >
+                            <div class="wizard-progress-copy">
+                                <p
+                                    class="wizard-step-count"
+                                    aria-live="polite"
+                                ></p>
+
+                                <p
+                                    class="wizard-progress-percent"
+                                    aria-live="polite"
+                                ></p>
+                            </div>
+
+                            <div
+                                class="wizard-progress-track"
+                                role="progressbar"
+                                aria-valuemin="0"
+                                aria-valuemax="100"
+                                aria-valuenow="0"
+                            >
+                                <span class="wizard-progress-fill"></span>
+                            </div>
+
+                            <ol
+                                class="wizard-step-dots"
+                                aria-label="{% translate 'Form steps' %}"
+                            ></ol>
+                        </div>
+                    {% endif %}
+
+                    <div class="wizard-steps">
+                    {% for section in sections %}
+                        <section
+                            class="form-section wizard-step"
+                            data-step-title="{% if request.LANGUAGE_CODE == 'en' %}{{ section.title_en }}{% else %}{{ section.title_sw }}{% endif %}"
+                            {% if section.condition_question_id and section.condition_value %}
+                                data-condition-question-id="{{ section.condition_question_id }}"
+                                data-condition-value="{{ section.condition_value }}"
+                            {% endif %}
+                        >
+                            <div class="section-header">
+                                <p class="section-eyebrow"></p>
+
+                                <h3>
+                                    {% if request.LANGUAGE_CODE == "en" %}
+                                        {{ section.title_en }}
+                                    {% else %}
+                                        {{ section.title_sw }}
+                                    {% endif %}
+                                </h3>
+
+                                {% if request.LANGUAGE_CODE == "en" %}
+                                    {% if section.description_en %}
+                                        <p>
+                                            {{ section.description_en }}
+                                        </p>
+                                    {% endif %}
+                                {% else %}
+                                    {% if section.description_sw %}
+                                        <p>
+                                            {{ section.description_sw }}
+                                        </p>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+
+                            <div class="questions-container">
+                                {% for question in section.questions.all %}
+                                    {% if question.is_active %}
+                                        <div
+                                            class="form-field"
+                                            data-question-id="{{ question.id }}"
+                                            data-question-type="{{ question.question_type }}"
+                                            data-required="{% if question.is_required %}true{% else %}false{% endif %}"
+                                            data-question-label="{% if request.LANGUAGE_CODE == 'en' %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}"
+                                        >
+                                            {% if question.question_type == "SINGLE_CHOICE" or question.question_type == "MULTIPLE_CHOICE" or question.question_type == "YES_NO" %}
+                                                <div
+                                                    class="field-label"
+                                                    id="question-label-{{ question.id }}"
+                                                >
+                                                    {% if language_code == "en" %}
+                                                        {{ question.label_en }}
+                                                    {% else %}
+                                                        {{ question.label_sw }}
+                                                    {% endif %}
+
+                                                    {% if question.is_required %}
+                                                        <span
+                                                            class="required-mark"
+                                                            aria-label="{% translate 'Required' %}"
+                                                            title="{% translate 'Required' %}"
+                                                        >
+                                                            *
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <label
+                                                    for="question-{{ question.id }}"
+                                                    class="field-label"
+                                                >
+                                                    {% if language_code == "en" %}
+                                                        {{ question.label_en }}
+                                                    {% else %}
+                                                        {{ question.label_sw }}
+                                                    {% endif %}
+
+                                                    {% if question.is_required %}
+                                                        <span
+                                                            class="required-mark"
+                                                            aria-label="{% translate 'Required' %}"
+                                                            title="{% translate 'Required' %}"
+                                                        >
+                                                            *
+                                                        </span>
+                                                    {% endif %}
+                                                </label>
+                                            {% endif %}
+
+                                            {% if request.LANGUAGE_CODE == "en" %}
+                                                {% with help_text=question.help_text_en placeholder=question.placeholder_en %}
+                                                    {% include "forms_builder/partials/question_input.html" %}
+                                                {% endwith %}
+                                            {% else %}
+                                                {% with help_text=question.help_text_sw placeholder=question.placeholder_sw %}
+                                                    {% include "forms_builder/partials/question_input.html" %}
+                                                {% endwith %}
+                                            {% endif %}
+
+                                            <div
+                                                class="field-error"
+                                                id="error-question-{{ question.id }}"
+                                                aria-live="polite"
+                                            ></div>
+                                        </div>
+                                    {% endif %}
+                                {% empty %}
+                                    <p class="empty-message">
+                                        {% translate "There are no questions in this section." %}
+                                    </p>
+                                {% endfor %}
+                            </div>
+                        </section>
+                    {% empty %}
+                        <div
+                            class="alert alert-warning"
+                            role="alert"
+                        >
+                            {% translate "This form has no sections or questions yet." %}
+                        </div>
+                    {% endfor %}
+
+                    {% if sections %}
+                        <section
+                            class="form-section wizard-step wizard-review-step"
+                            data-step-title="{% if is_evaluation %}{% translate 'Review evaluation' %}{% else %}{% translate 'Review and submit' %}{% endif %}"
+                        >
+                            <div class="section-header">
+                                <p class="section-eyebrow"></p>
+
+                                <h3>{% if is_evaluation %}{% translate "Review evaluation" %}{% else %}{% translate "Review and submit" %}{% endif %}</h3>
+
+                                <p>
+                                    {% if is_evaluation %}
+                                        {% translate "Please review your feedback before submitting the evaluation." %}
+                                    {% else %}
+                                        {% translate "Please review your information before submitting the form." %}
+                                    {% endif %}
+                                </p>
+                            </div>
+
+                            <div
+                                class="review-sections"
+                                aria-live="polite"
+                            ></div>
+
+                            <noscript>
+                                <p class="alert alert-warning">
+                                    {% translate "Please review the information above before submitting." %}
+                                </p>
+                            </noscript>
+                        </section>
+                    {% endif %}
+                    </div>
+
+                    {% if sections %}
+                        <div class="wizard-actions">
+                            <button
+                                type="button"
+                                class="wizard-button wizard-button-secondary wizard-previous"
+                            >
+                                <span aria-hidden="true">←</span>
+                                {% translate "Previous" %}
+                            </button>
+
+                            <button
+                                type="button"
+                                class="wizard-button wizard-button-primary wizard-next"
+                            >
+                                {% translate "Next" %}
+                                <span aria-hidden="true">→</span>
+                            </button>
+
+                            <button
+                                type="submit"
+                                class="submit-button wizard-submit"
+                            >
+                                {% if is_evaluation %}{% translate "Submit evaluation" %}{% else %}{% translate "Submit form" %}{% endif %}
+                            </button>
+                        </div>
+
+                        <p class="required-note">
+                            <span class="required-mark">*</span>
+                            {% translate "Required field" %}
+                        </p>
+                    {% endif %}
+                </form>
+            {% endif %}
+        </section>
+    </main>
+
+    <script src="{% static 'js/public-event-form.js' %}"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const backButton = document.getElementById(
+                "registration-back-button"
+            );
+
+            if (backButton) {
+                backButton.addEventListener("click", function () {
+                    const hasPreviousPage =
+                        document.referrer &&
+                        document.referrer !== window.location.href;
+
+                    if (hasPreviousPage) {
+                        window.history.back();
+                    } else {
+                        window.location.assign(
+                            backButton.dataset.fallbackUrl
+                        );
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+
+

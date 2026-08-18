@@ -1,0 +1,6 @@
+{% extends "events/base_public.html" %}
+{% load i18n static humanize %}
+{% block title %}{% translate "Receipt verification" %} — {{ receipt_number }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/payment-receipt-verification.css' %}">{% endblock %}
+{% block content %}<section class="receipt-verification-page"><article class="receipt-verification-card"><div class="receipt-valid-icon">✓</div><span>{% translate "Authentic receipt" %}</span><h1>{% translate "Payment receipt verified" %}</h1><p>{% translate "This receipt was issued by the Event Management System for a verified payment." %}</p><dl><div><dt>{% translate "Receipt number" %}</dt><dd>{{ receipt_number }}</dd></div><div><dt>{% translate "Event" %}</dt><dd>{% if request.LANGUAGE_CODE == 'en' %}{{ event.title_en }}{% else %}{{ event.title_sw }}{% endif %}</dd></div><div><dt>{% translate "Participant" %}</dt><dd>{{ submission.badge_display_name }}</dd></div><div><dt>{% translate "Registration reference" %}</dt><dd>{{ submission.reference_number }}</dd></div><div><dt>{% translate "Amount paid" %}</dt><dd>{{ payment.currency }} {{ payment.amount|floatformat:2|intcomma }}</dd></div><div><dt>{% translate "Verification date" %}</dt><dd>{{ payment.verified_at|date:"d M Y, H:i" }}</dd></div></dl></article></section>{% endblock %}
+

@@ -1,0 +1,36 @@
+{% extends "events/base_public.html" %}
+{% load static i18n %}
+
+{% block title %}{{ event.code }} — {% translate "Conference evaluation" %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/conferences.css' %}?v=20260816b">{% endblock %}
+
+{% block content %}
+<main class="conference-page conference-feedback-page">
+    <header class="conference-feedback-hero">
+        {% if event.logo %}<img src="{{ event.logo.url }}" alt="">{% else %}<img src="{% static 'logo/moest_logo.png' %}" alt="Ministry of Education, Science and Technology logo">{% endif %}
+        <div><span>{{ event.code }}</span><h1>{% translate "Conference feedback and evaluation" %}</h1><h2>{{ event.title_en }}</h2><p>{% translate "Your feedback will help improve future Ministry conferences. Ratings use a scale from 1 (Very poor) to 5 (Excellent)." %}</p></div>
+    </header>
+
+    <form method="post" class="conference-panel conference-feedback-form" novalidate>{% csrf_token %}{{ form.website }}
+        {% if form.non_field_errors %}<div class="conference-field-error">{{ form.non_field_errors }}</div>{% endif %}
+        <section><h2>{% translate "Evaluation scope" %}</h2><div class="conference-form-field">{{ form.session.label_tag }}{{ form.session }}{% if form.session.help_text %}<small>{{ form.session.help_text }}</small>{% endif %}{{ form.session.errors }}</div></section>
+        <section><h2>{% translate "Rate your experience" %}</h2><div class="conference-rating-grid">
+            {% for field in form %}{% if field.name == 'overall_rating' or field.name == 'content_rating' or field.name == 'speakers_rating' or field.name == 'organization_rating' or field.name == 'venue_rating' %}<fieldset class="conference-rating-field"><legend>{{ field.label }}</legend>{{ field }}{{ field.errors }}</fieldset>{% endif %}{% endfor %}
+        </div><fieldset class="conference-rating-field conference-recommend"><legend>{{ form.would_recommend.label }}</legend>{{ form.would_recommend }}{{ form.would_recommend.errors }}</fieldset></section>
+        <section><h2>{% translate "Your comments" %}</h2><div class="conference-form-grid">
+            <div class="conference-form-field">{{ form.most_valuable.label_tag }}{{ form.most_valuable }}{{ form.most_valuable.errors }}</div>
+            <div class="conference-form-field">{{ form.improvements.label_tag }}{{ form.improvements }}{{ form.improvements.errors }}</div>
+            <div class="conference-form-field conference-form-wide">{{ form.additional_comments.label_tag }}{{ form.additional_comments }}{{ form.additional_comments.errors }}</div>
+        </div></section>
+        <section class="conference-identity-section"><h2>{% translate "Respondent details" %}</h2><label class="conference-checkbox">{{ form.is_anonymous }} <span>{{ form.is_anonymous.label }}</span></label><p>{% translate "When anonymous is selected, your name, institution and email are not stored." %}</p><div class="conference-form-grid" id="feedback-identity-fields">
+            <div class="conference-form-field">{{ form.respondent_name.label_tag }}{{ form.respondent_name }}{{ form.respondent_name.errors }}</div>
+            <div class="conference-form-field">{{ form.institution.label_tag }}{{ form.institution }}{{ form.institution.errors }}</div>
+            <div class="conference-form-field conference-form-wide">{{ form.email.label_tag }}{{ form.email }}{{ form.email.errors }}</div>
+        </div></section>
+        <button class="conference-primary conference-submit-button" type="submit">{% translate "Submit evaluation" %}</button>
+    </form>
+</main>
+<script>document.addEventListener("DOMContentLoaded",function(){const box=document.getElementById("id_is_anonymous"),fields=document.getElementById("feedback-identity-fields");function sync(){fields.hidden=box.checked;}box.addEventListener("change",sync);sync();});</script>
+{% endblock %}
+
+

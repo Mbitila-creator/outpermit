@@ -1,0 +1,6 @@
+{% load static %}
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Special Event QR cards</title><link rel="stylesheet" href="{% static 'css/special-event-participants.css' %}"></head><body class="qr-print-body">
+<div class="qr-print-toolbar"><strong>{{ selected_event.code }} — Researcher QR cards</strong><button type="button" onclick="window.print()">Print</button></div>
+<main class="qr-card-grid">{% for participant in participants %}<article class="qr-print-card"><img src="{% url 'events:special_event_participant_qr' participant.verification_token %}" alt="QR code for {{ participant.full_name }}"><div><span>{{ selected_event.code }} · {{ participant.active_publications|length }} publication{{ participant.active_publications|length|pluralize }}</span><h2>{{ participant.full_name }}</h2><p>{{ participant.institution|default:"—" }}</p><small>Scan to view the verified researcher record</small></div></article>{% empty %}<p>No researcher records were found for this selection.</p>{% endfor %}</main>
+</body></html>
+

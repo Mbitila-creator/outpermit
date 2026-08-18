@@ -5,6 +5,7 @@ from django.urls import path, include
 
 
 urlpatterns = [
+    path("i18n/", include("django.conf.urls.i18n")),
     path("admin/", admin.site.urls),
 
     # Permits module
@@ -19,8 +20,12 @@ urlpatterns = [
     # System admin module
     path("system-admin/", include("system_admin.urls")),
 
-    # Events Management module
-    path("summit/", include("summit.urls")),
+    # Department-scoped Event Management module.
+    path("event-management/", include("events.urls")),
+    path("event-management/", include("forms_builder.urls")),
+    path("event-management/", include("checkin.urls")),
+    path("event-management/", include("meetings.urls")),
+    path("event-management/", include("conferences.urls")),
 
     path("audit/", include("audit.urls")),
 
