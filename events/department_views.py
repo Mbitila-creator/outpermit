@@ -4,6 +4,7 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render
 
 from .access import events_visible_to, is_system_event_administrator, user_department
+from .auth import EventRole
 from .management_forms import DepartmentEventForm
 
 
@@ -39,11 +40,32 @@ def department_event_list(request):
         .select_related("owning_department", "category", "venue")
         .order_by("-starts_at", "code")
     )
+    role = request.user.role
+    can_manage = request.user.is_superuser or role in {
+        EventRole.SYSTEM_ADMIN,
+        EventRole.EVENT_ADMIN,
+        EventRole.DIRECTOR,
+        EventRole.ASSISTANT_DIRECTOR,
+    }
     return render(request, "events/department_event_list.html", {
         "events": events,
         "department": department,
         "is_system_event_administrator": is_system_event_administrator(request.user),
         "can_create_event": can_create_department_event(request.user),
+        "can_manage": can_manage,
+        "can_manage_registrations": can_manage or role == EventRole.REGISTRATION_OFFICER,
+        "can_check_in": can_manage or role in {
+            EventRole.REGISTRATION_OFFICER,
+            EventRole.ATTENDANCE_OFFICER,
+        },
+        "can_view_reports": can_manage or role == EventRole.REPORT_OFFICER,
+        "can_view_meetings": can_manage or role in {
+            EventRole.ATTENDANCE_OFFICER,
+            EventRole.REPORT_OFFICER,
+        },
+        "has_special_events": events.filter(
+            category__slug="special-event",
+        ).exists(),
     })
 
 

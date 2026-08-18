@@ -15,6 +15,8 @@ from django.utils.text import slugify
 from django.views.decorators.http import require_http_methods
 
 from .forms import SpecialEventParticipantImportForm, special_event_queryset
+from .access import events_visible_to
+from .auth import User
 from .models import (
     Event,
     EventCategory,
@@ -30,14 +32,30 @@ from .services import import_special_event_participants
 
 
 def _require_events_permission(user, action="view"):
-    if not user.is_active or not user.has_perm(
-        f"events.{action}_specialeventparticipant"
+    allowed_roles = {
+        User.Role.SYSTEM_ADMIN,
+        User.Role.EVENT_ADMIN,
+        User.Role.DIRECTOR,
+        User.Role.ASSISTANT_DIRECTOR,
+    }
+    if not user.is_active or not (
+        user.is_superuser
+        or user.role in allowed_roles
+        or user.has_perm(f"events.{action}_specialeventparticipant")
     ):
         raise PermissionDenied
 
 
-def _special_events():
-    return [event for event in special_event_queryset() if event.category.is_special_event]
+def _special_event_queryset(user):
+    return special_event_queryset().filter(pk__in=events_visible_to(user))
+
+
+def _special_events(user):
+    return [
+        event
+        for event in _special_event_queryset(user)
+        if event.category.is_special_event
+    ]
 
 
 def _active_publications_prefetch():
@@ -216,7 +234,7 @@ def event_detail(request, event_slug):
 @login_required(login_url="login")
 def special_event_participant_list(request):
     _require_events_permission(request.user)
-    events = _special_events()
+    events = _special_events(request.user)
     selected_event = None
     selected_event_id = request.GET.get("event", "").strip()
     if selected_event_id:
@@ -287,7 +305,12 @@ def special_event_participant_list(request):
         "search_query": search_query,
         "selected_sheet": source_sheet,
         "sheet_choices": sheet_choices,
-        "can_import": request.user.has_perm("events.add_specialeventparticipant"),
+        "can_import": request.user.role in {
+            User.Role.SYSTEM_ADMIN,
+            User.Role.EVENT_ADMIN,
+            User.Role.DIRECTOR,
+            User.Role.ASSISTANT_DIRECTOR,
+        } or request.user.has_perm("events.add_specialeventparticipant"),
     })
 
 
@@ -303,6 +326,7 @@ def special_event_participant_import(request):
         request.POST or None,
         request.FILES or None,
         initial=initial,
+        user=request.user,
     )
     if request.method == "POST" and form.is_valid():
         try:
@@ -332,7 +356,7 @@ def special_event_participant_import(request):
 @login_required(login_url="login")
 def special_event_participant_print(request):
     _require_events_permission(request.user)
-    events = _special_events()
+    events = _special_events(request.user)
     selected_event = get_object_or_404(
         Event.objects.select_related("category"),
         pk=request.GET.get("event"),
@@ -361,7 +385,7 @@ def special_event_participant_print(request):
 def special_event_participant_cards_zip(request):
     _require_events_permission(request.user)
     selected_event = get_object_or_404(
-        special_event_queryset(),
+        _special_event_queryset(request.user),
         pk=request.GET.get("event"),
     )
     participants = SpecialEventParticipant.objects.select_related("event").filter(
@@ -412,7 +436,7 @@ def special_event_participant_cards_word(request):
 
     _require_events_permission(request.user)
     selected_event = get_object_or_404(
-        special_event_queryset(),
+        _special_event_queryset(request.user),
         pk=request.GET.get("event"),
     )
     participants = SpecialEventParticipant.objects.select_related("event").filter(

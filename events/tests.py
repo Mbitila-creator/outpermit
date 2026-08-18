@@ -195,3 +195,47 @@ class DepartmentEventAccessTests(TestCase):
             response["Location"],
             f"/event-management/participants/{participant_token}/",
         )
+
+    def test_event_administrator_sees_complete_operations_workspace(self):
+        user = self._staff("event-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("events:department_event_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("conferences:conference_list"))
+        self.assertContains(response, reverse("checkin:lookup"))
+        self.assertContains(response, reverse("checkin:reports"))
+        self.assertContains(response, reverse("forms_builder:evaluation_reports"))
+        self.assertContains(response, reverse("meetings:meeting_list"))
+
+    def test_event_administrator_special_events_are_department_scoped(self):
+        special_category = EventCategory.objects.create(
+            code="SPECIAL_EVENT",
+            name_sw="Tukio maalum",
+            name_en="Special Event",
+            slug="special-event",
+        )
+        dsti_special = Event.objects.create(
+            owning_department=self.dsti,
+            category=special_category,
+            code="TUZO-TEST",
+            title_sw="Tuzo",
+            title_en="Awards",
+            starts_at=timezone.now(),
+            ends_at=timezone.now() + timedelta(days=1),
+        )
+        user = self._staff("dsti-event-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+
+        response = self.client.get(
+            reverse("events:special_event_participant_list")
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, dsti_special.code)
+        self.assertNotContains(response, self.dhe_event.code)
