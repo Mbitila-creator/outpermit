@@ -8,6 +8,13 @@ urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
     path("admin/", admin.site.urls),
 
+    # Keep QR codes and participant links issued by the standalone Event
+    # Management system valid after integration. The old application used
+    # language-prefixed root URLs; all now redirect to the canonical module.
+    path("en/", include("events.legacy_urls")),
+    path("sw/", include("events.legacy_urls")),
+    path("", include("events.legacy_urls")),
+
     # Permits module
     path("", include("permits.urls")),
 
