@@ -336,6 +336,10 @@ class UserProfile(models.Model):
         ("ACCOUNTANT",
         "Accountant",
         ),
+        ("EVENT_ADMIN", "Event Administrator"),
+        ("REGISTRATION_OFFICER", "Event Registration Officer"),
+        ("ATTENDANCE_OFFICER", "Event Attendance Officer"),
+        ("REPORT_OFFICER", "Event Reports Officer"),
     ]
 
     UNIT_CHOICES = [

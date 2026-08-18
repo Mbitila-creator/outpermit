@@ -7,7 +7,13 @@ from .access import events_visible_to, is_system_event_administrator, user_depar
 from .management_forms import DepartmentEventForm
 
 
-EVENT_CREATOR_ROLES = {"ADMIN", "DIRECTOR", "ASSISTANT_DIRECTOR", "HEAD_OF_UNIT"}
+EVENT_CREATOR_ROLES = {
+    "ADMIN",
+    "DIRECTOR",
+    "ASSISTANT_DIRECTOR",
+    "HEAD_OF_UNIT",
+    "EVENT_ADMIN",
+}
 
 
 def can_create_department_event(user):

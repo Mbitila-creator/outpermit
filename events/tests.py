@@ -8,6 +8,7 @@ from django.utils import timezone
 from permits.models import Department
 
 from .access import events_visible_to
+from .auth import EventRole
 from .models import Event, EventCategory
 from forms_builder.models import EventForm
 from conferences.views import _conference_registration_forms
@@ -129,3 +130,16 @@ class DepartmentEventAccessTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 403)
+
+    def test_event_management_roles_are_available_to_user_administration(self):
+        role_codes = dict(self.dsti.user_profiles.model.ROLE_CHOICES)
+        self.assertIn("EVENT_ADMIN", role_codes)
+        self.assertIn("REGISTRATION_OFFICER", role_codes)
+        self.assertIn("ATTENDANCE_OFFICER", role_codes)
+        self.assertIn("REPORT_OFFICER", role_codes)
+
+    def test_registration_officer_maps_to_event_registration_access(self):
+        user = self._staff("registration-officer", self.dsti)
+        user.profile.role = "REGISTRATION_OFFICER"
+        user.profile.save(update_fields=["role"])
+        self.assertEqual(user.role, EventRole.REGISTRATION_OFFICER)
