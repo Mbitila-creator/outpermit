@@ -140,16 +140,6 @@
     </div>
   </div>
 
-  {% if messages %}
-  <div style="max-width:1000px; margin:15px auto;">
-    {% for message in messages %}
-    <div style="background:#fff3cd; color:#664d03; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid #ffecb5;">
-      {{ message }}
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
   <div class="container">
     <div class="welcome">
       <h2>Welcome, {{ request.user.get_full_name|default:request.user.username }}</h2>
