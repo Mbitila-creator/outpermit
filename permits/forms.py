@@ -3,7 +3,13 @@ from django.forms import inlineformset_factory
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import AuthenticationForm
 from django.db.models import Q
-from .models import ExternalWorkRequest, GroupMember, Department, DepartmentUnit
+from .models import (
+    Department,
+    DepartmentUnit,
+    ExternalWorkRequest,
+    GroupMember,
+    UserProfile,
+)
 
 
 def _blocking_statuses():
@@ -465,21 +471,7 @@ class LoginForm(AuthenticationForm):
 
 
 class AdminUserCreateForm(forms.Form):
-    ROLE_CHOICES = [
-        ("REQUESTER", "Requester"),
-        ("ADMIN", "Admin"),
-        ("DIRECTOR", "Director"),
-        ("HEAD_OF_UNIT", "Head of Unit"),
-        ("ASSISTANT_DIRECTOR",
-        "Assistant Director",
-        ),
-        ("DIVISION_BUDGET_OFFICER",
-        "Division Budget Officer",
-        ),
-        ("ACCOUNTANT",
-        "Accountant",
-        ),
-    ]
+    ROLE_CHOICES = UserProfile.ROLE_CHOICES
 
     UNIT_CHOICES = [
         ("", "Select Legacy DSTI Unit"),
@@ -560,21 +552,7 @@ class AdminUserCreateForm(forms.Form):
 
 
 class AdminUserUpdateForm(forms.Form):
-    ROLE_CHOICES = [
-        ("REQUESTER", "Requester"),
-        ("ADMIN", "Admin"),
-        ("DIRECTOR", "Director"),
-        ("HEAD_OF_UNIT", "Head of Unit"),
-        ("ASSISTANT_DIRECTOR",
-        "Assistant Director",
-        ),
-        ("DIVISION_BUDGET_OFFICER",
-        "Division Budget Officer",
-        ),
-        ("ACCOUNTANT",
-        "Accountant",
-        ),
-    ]
+    ROLE_CHOICES = UserProfile.ROLE_CHOICES
 
     UNIT_CHOICES = [
         ("", "Select Legacy DSTI Unit"),
