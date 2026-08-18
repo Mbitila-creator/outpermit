@@ -147,9 +147,24 @@
             </div>
 
             <div>
-                <label>Role</label>
+                <label>Primary Organizational Role</label>
                 {{ form.role }}
-                <div class="muted">Workflow Role is synchronized automatically from this role.</div>
+                <div class="muted">The permit approval hierarchy is synchronized from this role.</div>
+            </div>
+
+            <div>
+                <label>Event Management Role</label>
+                {{ form.event_role }}
+            </div>
+
+            <div>
+                <label>Financial Management Role</label>
+                {{ form.finance_role }}
+            </div>
+
+            <div>
+                <label>Task Management Role</label>
+                {{ form.task_role }}
             </div>
 
             <div>

@@ -1,5 +1,8 @@
 from django.contrib.auth.models import User
 
+from permits.models import ModuleRoleAssignment
+from permits.module_roles import module_role
+
 
 class EventRole:
     """Compatibility role names used by the imported Event Management apps."""
@@ -31,6 +34,9 @@ def event_role(user):
     if user.is_superuser:
         return EventRole.SYSTEM_ADMIN
     profile = getattr(user, "profile", None)
+    assigned_role = module_role(user, ModuleRoleAssignment.Module.EVENT)
+    if assigned_role:
+        return assigned_role
     return OUTPERMIT_EVENT_ROLE_MAP.get(
         getattr(profile, "role", ""), EventRole.PARTICIPANT
     )

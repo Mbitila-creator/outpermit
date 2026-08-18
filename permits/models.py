@@ -412,6 +412,51 @@ class UserProfile(models.Model):
         return f"{self.user.username} - {self.role}"
 
 
+class ModuleRoleAssignment(models.Model):
+    """A user's additional responsibility inside one OutPermit module."""
+
+    class Module(models.TextChoices):
+        EVENT = "EVENT", "Event Management"
+        FINANCE = "FINANCE", "Financial Management"
+        TASK = "TASK", "Task Management"
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="module_role_assignments",
+    )
+    module = models.CharField(max_length=20, choices=Module.choices)
+    role_code = models.CharField(max_length=40)
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.CASCADE,
+        related_name="module_role_assignments",
+    )
+    is_active = models.BooleanField(default=True)
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("user__username", "module")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "module"),
+                name="unique_module_role_per_user",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.module}: {self.role_code}"
+
+    @property
+    def role_label(self):
+        return self.role_code.replace("_", " ").title()
+
+    def save(self, *args, **kwargs):
+        self.role_code = self.role_code.strip().upper()
+        super().save(*args, **kwargs)
+
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:

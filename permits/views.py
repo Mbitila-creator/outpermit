@@ -40,7 +40,8 @@ from core.workflow import get_first_approver_for_requester, get_director_for_dep
 from core.notifications import notify_user
 from core.audit import log_action
 
-from .models import ExternalWorkRequest, UserProfile, GroupMember
+from .models import ExternalWorkRequest, UserProfile, GroupMember, ModuleRoleAssignment
+from .module_roles import set_module_role
 from .forms import (
     LoginForm,
     ExternalWorkRequestForm,
@@ -1644,9 +1645,13 @@ def system_home(request):
     # an unrelated dashboard later.
     list(messages.get_messages(request))
     role = _get_user_role(request.user)
+    module_roles = request.user.module_role_assignments.filter(
+        is_active=True
+    ).order_by("module")
 
     context = {
         "role": role,
+        "module_roles": module_roles,
         "is_admin": role == "ADMIN",
         "is_head_of_unit": role == "HEAD_OF_UNIT",
         "is_director_level": role in [
@@ -1777,6 +1782,7 @@ def user_management(request):
             "profile__approval_role",
             "profile__head_of_unit",
         )
+        .prefetch_related("module_role_assignments")
         .all()
         .order_by("username")
     )
@@ -1796,7 +1802,8 @@ def user_management(request):
             | Q(profile__department_unit__name__icontains=query)
             | Q(profile__approval_role__code__icontains=query)
             | Q(profile__role__icontains=query)
-        )
+            | Q(module_role_assignments__role_code__icontains=query)
+        ).distinct()
 
     if department_filter.isdigit():
         users = users.filter(
@@ -1812,7 +1819,8 @@ def user_management(request):
         users = users.filter(
             Q(profile__approval_role__code=role_filter)
             | Q(profile__role=role_filter)
-        )
+            | Q(module_role_assignments__role_code=role_filter)
+        ).distinct()
 
     if account_status_filter == "active":
         users = users.filter(is_active=True)
@@ -1902,6 +1910,18 @@ def create_user_account(request):
         profile.head_of_unit = form.cleaned_data["head_of_unit"]
         profile.save()
 
+        for module, field_name in (
+            (ModuleRoleAssignment.Module.EVENT, "event_role"),
+            (ModuleRoleAssignment.Module.FINANCE, "finance_role"),
+            (ModuleRoleAssignment.Module.TASK, "task_role"),
+        ):
+            set_module_role(
+                user,
+                module,
+                form.cleaned_data[field_name],
+                profile.department,
+            )
+
         log_action(
             user=request.user,
             action="CREATE",
@@ -1914,7 +1934,12 @@ def create_user_account(request):
         messages.success(request, "User account created successfully.")
         return redirect("user_management")
 
-    users = User.objects.select_related("profile").all().order_by("username")
+    users = (
+        User.objects.select_related("profile")
+        .prefetch_related("module_role_assignments")
+        .all()
+        .order_by("username")
+    )
     return render(
         request,
         "permits/user_management.html",
@@ -1955,6 +1980,18 @@ def edit_user_account(request, user_id):
             profile.head_of_unit = form.cleaned_data["head_of_unit"]
             profile.save()
 
+            for module, field_name in (
+                (ModuleRoleAssignment.Module.EVENT, "event_role"),
+                (ModuleRoleAssignment.Module.FINANCE, "finance_role"),
+                (ModuleRoleAssignment.Module.TASK, "task_role"),
+            ):
+                set_module_role(
+                    target_user,
+                    module,
+                    form.cleaned_data[field_name],
+                    profile.department,
+                )
+
             log_action(
                 user=request.user,
                 action="UPDATE",
@@ -1967,6 +2004,10 @@ def edit_user_account(request, user_id):
             messages.success(request, "User account updated successfully.")
             return redirect("user_management")
     else:
+        assigned_roles = dict(
+            target_user.module_role_assignments.filter(is_active=True)
+            .values_list("module", "role_code")
+        )
         form = AdminUserUpdateForm(initial={
             "first_name": target_user.first_name,
             "last_name": target_user.last_name,
@@ -1979,6 +2020,9 @@ def edit_user_account(request, user_id):
             "unit_name": profile.unit_name,
             "head_of_unit": profile.head_of_unit,
             "role": profile.role,
+            "event_role": assigned_roles.get(ModuleRoleAssignment.Module.EVENT, ""),
+            "finance_role": assigned_roles.get(ModuleRoleAssignment.Module.FINANCE, ""),
+            "task_role": assigned_roles.get(ModuleRoleAssignment.Module.TASK, ""),
             "is_staff": target_user.is_staff,
         })
 

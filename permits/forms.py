@@ -10,6 +10,11 @@ from .models import (
     GroupMember,
     UserProfile,
 )
+from .module_roles import (
+    EVENT_ROLE_CHOICES,
+    FINANCE_ROLE_CHOICES,
+    TASK_ROLE_CHOICES,
+)
 
 
 def _blocking_statuses():
@@ -514,6 +519,9 @@ class AdminUserCreateForm(forms.Form):
     password = forms.CharField(widget=forms.PasswordInput)
     confirm_password = forms.CharField(widget=forms.PasswordInput)
     role = forms.ChoiceField(choices=ROLE_CHOICES)
+    event_role = forms.ChoiceField(choices=EVENT_ROLE_CHOICES, required=False)
+    finance_role = forms.ChoiceField(choices=FINANCE_ROLE_CHOICES, required=False)
+    task_role = forms.ChoiceField(choices=TASK_ROLE_CHOICES, required=False)
     is_staff = forms.BooleanField(required=False)
 
     def clean_username(self):
@@ -532,6 +540,10 @@ class AdminUserCreateForm(forms.Form):
         department = cleaned_data.get("department")
         department_unit = cleaned_data.get("department_unit")
         unit_name = cleaned_data.get("unit_name")
+        has_module_role = any(
+            cleaned_data.get(field)
+            for field in ("event_role", "finance_role", "task_role")
+        )
 
         if password and confirm_password and password != confirm_password:
             self.add_error("confirm_password", "Passwords do not match.")
@@ -546,6 +558,12 @@ class AdminUserCreateForm(forms.Form):
             self.add_error(
                 "department_unit",
                 "Selected unit does not belong to the selected department."
+            )
+
+        if has_module_role and not department:
+            self.add_error(
+                "department",
+                "A department is required when assigning module roles.",
             )
 
         return cleaned_data
@@ -592,6 +610,9 @@ class AdminUserUpdateForm(forms.Form):
     )
 
     role = forms.ChoiceField(choices=ROLE_CHOICES)
+    event_role = forms.ChoiceField(choices=EVENT_ROLE_CHOICES, required=False)
+    finance_role = forms.ChoiceField(choices=FINANCE_ROLE_CHOICES, required=False)
+    task_role = forms.ChoiceField(choices=TASK_ROLE_CHOICES, required=False)
     is_staff = forms.BooleanField(required=False)
 
     def clean(self):
@@ -600,6 +621,10 @@ class AdminUserUpdateForm(forms.Form):
         department = cleaned_data.get("department")
         department_unit = cleaned_data.get("department_unit")
         unit_name = cleaned_data.get("unit_name")
+        has_module_role = any(
+            cleaned_data.get(field)
+            for field in ("event_role", "finance_role", "task_role")
+        )
 
         if role == "HEAD_OF_UNIT" and not department_unit and not unit_name:
             self.add_error(
@@ -611,6 +636,12 @@ class AdminUserUpdateForm(forms.Form):
             self.add_error(
                 "department_unit",
                 "Selected unit does not belong to the selected department."
+            )
+
+        if has_module_role and not department:
+            self.add_error(
+                "department",
+                "A department is required when assigning module roles.",
             )
 
         return cleaned_data

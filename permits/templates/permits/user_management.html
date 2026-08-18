@@ -357,8 +357,23 @@
                 </div>
 
                 <div>
-                    <label>Role</label>
+                    <label>Primary Organizational Role</label>
                     {{ create_form.role }}
+                </div>
+
+                <div>
+                    <label>Event Management Role</label>
+                    {{ create_form.event_role }}
+                </div>
+
+                <div>
+                    <label>Financial Management Role</label>
+                    {{ create_form.finance_role }}
+                </div>
+
+                <div>
+                    <label>Task Management Role</label>
+                    {{ create_form.task_role }}
                 </div>
 
                 <div>
@@ -503,6 +518,7 @@
                         <th>Department Unit</th>
                         <th>Head of Unit</th>
                         <th>Role</th>
+                        <th>Additional Module Roles</th>
                         <th>Workflow Role</th>
                         <th>Staff</th>
                         <th>Account Status</th>
@@ -523,6 +539,13 @@
                         <td>{{ u.profile.department_unit|default:"-" }}</td>
                         <td>{{ u.profile.head_of_unit|default:"-" }}</td>
                         <td>{{ u.profile.get_role_display }}</td>
+                        <td>
+                            {% for assignment in u.module_role_assignments.all %}
+                                {% if assignment.is_active %}
+                                    <div>{{ assignment.get_module_display }}: {{ assignment.role_label }}</div>
+                                {% endif %}
+                            {% empty %}-{% endfor %}
+                        </td>
                         <td>{{ u.profile.approval_role|default:"-" }}</td>
                         <td>{% if u.is_staff %}Yes{% else %}No{% endif %}</td>
                         <td>{% if u.is_active %}Active{% else %}Inactive{% endif %}</td>
@@ -533,7 +556,7 @@
                     </tr>
                     {% empty %}
                     <tr id="emptyRow">
-                        <td colspan="14">No users found.</td>
+                        <td colspan="15">No users found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
