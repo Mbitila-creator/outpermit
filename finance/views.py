@@ -18,6 +18,8 @@ from core.workflow import (
     reject_current_finance_step,
     return_current_finance_step,
 )
+from permits.models import ModuleRoleAssignment
+from permits.module_roles import module_role
 
 from .forms import (
     BudgetLineForm,
@@ -66,6 +68,10 @@ def get_user_profile(user):
 def get_user_role(user):
     if user.is_superuser:
         return "ADMIN"
+
+    assigned_role = module_role(user, ModuleRoleAssignment.Module.FINANCE)
+    if assigned_role:
+        return assigned_role
 
     profile = get_user_profile(user)
 

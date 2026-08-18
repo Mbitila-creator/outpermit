@@ -2,7 +2,14 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import ExternalWorkRequest, GroupMember, UserProfile
+from .models import ExternalWorkRequest, GroupMember, UserProfile, ModuleRoleAssignment
+
+
+@admin.register(ModuleRoleAssignment)
+class ModuleRoleAssignmentAdmin(admin.ModelAdmin):
+    list_display = ("user", "module", "role_code", "department", "is_active")
+    list_filter = ("module", "role_code", "department", "is_active")
+    search_fields = ("user__username", "user__first_name", "user__last_name")
 
 
 class GroupMemberInline(admin.TabularInline):

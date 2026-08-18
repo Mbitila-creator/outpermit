@@ -11,7 +11,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 from openpyxl.utils import get_column_letter
 
-from permits.models import UserProfile, Department, DepartmentUnit
+from permits.models import UserProfile, Department, DepartmentUnit, ModuleRoleAssignment
+from permits.module_roles import module_role
 from system_admin.models import SystemSetting
 from .models import Task, TaskAssignment, TaskUpdate
 from .forms import (
@@ -40,6 +41,10 @@ def _get_user_role(user):
     """
     if user.is_superuser:
         return "ADMIN"
+
+    assigned_role = module_role(user, ModuleRoleAssignment.Module.TASK)
+    if assigned_role:
+        return assigned_role
 
     profile = _get_profile(user)
 
@@ -116,8 +121,6 @@ def _get_user_role(user):
 
 
 def _get_role_reason_label(user):
-    profile = _get_profile(user)
-
     role_label_map = {
         "ADMIN": "Admin",
         "DIRECTOR": "Director",
@@ -126,22 +129,19 @@ def _get_role_reason_label(user):
         "HEAD_OF_UNIT": "Head of Unit",
     }
 
-    return role_label_map.get(profile.role, "Manager")
+    return role_label_map.get(_get_user_role(user), "Manager")
 
 
 def _is_admin(user):
-    profile = _get_profile(user)
-    return user.is_superuser or profile.role == "ADMIN"
+    return user.is_superuser or _get_user_role(user) == "ADMIN"
 
 
 def _is_director_level(user):
-    profile = _get_profile(user)
-    return user.is_superuser or profile.role in ["DIRECTOR", "ADRD", "ADSTI"]
+    return user.is_superuser or _get_user_role(user) in ["DIRECTOR", "ADRD", "ADSTI"]
 
 
 def _is_head_of_unit(user):
-    profile = _get_profile(user)
-    return user.is_superuser or profile.role == "HEAD_OF_UNIT"
+    return user.is_superuser or _get_user_role(user) == "HEAD_OF_UNIT"
 
 
 def _can_create_task(user):
@@ -379,13 +379,15 @@ def _can_manage_task(user, task):
 
     profile = _get_profile(user)
 
-    if profile.role == "ADMIN":
+    role = _get_user_role(user)
+
+    if role == "ADMIN":
         return True
 
-    if profile.role in ["DIRECTOR", "ADRD", "ADSTI"]:
+    if role in ["DIRECTOR", "ADRD", "ADSTI"]:
         return True
 
-    if profile.role == "HEAD_OF_UNIT":
+    if role == "HEAD_OF_UNIT":
         return task.unit_name == profile.unit_name
 
     if task.created_by == user:
@@ -2186,7 +2188,7 @@ def return_task(request, pk):
 
     profile = _get_profile(request.user)
 
-    if profile.role in ["DIRECTOR"]:
+    if _get_user_role(request.user) in ["DIRECTOR"]:
         return HttpResponseForbidden("Directors cannot return tasks.")
 
     assignment = task.assignments.filter(
@@ -2345,7 +2347,7 @@ def task_analytics(request):
 
     if not (
         request.user.is_superuser
-        or profile.role in ["ADMIN", "DIRECTOR", "ADRD", "ADSTI", "HEAD_OF_UNIT"]
+        or _get_user_role(request.user) in ["ADMIN", "DIRECTOR", "ADRD", "ADSTI", "HEAD_OF_UNIT"]
     ):
         return HttpResponseForbidden("You are not allowed to view analytics.")
 
@@ -2771,7 +2773,7 @@ def task_analytics_overdue_detail(request, range_key):
 def task_analytics_completion_unit_detail(request, unit_name):
     profile = _get_profile(request.user)
 
-    if not (request.user.is_superuser or profile.role == "DIRECTOR"):
+    if not (request.user.is_superuser or _get_user_role(request.user) == "DIRECTOR"):
         return HttpResponseForbidden("You are not allowed to view this.")
 
     unit_name = (unit_name or "").strip()
@@ -2814,7 +2816,7 @@ def task_analytics_completion_unit_detail(request, unit_name):
 def task_analytics_delay_unit_detail(request, unit_name):
     profile = _get_profile(request.user)
 
-    if not (request.user.is_superuser or profile.role == "DIRECTOR"):
+    if not (request.user.is_superuser or _get_user_role(request.user) == "DIRECTOR"):
         return HttpResponseForbidden("You are not allowed to view this.")
 
     unit_name = (unit_name or "").strip()
@@ -2876,7 +2878,7 @@ def task_analytics_delay_unit_detail(request, unit_name):
 def task_analytics_staff_detail(request, user_id):
     profile = _get_profile(request.user)
 
-    if not (request.user.is_superuser or profile.role == "DIRECTOR"):
+    if not (request.user.is_superuser or _get_user_role(request.user) == "DIRECTOR"):
         return HttpResponseForbidden("You are not allowed to view this.")
 
     staff_user = get_object_or_404(User.objects.select_related("profile"), pk=user_id)
@@ -2916,7 +2918,7 @@ def task_analytics_staff_detail(request, user_id):
 def task_analytics_due_soon_detail(request):
     profile = _get_profile(request.user)
 
-    if not (request.user.is_superuser or profile.role == "DIRECTOR"):
+    if not (request.user.is_superuser or _get_user_role(request.user) == "DIRECTOR"):
         return HttpResponseForbidden("You are not allowed to view this.")
 
     now = timezone.now()
@@ -2967,7 +2969,7 @@ def task_analytics_due_soon_detail(request):
 def task_analytics_stalled_detail(request):
     profile = _get_profile(request.user)
 
-    if not (request.user.is_superuser or profile.role == "DIRECTOR"):
+    if not (request.user.is_superuser or _get_user_role(request.user) == "DIRECTOR"):
         return HttpResponseForbidden("You are not allowed to view this.")
 
     now = timezone.now()
@@ -3035,7 +3037,7 @@ def task_analytics_export_excel(request):
 
     if not (
         request.user.is_superuser
-        or profile.role in ["ADMIN", "DIRECTOR", "ADRD", "ADSTI", "HEAD_OF_UNIT"]
+        or _get_user_role(request.user) in ["ADMIN", "DIRECTOR", "ADRD", "ADSTI", "HEAD_OF_UNIT"]
     ):
         return HttpResponseForbidden("You are not allowed to export this.")
 
