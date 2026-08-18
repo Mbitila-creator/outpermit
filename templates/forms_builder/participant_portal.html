@@ -1,0 +1,57 @@
+{% extends "events/base_public.html" %}
+{% load i18n static humanize %}
+
+{% block title %}{% translate "Participant portal" %} — {{ submission.reference_number }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/participant-portal.css' %}"><link rel="stylesheet" href="{% static 'css/participant-portal-decisions.css' %}">{% endblock %}
+
+{% block content %}
+<section class="portal-page"><div class="portal-container">
+    <header class="portal-hero">
+        <div><span>{% translate "Participant portal" %}</span><h1>{{ submission.badge_display_name }}</h1><p>{% if request.LANGUAGE_CODE == 'en' %}{{ event.title_en }}{% else %}{{ event.title_sw }}{% endif %}</p></div>
+        <div class="portal-reference"><span>{% translate "Reference number" %}</span><strong>{{ submission.reference_number }}</strong></div>
+    </header>
+
+    <section class="portal-summary">
+        <article><span>{% translate "Registration" %}</span><strong class="state state-{{ submission.review_status|lower }}">{{ submission.get_review_status_display }}</strong></article>
+        <article><span>{% translate "Payment" %}</span><strong>{% if event.payment_enabled %}{% if latest_payment %}{{ latest_payment.get_status_display }}{% else %}{% translate "Not submitted" %}{% endif %}{% else %}{% translate "Not required" %}{% endif %}</strong></article>
+        <article><span>{% translate "Attendance" %}</span><strong>{% if checked_in %}{% translate "Checked in" %}{% else %}{% translate "Not checked in" %}{% endif %}</strong></article>
+        <article><span>{% translate "Certificate" %}</span><strong>{% if event.certificate_enabled and checked_in and certificate_authorized and submission.review_status == 'APPROVED' %}{% translate "Available" %}{% elif certificate_record.status == 'DENIED' %}<span class="state-certificate-denied">{% translate "Not authorized" %}</span>{% elif certificate_record.status == 'REVOKED' %}<span class="state-certificate-denied">{% translate "Revoked" %}</span>{% elif event.certificate_enabled and checked_in %}{% translate "Awaiting authorization" %}{% else %}{% translate "Not available" %}{% endif %}</strong></article>
+    </section>
+
+    {% if certificate_record.status == 'DENIED' %}
+    <section class="portal-certificate-decision" role="status">
+        <div class="portal-certificate-decision-icon">!</div>
+        <div>
+            <h2>{% translate "Certificate not authorized" %}</h2>
+            <p>{% translate "Your certificate is not currently available for the following reason:" %}</p>
+            <blockquote>{{ certificate_record.denial_reason }}</blockquote>
+            <small>{% translate "Decision date" %}: {{ certificate_record.denied_at|date:"d M Y, H:i" }}</small>
+        </div>
+    </section>
+    {% elif certificate_record.status == 'REVOKED' %}
+    <section class="portal-certificate-decision" role="status">
+        <div class="portal-certificate-decision-icon">!</div>
+        <div>
+            <h2>{% translate "Certificate revoked" %}</h2>
+            <p>{% translate "Your certificate is no longer available for the following reason:" %}</p>
+            <blockquote>{{ certificate_record.revocation_reason }}</blockquote>
+            <small>{% translate "Decision date" %}: {{ certificate_record.revoked_at|date:"d M Y, H:i" }}</small>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="portal-services">
+        <h2>{% translate "Your services" %}</h2><div class="service-grid">
+        {% if event.payment_enabled %}<a class="service-card" href="{% url 'forms_builder:participant_payment' submission.participant_token %}"><span>₮</span><div><strong>{% translate "Payment and receipt" %}</strong><small>{% if latest_payment %}{{ latest_payment.currency }} {{ latest_payment.amount|floatformat:2|intcomma }} — {{ latest_payment.get_status_display }}{% else %}{% translate "Submit payment information" %}{% endif %}</small></div></a>{% endif %}
+        {% if submission.review_status == 'APPROVED' and event.badge_enabled %}<a class="service-card" href="{% url 'forms_builder:participant_badge' submission.participant_token %}"><span>▣</span><div><strong>{% translate "Participant badge" %}</strong><small>{% translate "View or print your badge and QR code" %}</small></div></a>{% endif %}
+        {% if selected_conference_sessions %}<a class="service-card" href="{% url 'conferences:participant_guiding_questions' submission.participant_token %}"><span>▤</span><div><strong>{% translate "Timetable and session discussions" %}</strong><small>{% translate "View or print your timetable and complete each session response" %}</small></div></a>{% endif %}
+        {% if event.certificate_enabled and checked_in and certificate_authorized and submission.review_status == 'APPROVED' %}<a class="service-card" href="{% url 'forms_builder:participant_certificate' submission.participant_token %}"><span>✓</span><div><strong>{% translate "Certificate" %}</strong><small>{% translate "View and download your certificate" %}</small></div></a>{% endif %}
+        {% if booth %}<a class="service-card" href="{% url 'forms_builder:booth_detail' booth.public_token %}"><span>⌂</span><div><strong>{% translate "Assigned booth" %}</strong><small>{{ booth.code }} — {% if request.LANGUAGE_CODE == 'en' %}{{ booth.name_en }}{% else %}{{ booth.name_sw }}{% endif %}</small></div></a>{% endif %}
+        {% if evaluation_form %}<a class="service-card" href="{% url 'forms_builder:public_event_form' event.slug evaluation_form.slug %}"><span>★</span><div><strong>{% translate "Event evaluation" %}</strong><small>{% translate "Share your experience and suggestions" %}</small></div></a>{% endif %}
+        </div>
+    </section>
+
+    <section class="portal-event"><h2>{% translate "Event information" %}</h2><dl><div><dt>{% translate "Event dates" %}</dt><dd>{{ event.starts_at|date:"d M Y" }} — {{ event.ends_at|date:"d M Y" }}</dd></div>{% if event.venue %}<div><dt>{% translate "Venue" %}</dt><dd>{{ event.venue.name }}</dd></div>{% endif %}{% if event.contact_phone %}<div><dt>{% translate "Contact phone" %}</dt><dd><a href="tel:{{ event.contact_phone }}">{{ event.contact_phone }}</a></dd></div>{% endif %}{% if event.contact_email %}<div><dt>{% translate "Contact email" %}</dt><dd><a href="mailto:{{ event.contact_email }}">{{ event.contact_email }}</a></dd></div>{% endif %}</dl></section>
+</div></section>
+{% endblock %}
+

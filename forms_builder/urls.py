@@ -1,0 +1,105 @@
+from django.urls import path
+
+from . import views
+
+
+app_name = "forms_builder"
+
+urlpatterns = [
+    path(
+        "participants/<uuid:participant_token>/",
+        views.participant_portal,
+        name="participant_portal",
+    ),
+    path(
+        "events/<slug:event_slug>/booths/",
+        views.booth_directory,
+        name="booth_directory",
+    ),
+    path(
+        "booths/<uuid:public_token>/",
+        views.booth_detail,
+        name="booth_detail",
+    ),
+    path(
+        "booths/<uuid:public_token>/qr/",
+        views.booth_qr,
+        name="booth_qr",
+    ),
+    path(
+        "reports/evaluations/",
+        views.evaluation_reports,
+        name="evaluation_reports",
+    ),
+    path(
+        "reports/evaluations/export/",
+        views.evaluation_report_csv,
+        name="evaluation_reports_csv",
+    ),
+    path(
+        "certificates/verify/<uuid:participant_token>/",
+        views.certificate_verification,
+        name="certificate_verification",
+    ),
+    path(
+        "participants/<uuid:participant_token>/certificate/",
+        views.participant_certificate,
+        name="participant_certificate",
+    ),
+    path(
+        "participants/<uuid:participant_token>/certificate/pdf/",
+        views.participant_certificate_pdf,
+        name="participant_certificate_pdf",
+    ),
+    path(
+        "participants/<uuid:participant_token>/certificate/qr/",
+        views.participant_certificate_qr,
+        name="participant_certificate_qr",
+    ),
+    path(
+        "participants/<uuid:participant_token>/badge/",
+        views.participant_badge,
+        name="participant_badge",
+    ),
+    path(
+        "participants/<uuid:participant_token>/payment/",
+        views.participant_payment,
+        name="participant_payment",
+    ),
+    path(
+        "participants/<uuid:participant_token>/payment/receipt/",
+        views.payment_receipt,
+        name="payment_receipt",
+    ),
+    path(
+        "payments/<uuid:participant_token>/<int:payment_id>/verify/",
+        views.payment_receipt_verification,
+        name="payment_receipt_verification",
+    ),
+    path(
+        "payments/<uuid:participant_token>/<int:payment_id>/qr/",
+        views.payment_receipt_qr,
+        name="payment_receipt_qr",
+    ),
+    path(
+        "participants/<uuid:participant_token>/badge/qr/",
+        views.participant_badge_qr,
+        name="participant_badge_qr",
+    ),
+    path(
+        "registration-status/",
+        views.registration_status,
+        name="registration_status",
+    ),
+    path(
+        "events/<slug:event_slug>/forms/<slug:form_slug>/",
+        views.public_event_form,
+        name="public_event_form",
+    ),
+    path(
+        "submissions/<str:reference_number>/success/",
+        views.submission_success,
+        name="submission_success",
+    ),
+]
+

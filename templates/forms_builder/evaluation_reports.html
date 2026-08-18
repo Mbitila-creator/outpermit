@@ -1,0 +1,74 @@
+{% extends "events/base_public.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% translate "Evaluation reports" %}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/evaluation-reports.css' %}">
+{% endblock %}
+
+{% block content %}
+    <section class="evaluation-report-page">
+        <div class="evaluation-report-container">
+            <div class="evaluation-report-heading">
+                <div>
+                    <span class="section-kicker">{% translate "Visitor feedback" %}</span>
+                    <h1>{% translate "Evaluation reports" %}</h1>
+                    <p>{% translate "Review visitor ratings and written feedback." %}</p>
+                </div>
+                <a href="{% url 'system_home' %}" class="secondary-button">{% translate "Return to workspace" %}</a>
+            </div>
+
+            <form method="get" class="evaluation-report-filter">
+                <label for="evaluation-form">{% translate "Select evaluation form" %}</label>
+                <select id="evaluation-form" name="form">
+                    {% for form in evaluation_forms %}
+                        <option value="{{ form.pk }}" {% if selected_form.pk == form.pk %}selected{% endif %}>{{ form.event.code }} — {% if request.LANGUAGE_CODE == "en" %}{{ form.name_en }}{% else %}{{ form.name_sw }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="primary-button">{% translate "View report" %}</button>
+            </form>
+
+            {% if selected_form %}
+                <div class="evaluation-summary-grid">
+                    <article><span>{% translate "Total responses" %}</span><strong>{{ total_responses }}</strong></article>
+                    <article><span>{% translate "Overall average rating" %}</span><strong>{% if overall_average != None %}{{ overall_average }}/5{% else %}—{% endif %}</strong></article>
+                </div>
+
+                {% if rating_statistics %}
+                    <div class="evaluation-rating-grid">
+                        {% for statistic in rating_statistics %}
+                            <article>
+                                <span>{{ statistic.label }}</span>
+                                <strong>{{ statistic.average }}/5</strong>
+                                <small>{% blocktranslate count counter=statistic.count %}{{ counter }} response{% plural %}{{ counter }} responses{% endblocktranslate %}</small>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="evaluation-report-actions">
+                    <a href="{% url 'forms_builder:evaluation_reports_csv' %}?form={{ selected_form.pk }}" class="primary-button">{% translate "Download evaluation CSV" %}</a>
+                </div>
+
+                <div class="evaluation-response-table">
+                    <div class="evaluation-table-scroll">
+                        <table>
+                            <thead><tr><th>{% translate "Submitted on" %}</th>{% for question in questions %}<th>{% if request.LANGUAGE_CODE == "en" %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}</th>{% endfor %}</tr></thead>
+                            <tbody>
+                                {% for row in response_rows %}
+                                    <tr><td>{{ row.submission.created_at|date:"d M Y, H:i" }}</td>{% for answer in row.answers %}<td>{{ answer|default:"—" }}</td>{% endfor %}</tr>
+                                {% empty %}
+                                    <tr><td colspan="99">{% translate "No evaluation responses are available yet." %}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% else %}
+                <div class="evaluation-empty">{% translate "No evaluation forms are available for reporting." %}</div>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}

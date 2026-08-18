@@ -1,0 +1,242 @@
+{% load static %}
+{% load i18n %}
+
+<!DOCTYPE html>
+<html lang="{{ request.LANGUAGE_CODE }}">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="description"
+        content="{% translate 'Event Management System' %}"
+    >
+
+    <title>
+        {% block title %}
+            {% translate "Event Management System" %}
+        {% endblock %}
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/events-public.css' %}?v=20260816a"
+    >
+
+    <link
+        rel="icon"
+        href="{% static 'logo/moest_logo.png' %}"
+        type="image/x-icon"
+    >
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <header class="public-header">
+        <div class="header-inner">
+            <a
+                href="{% url 'events:home' %}"
+                class="brand"
+            >
+                <span class="brand-mark">EMS</span>
+
+                <span class="brand-text">
+                    {% translate "Event Management System" %}
+                </span>
+            </a>
+
+            <div class="header-actions">
+                <button
+                    type="button"
+                    class="header-link public-back-button"
+                    data-fallback-url="{% url 'events:home' %}"
+                >
+                    ← {% translate "Back" %}
+                </button>
+
+                <a
+                    href="{% url 'forms_builder:registration_status' %}"
+                    class="header-link registration-status-link"
+                >
+                    {% translate "Registration Status" %}
+                </a>
+
+                <a href="{% url 'events:home' %}" class="header-link public-exit-button">
+                    {% translate "Exit" %}
+                </a>
+
+                <form
+    action="{% url 'set_language' %}"
+    method="post"
+    class="language-switcher"
+    id="language-switcher-form"
+>
+    {% csrf_token %}
+
+    <input
+        type="hidden"
+        name="next"
+        id="language-next-url"
+        value="{{ request.get_full_path }}"
+    >
+
+    <label
+        for="public-language"
+        class="sr-only"
+    >
+        {% translate "Language" %}
+    </label>
+
+    <select
+        id="public-language"
+        name="language"
+        aria-label="{% translate 'Language' %}"
+    >
+        <option
+            value="sw"
+            {% if request.LANGUAGE_CODE == "sw" %}selected{% endif %}
+        >
+            Kiswahili
+        </option>
+
+        <option
+            value="en"
+            {% if request.LANGUAGE_CODE == "en" %}selected{% endif %}
+        >
+            English
+        </option>
+    </select>
+</form>
+
+                {% if request.user.is_authenticated %}
+                    <a href="{% url 'change_my_password' %}" class="header-link role-access-link password-change-link">
+                        {% translate "Change password" %}
+                    </a>
+                    <a
+                        href="{% url 'system_home' %}"
+                        class="header-link role-access-link workspace-link"
+                    >
+                        {% translate "My workspace" %}
+                    </a>
+                    <form method="post" action="{% url 'logout' %}" class="header-logout-form">
+                        {% csrf_token %}
+                        <button type="submit" class="header-link role-access-link sign-out-button">{% translate "Sign out" %}</button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'login' %}" class="header-link role-access-link staff-login-link">
+                        {% translate "Staff login" %}
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="public-footer">
+        <div class="footer-inner">
+            <p>
+                &copy; {% now "Y" %}
+                {% translate "Event Management System" %}
+            </p>
+        </div>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll(".public-back-button").forEach(function (button) {
+                button.addEventListener("click", function () {
+                    if (window.history.length > 1) {
+                        window.history.back();
+                    } else {
+                        window.location.assign(button.dataset.fallbackUrl);
+                    }
+                });
+            });
+            const languageForm = document.getElementById(
+                "language-switcher-form"
+            );
+
+            const languageSelect = document.getElementById(
+                "public-language"
+            );
+
+            if (!languageForm || !languageSelect) {
+                return;
+            }
+
+            languageSelect.addEventListener("change", function () {
+                if (typeof languageForm.requestSubmit === "function") {
+                    languageForm.requestSubmit();
+                } else {
+                    languageForm.submit();
+                }
+            });
+        });
+    </script>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const languageForm = document.getElementById(
+            "language-switcher-form"
+        );
+
+        const languageSelect = document.getElementById(
+            "public-language"
+        );
+
+        const nextInput = document.getElementById(
+            "language-next-url"
+        );
+
+        if (!languageForm || !languageSelect || !nextInput) {
+            return;
+        }
+
+        languageSelect.addEventListener("change", function () {
+            const selectedLanguage = languageSelect.value;
+            const currentPath = window.location.pathname;
+            const queryString = window.location.search;
+            const hash = window.location.hash;
+
+            let newPath = currentPath;
+
+            if (
+                currentPath.startsWith("/sw/") ||
+                currentPath.startsWith("/en/")
+            ) {
+                newPath = currentPath.replace(
+                    /^\/(sw|en)\//,
+                    "/" + selectedLanguage + "/"
+                );
+            } else {
+                newPath =
+                    "/" +
+                    selectedLanguage +
+                    "/" +
+                    currentPath.replace(/^\/+/, "");
+            }
+
+            nextInput.value = newPath + queryString + hash;
+
+            if (typeof languageForm.requestSubmit === "function") {
+                languageForm.requestSubmit();
+            } else {
+                languageForm.submit();
+            }
+        });
+    });
+</script>
+
+</body>
+</html>
+

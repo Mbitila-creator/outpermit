@@ -1,0 +1,81 @@
+{% extends "events/base_public.html" %}
+{% load static i18n %}
+
+{% block title %}{{ event_form.event.code }} — {% translate "Conference operations" %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/conferences.css' %}?v=20260815b">{% endblock %}
+
+{% block content %}
+<main class="conference-page">
+    {% if messages %}<div class="conference-messages">{% for message in messages %}<div class="conference-message conference-message-{{ message.tags }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+    <header class="conference-heading">
+        <div><span>{{ event_form.event.code }}</span><h1>{{ event_form.event.title_en }}</h1><p>{% translate "Review registrations, issue participant QR badges and monitor each session register." %}</p></div>
+        <div class="conference-actions">
+            <a class="conference-secondary" href="{% url 'conferences:public_programme' event_form.event.slug %}" target="_blank" rel="noopener">{% translate "Public programme" %}</a>
+            <a class="conference-secondary" href="{% url 'conferences:paper_review_list' event_form.pk %}">{% translate "Review abstracts and papers" %}</a>
+            <a class="conference-secondary" href="{% url 'conferences:reviewer_workspace' %}">{% translate "My peer reviews" %}</a>
+            <a class="conference-secondary" href="{% url 'conferences:presentation_list' event_form.pk %}">{% translate "Presentation schedule" %}</a>
+            <a class="conference-secondary" href="{% url 'conferences:certificate_list' event_form.pk %}">{% translate "Conference certificates" %}</a>
+            <a class="conference-secondary" href="{% url 'conferences:feedback_dashboard' event_form.pk %}">{% translate "Feedback and evaluation" %}</a>
+            {% if can_manage %}
+                <a class="conference-secondary" href="{% url 'admin:conferences_conferenceprogrammeitem_changelist' %}?session__event__id__exact={{ event_form.event.pk }}">{% translate "Edit programme" %}</a>
+                <a class="conference-secondary" href="{% url 'admin:conferences_conferencespeaker_changelist' %}?event__id__exact={{ event_form.event.pk }}">{% translate "Manage speakers" %}</a>
+            {% endif %}
+            <a class="conference-secondary" href="{% url 'conferences:conference_list' %}">← {% translate "Conference registration" %}</a>
+        </div>
+    </header>
+
+    <section class="conference-summary" aria-label="{% translate 'Registration summary' %}">
+        <div><span>{% translate "All registrations" %}</span><strong>{{ summary.total }}</strong></div>
+        <div><span>{% translate "Pending review" %}</span><strong>{{ summary.pending }}</strong></div>
+        <div><span>{% translate "Approved" %}</span><strong>{{ summary.approved }}</strong></div>
+        <div><span>{% translate "Rejected" %}</span><strong>{{ summary.rejected }}</strong></div>
+    </section>
+
+    <section class="conference-panel">
+        <div class="conference-panel-heading"><div><span>{% translate "Session attendance" %}</span><h2>{% translate "Session registers" %}</h2></div></div>
+        <div class="conference-session-grid">
+            {% for session in sessions %}
+                <article class="conference-session-card">
+                    <span>{{ session.starts_at|date:"D, d M Y" }}</span>
+                    <h3>{{ session.title }}</h3>
+                    <p>{{ session.starts_at|date:"H:i" }}–{{ session.ends_at|date:"H:i" }} · {{ session.venue_name }}</p>
+                    <div class="conference-session-count"><strong>{{ session.checked_in_count }}</strong> / {{ session.registered_count }} {% translate "checked in" %}</div>
+                    <div class="conference-actions">
+                        <a class="conference-primary" href="{% url 'conferences:session_register' event_form.pk session.pk %}">{% translate "Open register and scan QR" %}</a>
+                        <a class="conference-secondary" href="{% url 'conferences:session_register_csv' event_form.pk session.pk %}">{% translate "Export CSV" %}</a>
+                    </div>
+                </article>
+            {% empty %}<p>{% translate "No sessions have been configured." %}</p>{% endfor %}
+        </div>
+    </section>
+
+    <section class="conference-panel">
+        <div class="conference-panel-heading"><div><span>{% translate "Registration review" %}</span><h2>{% translate "Participants" %}</h2></div><div class="conference-actions"><a class="conference-secondary" href="{% url 'conferences:participant_list_print' event_form.pk %}" target="_blank" rel="noopener">{% translate "Print A4 list" %}</a><a class="conference-primary" href="{% url 'conferences:participant_list_excel' event_form.pk %}">{% translate "Download Excel" %}</a><strong>{{ submissions|length }}</strong></div></div>
+        <div class="conference-table-scroll">
+            <table class="conference-table">
+                <thead><tr><th>{% translate "Participant" %}</th><th>{% translate "Institution" %}</th><th>{% translate "Selected sessions" %}</th><th>{% translate "Status" %}</th><th>{% translate "Actions" %}</th></tr></thead>
+                <tbody>
+                {% for submission in submissions %}
+                    <tr>
+                        <td><strong>{{ submission.badge_display_name }}</strong><small>{{ submission.reference_number }}</small></td>
+                        <td>{{ submission.badge_organization|default:"—" }}</td>
+                        <td><ul class="conference-compact-list">{% for session in submission.selected_conference_sessions %}<li>{{ session.title }}</li>{% empty %}<li>—</li>{% endfor %}</ul></td>
+                        <td><span class="conference-status conference-status-{{ submission.review_status|lower }}">{{ submission.get_review_status_display }}</span></td>
+                        <td>
+                            <div class="conference-row-actions">
+                                <a href="{% url 'forms_builder:participant_portal' submission.participant_token %}">{% translate "Details" %}</a>
+                                {% if submission.review_status == 'APPROVED' %}<a href="{% url 'forms_builder:participant_badge' submission.participant_token %}" target="_blank" rel="noopener">{% translate "Badge / QR" %}</a>{% endif %}
+                                {% if can_manage and submission.review_status == 'PENDING' %}
+                                    <form method="post" action="{% url 'conferences:registration_decision' event_form.pk submission.pk 'approve' %}">{% csrf_token %}<button type="submit" class="conference-approve">{% translate "Approve" %}</button></form>
+                                    <details><summary>{% translate "Reject" %}</summary><form method="post" action="{% url 'conferences:registration_decision' event_form.pk submission.pk 'reject' %}">{% csrf_token %}<textarea name="reason" rows="2" required placeholder="{% translate 'Reason for rejection' %}"></textarea><button type="submit" class="conference-reject">{% translate "Confirm rejection" %}</button></form></details>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}<tr><td colspan="5">{% translate "No registrations have been received." %}</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+{% endblock %}

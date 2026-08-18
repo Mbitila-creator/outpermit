@@ -1,0 +1,20 @@
+{% extends "events/base_public.html" %}
+{% load static i18n %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/meetings-workflow.css' %}?v=20260810j">
+{% endblock %}
+
+{% block content %}
+<section class="meeting-workspace-page">
+    <div class="meeting-workspace-container">
+        {% if messages %}
+            <div class="meeting-messages" aria-live="polite">
+                {% for message in messages %}<div class="meeting-message meeting-message-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+            </div>
+        {% endif %}
+        {% block meeting_content %}{% endblock %}
+    </div>
+</section>
+{% endblock %}
+

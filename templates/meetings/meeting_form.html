@@ -1,0 +1,59 @@
+{% extends "meetings/base_meetings.html" %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block meeting_content %}
+<header class="meeting-page-heading"><div><a href="{% if meeting %}{% url 'meetings:meeting_detail' meeting.pk %}{% else %}{% url 'meetings:meeting_list' %}{% endif %}">← {% translate "Back to meetings" %}</a><h1>{{ page_title }}</h1><p>{% translate "Complete the meeting identity, schedule and governance information." %}</p></div></header>
+
+<form method="post" class="meeting-workflow-form">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="meeting-form-errors">{{ form.non_field_errors }}</div>{% endif %}
+    <fieldset><legend>{% translate "Meeting identity" %}</legend><div class="meeting-form-grid">
+        <label>{{ form.code.label_tag }}{{ form.code }}{{ form.code.errors }}</label>
+        <label>{{ form.reference_number.label_tag }}{{ form.reference_number }}{{ form.reference_number.errors }}</label>
+        <label class="span-2">{{ form.title_sw.label_tag }}{{ form.title_sw }}{{ form.title_sw.errors }}</label>
+        <label class="span-2">{{ form.title_en.label_tag }}{{ form.title_en }}{{ form.title_en.errors }}</label>
+        <label class="span-2">{{ form.description_sw.label_tag }}{{ form.description_sw }}{{ form.description_sw.errors }}</label>
+        <label class="span-2">{{ form.description_en.label_tag }}{{ form.description_en }}{{ form.description_en.errors }}</label>
+    </div></fieldset>
+    <fieldset><legend>{% translate "Schedule and venue" %}</legend><div class="meeting-form-grid">
+        <label>{{ form.starts_at.label_tag }}{{ form.starts_at }}{{ form.starts_at.errors }}</label>
+        <label>{{ form.ends_at.label_tag }}{{ form.ends_at }}{{ form.ends_at.errors }}</label>
+        <label>{{ form.invitation_deadline.label_tag }}{{ form.invitation_deadline }}{{ form.invitation_deadline.errors }}</label>
+        <label>{{ form.venue.label_tag }}{{ form.venue }}{{ form.venue.errors }}</label>
+        <label>{{ form.status.label_tag }}{{ form.status }}{{ form.status.errors }}</label>
+        <label class="meeting-checkbox">{{ form.is_public }}<span>{{ form.is_public.label }}</span>{{ form.is_public.errors }}</label>
+    </div></fieldset>
+    <fieldset><legend>{% translate "Online meeting access" %}</legend><p class="meeting-fieldset-note">{% translate "For Online or Hybrid meetings, select a platform and enter the joining link. Other access details are optional." %}</p><div class="meeting-form-grid">
+        <label>{{ form.attendance_mode.label_tag }}{{ form.attendance_mode }}{{ form.attendance_mode.errors }}</label>
+        <label>{{ form.online_platform.label_tag }}{{ form.online_platform }}{{ form.online_platform.errors }}</label>
+        <label class="span-2">{{ form.online_join_url.label_tag }}{{ form.online_join_url }}{{ form.online_join_url.errors }}</label>
+        <label>{{ form.online_meeting_id.label_tag }}{{ form.online_meeting_id }}{{ form.online_meeting_id.errors }}</label>
+        <label>{{ form.online_passcode.label_tag }}{{ form.online_passcode }}{{ form.online_passcode.errors }}</label>
+        <label class="span-2">{{ form.online_instructions_sw.label_tag }}{{ form.online_instructions_sw }}{{ form.online_instructions_sw.errors }}</label>
+        <label class="span-2">{{ form.online_instructions_en.label_tag }}{{ form.online_instructions_en }}{{ form.online_instructions_en.errors }}</label>
+    </div></fieldset>
+    <fieldset><legend>{% translate "Secure meeting check-in" %}</legend><p class="meeting-fieldset-note">{% translate "Create a unique QR pass for every participant and optionally limit the period when staff can scan it." %}</p><div class="meeting-form-grid">
+        <label class="meeting-checkbox span-2">{{ form.checkin_enabled }}<span>{{ form.checkin_enabled.label }}</span>{{ form.checkin_enabled.errors }}</label>
+        <label>{{ form.checkin_opens_at.label_tag }}{{ form.checkin_opens_at }}{{ form.checkin_opens_at.errors }}</label>
+        <label>{{ form.checkin_closes_at.label_tag }}{{ form.checkin_closes_at }}{{ form.checkin_closes_at.errors }}</label>
+    </div></fieldset>
+    <fieldset><legend>{% translate "Participant evaluation" %}</legend><p class="meeting-fieldset-note">{% translate "Present participants can submit one evaluation after the meeting ends. The deadline is optional." %}</p><div class="meeting-form-grid">
+        <label class="meeting-checkbox">{{ form.evaluation_enabled }}<span>{{ form.evaluation_enabled.label }}</span>{{ form.evaluation_enabled.errors }}</label>
+        <label>{{ form.evaluation_deadline.label_tag }}{{ form.evaluation_deadline }}{{ form.evaluation_deadline.errors }}</label>
+    </div></fieldset>
+    <fieldset><legend>{% translate "Leadership and governance" %}</legend><div class="meeting-form-grid">
+        <label>{{ form.meeting_type.label_tag }}{{ form.meeting_type }}{{ form.meeting_type.errors }}</label>
+        <label>{{ form.quorum_required.label_tag }}{{ form.quorum_required }}{{ form.quorum_required.errors }}</label>
+        <label>{{ form.chairperson_name.label_tag }}{{ form.chairperson_name }}{{ form.chairperson_name.errors }}</label>
+        <label>{{ form.secretary_name.label_tag }}{{ form.secretary_name }}{{ form.secretary_name.errors }}</label>
+        <label>{{ form.organizer_name_sw.label_tag }}{{ form.organizer_name_sw }}{{ form.organizer_name_sw.errors }}</label>
+        <label>{{ form.organizer_name_en.label_tag }}{{ form.organizer_name_en }}{{ form.organizer_name_en.errors }}</label>
+        <label class="span-2">{{ form.objectives_sw.label_tag }}{{ form.objectives_sw }}{{ form.objectives_sw.errors }}</label>
+        <label class="span-2">{{ form.objectives_en.label_tag }}{{ form.objectives_en }}{{ form.objectives_en.errors }}</label>
+    </div></fieldset>
+    <div class="meeting-form-actions"><a href="{% url 'meetings:meeting_list' %}">{% translate "Cancel" %}</a><button type="submit">{{ submit_label }}</button></div>
+</form>
+{% endblock %}
+

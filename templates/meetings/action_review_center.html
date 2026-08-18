@@ -1,0 +1,42 @@
+{% extends "meetings/base_meetings.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Action Review Centre" %}{% endblock %}
+
+{% block meeting_content %}
+<header class="meeting-detail-hero meeting-action-review-hero">
+    <div><a href="{% url 'meetings:meeting_list' %}">← {% translate "All meetings" %}</a><span>{% translate "Completion accountability" %}</span><h1>{% translate "Action Review Centre" %}</h1><p>{% translate "Review completion evidence from responsible officers and formally verify or return each action." %}</p></div>
+    <div class="meeting-hero-actions"><a class="meeting-secondary-button" href="{% url 'meetings:action_report' %}">{% translate "Action report" %}</a><a class="meeting-secondary-button" href="{% url 'meetings:follow_up_center' %}">{% translate "Follow-up centre" %}</a></div>
+</header>
+
+<div class="meeting-summary-grid meeting-action-review-summary">
+    <article><span>{% translate "Awaiting review" %}</span><strong>{{ summary.pending }}</strong></article>
+    <article><span>{% translate "Waiting over 3 days" %}</span><strong>{{ summary.waiting_over_three_days }}</strong></article>
+    <article><span>{% translate "Completion verified" %}</span><strong>{{ summary.verified }}</strong></article>
+    <article><span>{% translate "Returned for correction" %}</span><strong>{{ summary.returned }}</strong></article>
+</div>
+
+<form method="get" class="meeting-filter-card meeting-action-review-filter">
+    <label><span>{% translate "Search submissions" %}</span><input type="search" name="q" value="{{ search_query }}" placeholder="{% translate 'Reference, action or responsible person' %}"></label>
+    <label><span>{% translate "Meeting" %}</span><select name="meeting"><option value="">{% translate "All meetings" %}</option>{% for meeting in meetings %}<option value="{{ meeting.pk }}" {% if selected_meeting == meeting.pk|stringformat:'s' %}selected{% endif %}>{{ meeting.reference_number }} — {% if request.LANGUAGE_CODE == 'en' %}{{ meeting.event.title_en }}{% else %}{{ meeting.event.title_sw }}{% endif %}</option>{% endfor %}</select></label>
+    <button type="submit">{% translate "Apply filters" %}</button>
+</form>
+
+<section class="meeting-dashboard-panel meeting-action-review-panel-list">
+    <div class="meeting-section-heading"><div><span>{% translate "Manager decision queue" %}</span><h2>{% translate "Completion submissions awaiting review" %}</h2></div></div>
+    <div class="meeting-action-review-list">
+    {% for action in actions %}
+        <article class="meeting-action-review-card">
+            <div class="meeting-action-review-card-main"><span>{{ action.meeting.reference_number }} · {% translate "Action" %} #{{ action.action_number }}</span><h3>{% if request.LANGUAGE_CODE == 'en' and action.description_en %}{{ action.description_en }}{% else %}{{ action.description_sw }}{% endif %}</h3><p>{{ action.responsible_name }}{% if action.responsible_email %} · {{ action.responsible_email }}{% endif %}</p><div class="meeting-action-review-meta"><span>{% translate "Submitted" %}: {% if action.latest_submission %}{{ action.latest_submission.reported_at|date:"d M Y, H:i" }}{% else %}{{ action.updated_at|date:"d M Y, H:i" }}{% endif %}</span><span>{% blocktranslate count days=action.review_wait_days %}Waiting {{ days }} day{% plural %}Waiting {{ days }} days{% endblocktranslate %}</span><span>{{ action.completion_percentage }}%</span></div>{% if action.latest_submission.notes %}<div class="meeting-personal-progress"><strong>{% translate "Completion statement" %}</strong><p>{{ action.latest_submission.notes }}</p></div>{% endif %}{% if action.latest_submission.evidence_file %}<a class="meeting-export-button" href="{% url 'meetings:action_progress_evidence_download' action.latest_submission.pk %}">{% translate "Download evidence" %}</a>{% endif %}<a href="{% url 'meetings:meeting_detail' action.meeting.pk %}#actions">{% translate "Open meeting action" %} →</a></div>
+            <div class="meeting-action-review-decisions"><form method="post" action="{% url 'meetings:action_completion_review' action.meeting.pk action.pk %}" class="meeting-progress-form">{% csrf_token %}<input type="hidden" name="outcome" value="VERIFIED"><label>{% translate "Review comment" %}<textarea name="comment" rows="2"></textarea></label><button type="submit">{% translate "Verify and close" %}</button></form><form method="post" action="{% url 'meetings:action_completion_review' action.meeting.pk action.pk %}" class="meeting-progress-form">{% csrf_token %}<input type="hidden" name="outcome" value="RETURNED"><label>{% translate "Correction instructions" %}<textarea name="comment" rows="2" required></textarea></label><button type="submit" class="meeting-danger-button">{% translate "Return for correction" %}</button></form></div>
+        </article>
+    {% empty %}<div class="meeting-empty"><h2>{% translate "No actions are awaiting review" %}</h2><p>{% translate "New completion submissions will appear here automatically." %}</p></div>{% endfor %}
+    </div>
+</section>
+
+<section class="meeting-dashboard-panel meeting-action-review-history">
+    <div class="meeting-section-heading"><div><span>{% translate "Audit trail" %}</span><h2>{% translate "Recent completion review decisions" %}</h2></div></div>
+    <div class="meeting-table-scroll"><table><thead><tr><th>{% translate "Reviewed" %}</th><th>{% translate "Meeting" %}</th><th>{% translate "Action" %}</th><th>{% translate "Responsible person" %}</th><th>{% translate "Outcome" %}</th><th>{% translate "Reviewer" %}</th><th>{% translate "Comment" %}</th></tr></thead><tbody>{% for review in recent_reviews %}<tr><td>{{ review.reviewed_at|date:"d M Y, H:i" }}</td><td><a href="{% url 'meetings:meeting_detail' review.action.meeting.pk %}#actions">{{ review.action.meeting.reference_number }}</a></td><td>#{{ review.action.action_number }}</td><td>{{ review.action.responsible_name }}</td><td><span class="meeting-pill {% if review.outcome == 'VERIFIED' %}success{% else %}warning{% endif %}">{{ review.get_outcome_display }}</span></td><td>{% if review.created_by %}{{ review.created_by.get_full_name|default:review.created_by.username }}{% else %}—{% endif %}</td><td>{{ review.comment|default:"—" }}</td></tr>{% empty %}<tr><td colspan="7" class="meeting-empty-cell">{% translate "No completion reviews have been recorded." %}</td></tr>{% endfor %}</tbody></table></div>
+</section>
+{% endblock %}
+

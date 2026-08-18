@@ -1,0 +1,115 @@
+{% extends "events/base_public.html" %}
+{% load static i18n %}
+
+{% block title %}{{ event.code }} — {% translate "Conference programme" %}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/conferences.css' %}?v=20260817g">
+{% endblock %}
+
+{% block content %}
+<main class="conference-page conference-programme-page">
+    <header class="conference-programme-hero">
+        {% if event.logo %}
+            <img src="{{ event.logo.url }}" alt="{{ event.organizer_name_en }}">
+        {% else %}
+            <img src="{% static 'logo/moest_logo.png' %}" alt="Ministry of Education, Science and Technology logo">
+        {% endif %}
+        <div>
+            <span>{{ event.code }}</span>
+            <h1>{% translate "Conference programme" %}</h1>
+            <h2>{{ event.title_en }}</h2>
+            <p>
+                {{ event.starts_at|date:"d M Y" }} – {{ event.ends_at|date:"d M Y" }}
+                {% if event.venue %} · {{ event.venue.name }}{% endif %}
+            </p>
+        </div>
+        <div class="conference-actions no-print"><a class="conference-secondary" href="{% url 'conferences:paper_submit' event.slug %}">{% translate "Submit abstract or paper" %}</a><a class="conference-secondary" href="{% url 'conferences:feedback_submit' event.slug %}">{% translate "Evaluate conference" %}</a></div>
+    </header>
+
+    <nav class="conference-programme-nav no-print" aria-label="{% translate 'Programme dates' %}">
+        {% for session in sessions %}
+            <button type="button" id="session-button-{{ session.pk }}" aria-pressed="false" aria-controls="session-{{ session.pk }}" data-programme-session="session-{{ session.pk }}">{{ session.starts_at|date:"d M" }} · {{ session.title }}</button>
+        {% endfor %}
+    </nav>
+
+    <div class="conference-programme-controls no-print">
+        <button class="conference-secondary" type="button" data-print-timetable disabled>{% translate "Print Timetable" %}</button>
+        <button class="conference-primary" type="button" data-download-timetable data-download-url="{% url 'conferences:programme_download' event.slug %}" disabled>{% translate "Download Timetable" %}</button>
+    </div>
+
+    <div class="conference-programme-sessions">
+        {% for session in sessions %}
+            <section class="conference-programme-session" id="session-{{ session.pk }}" role="region" aria-labelledby="session-button-{{ session.pk }}" hidden>
+                <header class="conference-programme-print-header">
+                    {% if event.logo %}
+                        <img src="{{ event.logo.url }}" alt="{{ event.organizer_name_en }}">
+                    {% else %}
+                        <img src="{% static 'logo/moest_logo.png' %}" alt="Ministry of Education, Science and Technology logo">
+                    {% endif %}
+                    <div>
+                        <span>{{ event.code }}</span>
+                        <strong>{% translate "Conference programme" %}</strong>
+                        <h1>{{ event.title_en }}</h1>
+                        <p>{{ event.starts_at|date:"d M Y" }} – {{ event.ends_at|date:"d M Y" }}{% if event.venue %} · {{ event.venue.name }}{% endif %}</p>
+                    </div>
+                </header>
+                <header>
+                    <div>
+                        <span>{{ session.starts_at|date:"l, d F Y" }}</span>
+                        <h2>{{ session.title }}</h2>
+                    </div>
+                </header>
+
+                <div class="conference-programme-items">
+                    {% for item in session.programme_items.all %}
+                        <article class="conference-programme-item">
+                            <time class="conference-programme-time">{{ item.starts_at|date:"H:i" }}–{{ item.ends_at|date:"H:i" }}</time>
+                            <div class="conference-programme-copy">
+                                <span class="conference-programme-type">{{ item.get_item_type_display }}</span>
+                                <h3>{{ item.title }}</h3>
+                                {% if item.description %}<p>{{ item.description|linebreaksbr }}</p>{% endif %}
+                                {% if item.venue_name %}<p class="conference-programme-venue">{{ item.venue_name }}</p>{% endif %}
+                                {% if item.contributors.all %}
+                                    <div class="conference-contributors">
+                                        {% for contribution in item.contributors.all %}
+                                            <div class="conference-contributor">
+                                                {% if contribution.speaker.photo %}
+                                                    <img src="{{ contribution.speaker.photo.url }}" alt="">
+                                                {% endif %}
+                                                <p>
+                                                    <span>{{ contribution.get_role_display }}</span>
+                                                    <strong>{{ contribution.speaker.full_name }}</strong>
+                                                    {% if contribution.speaker.position_title or contribution.speaker.institution %}
+                                                        <small>{{ contribution.speaker.position_title }}{% if contribution.speaker.position_title and contribution.speaker.institution %}, {% endif %}{{ contribution.speaker.institution }}</small>
+                                                    {% endif %}
+                                                </p>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </article>
+                    {% empty %}
+                        <p class="conference-programme-empty">{% translate "Detailed programme items will be published soon." %}</p>
+                    {% endfor %}
+                    {% for presentation in session.public_presentations %}
+                        <article class="conference-programme-item conference-paper-presentation"><time class="conference-programme-time">{{ presentation.starts_at|date:"H:i" }}–{{ presentation.ends_at|date:"H:i" }}</time><div class="conference-programme-copy"><span class="conference-programme-type">{% translate "Accepted paper presentation" %}</span><h3>{{ presentation.paper.title }}</h3><p><strong>{{ presentation.presenter_name }}</strong> · {{ presentation.paper.institution }}</p>{% if presentation.venue_name %}<p class="conference-programme-venue">{{ presentation.venue_name }}</p>{% endif %}</div></article>
+                    {% endfor %}
+                </div>
+            </section>
+        {% empty %}
+            <section class="conference-empty">
+                <h2>{% translate "Programme coming soon" %}</h2>
+                <p>{% translate "Conference sessions have not yet been published." %}</p>
+            </section>
+        {% endfor %}
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/conference-programme.js' %}?v=20260817b" defer></script>
+{% endblock %}
+
+

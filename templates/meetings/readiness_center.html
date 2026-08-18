@@ -1,0 +1,36 @@
+{% extends "meetings/base_meetings.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Meeting readiness centre" %}{% endblock %}
+
+{% block meeting_content %}
+<header class="meeting-detail-hero meeting-readiness-hero">
+    <div><a href="{% url 'meetings:meeting_list' %}">← {% translate "All meetings" %}</a><span>{% translate "Pre-meeting control" %}</span><h1>{% translate "Meeting readiness centre" %}</h1><p>{% translate "Identify operational gaps early and complete every requirement before participants arrive or join online." %}</p></div>
+    <div class="meeting-hero-actions"><a class="meeting-secondary-button" href="{% url 'meetings:follow_up_center' %}">{% translate "Follow-up centre" %}</a><a class="meeting-secondary-button" href="{% url 'meetings:meeting_calendar' %}">{% translate "Calendar" %}</a></div>
+</header>
+
+<div class="meeting-summary-grid meeting-readiness-summary">
+    <article><span>{% translate "Meetings reviewed" %}</span><strong>{{ summary.total }}</strong></article>
+    <article><span>{% translate "Ready" %}</span><strong>{{ summary.ready }}</strong></article>
+    <article><span>{% translate "Need attention" %}</span><strong>{{ summary.attention }}</strong></article>
+    <article><span>{% translate "Critical gaps" %}</span><strong>{{ summary.critical }}</strong></article>
+</div>
+
+<form method="get" class="meeting-readiness-filter">
+    <label><span>{% translate "Review period" %}</span><select name="period"><option value="7" {% if selected_period == '7' %}selected{% endif %}>{% translate "Next 7 days" %}</option><option value="30" {% if selected_period == '30' %}selected{% endif %}>{% translate "Next 30 days" %}</option><option value="90" {% if selected_period == '90' %}selected{% endif %}>{% translate "Next 90 days" %}</option><option value="ALL" {% if selected_period == 'ALL' %}selected{% endif %}>{% translate "All upcoming meetings" %}</option></select></label>
+    <label><span>{% translate "Meeting type" %}</span><select name="type"><option value="">{% translate "All meeting types" %}</option>{% for value, label in meeting_type_choices %}<option value="{{ value }}" {% if selected_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <button type="submit">{% translate "Update review" %}</button>
+</form>
+
+<div class="meeting-readiness-list">
+{% for meeting in meetings %}
+    <article class="meeting-readiness-card readiness-{{ meeting.readiness_code }}">
+        <div class="meeting-readiness-card-header"><div><span>{{ meeting.reference_number }} · {{ meeting.get_meeting_type_display }}</span><h2>{% if request.LANGUAGE_CODE == 'en' %}{{ meeting.event.title_en }}{% else %}{{ meeting.event.title_sw }}{% endif %}</h2><p>{{ meeting.event.starts_at|date:"d M Y, H:i" }} · {{ meeting.event.starts_at|timeuntil }}</p></div><div class="meeting-readiness-score"><strong>{{ meeting.readiness_score }}%</strong><span>{{ meeting.readiness_label }}</span></div></div>
+        <progress max="100" value="{{ meeting.readiness_score }}">{{ meeting.readiness_score }}%</progress>
+        <div class="meeting-readiness-checks">{% for check in meeting.readiness_checks %}<div class="meeting-readiness-check {% if check.passed %}passed{% else %}blocked{% endif %}"><span>{% if check.passed %}✓{% else %}!{% endif %}</span><div><strong>{{ check.label }}</strong><small>{% if check.passed %}{{ check.success }}{% else %}{{ check.action }}{% endif %}</small></div></div>{% endfor %}</div>
+        <footer><div><strong>{{ meeting.readiness_blockers }}</strong> {% translate "requirements remaining" %}</div><div><a class="meeting-export-button" href="{% url 'meetings:meeting_detail' meeting.pk %}">{% translate "Open meeting workflow" %}</a>{% if can_manage %}<a class="meeting-primary-button" href="{% url 'meetings:meeting_edit' meeting.pk %}">{% translate "Edit meeting" %}</a>{% endif %}</div></footer>
+    </article>
+{% empty %}<div class="meeting-empty"><h2>{% translate "No upcoming meetings in this period" %}</h2><p>{% translate "Change the review period or create the next meeting." %}</p></div>{% endfor %}
+</div>
+{% endblock %}
+

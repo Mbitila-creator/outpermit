@@ -1,0 +1,25 @@
+{% extends "events/base_public.html" %}
+{% load i18n static humanize %}
+{% block title %}{% translate "Payment receipt" %} — {{ receipt_number }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/payment-receipt.css' %}"><link rel="stylesheet" href="{% static 'css/payment-receipt-enhancements.css' %}">{% endblock %}
+{% block content %}
+<section class="receipt-page">
+    <div class="receipt-actions no-print"><a href="{% url 'forms_builder:participant_payment' submission.participant_token %}">{% translate "Back to payment status" %}</a><button type="button" onclick="window.print()">{% translate "Print receipt" %}</button></div>
+    <article class="payment-receipt">
+        {% if event.logo %}<img class="receipt-logo-watermark" src="{{ event.logo.url }}" alt="">{% endif %}
+        <header><span>{% translate "Official payment receipt" %}</span><h1>{% if request.LANGUAGE_CODE == 'en' %}{{ event.title_en }}{% else %}{{ event.title_sw }}{% endif %}</h1><strong>{{ receipt_number }}</strong></header>
+        <div class="verified-mark">✓ {% translate "Payment verified" %}</div>
+        <dl>
+            <div><dt>{% translate "Participant" %}</dt><dd>{{ submission.badge_display_name }}</dd></div>
+            <div><dt>{% translate "Registration reference" %}</dt><dd>{{ submission.reference_number }}</dd></div>
+            <div><dt>{% translate "Amount paid" %}</dt><dd>{{ payment.currency }} {{ payment.amount|floatformat:2|intcomma }}</dd></div>
+            <div><dt>{% translate "Payment method" %}</dt><dd>{{ payment.get_method_display }}</dd></div>
+            <div><dt>{% translate "Transaction reference" %}</dt><dd>{{ payment.transaction_reference|default:"—" }}</dd></div>
+            <div><dt>{% translate "Verification date" %}</dt><dd>{{ payment.verified_at|date:"d M Y, H:i" }}</dd></div>
+        </dl>
+        <section class="receipt-verification"><img src="{% url 'forms_builder:payment_receipt_qr' submission.participant_token payment.pk %}" alt="{% translate 'Receipt verification QR code' %}"><div><strong>{% translate "Verify this receipt" %}</strong><p>{% translate "Scan this QR code to confirm that this payment receipt is authentic and verified." %}</p></div></section>
+        <footer>{% translate "This receipt was generated electronically by the Event Management System." %}</footer>
+    </article>
+</section>
+{% endblock %}
+

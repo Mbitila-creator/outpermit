@@ -1,0 +1,85 @@
+{% extends "events/base_public.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ booth.code }} — {% if request.LANGUAGE_CODE == "en" %}{{ booth.name_en }}{% else %}{{ booth.name_sw }}{% endif %}{% endblock %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/booth-directory.css' %}">{% endblock %}
+
+{% block content %}
+    <section class="booth-directory-page">
+        <div class="booth-public-container booth-detail-container">
+            <a href="{% url 'forms_builder:booth_directory' event.slug %}" class="booth-back-link">← {% translate "All exhibition booths" %}</a>
+            <article class="booth-detail-card">
+                <div class="booth-detail-code">{{ booth.code }}</div>
+                <span class="section-kicker">{% translate "Exhibition booth" %}</span>
+                <h1>{% if request.LANGUAGE_CODE == "en" %}{{ booth.name_en }}{% else %}{{ booth.name_sw }}{% endif %}</h1>
+                {% if submission.badge_organization %}<h2>{{ submission.badge_organization }}</h2>{% endif %}
+                {% if request.LANGUAGE_CODE == "en" and booth.description_en %}
+                    <p class="booth-public-description">{{ booth.description_en|linebreaksbr }}</p>
+                {% elif request.LANGUAGE_CODE != "en" and booth.description_sw %}
+                    <p class="booth-public-description">{{ booth.description_sw|linebreaksbr }}</p>
+                {% endif %}
+                <dl class="booth-detail-list">
+                    <div><dt>{% translate "Representative" %}</dt><dd>{{ submission.badge_display_name }}</dd></div>
+                    <div><dt>{% translate "Booth location" %}</dt><dd>{% if request.LANGUAGE_CODE == "en" %}{{ booth.zone_en|default:"—" }}{% else %}{{ booth.zone_sw|default:"—" }}{% endif %}</dd></div>
+                    <div><dt>{% translate "Event" %}</dt><dd>{% if request.LANGUAGE_CODE == "en" %}{{ event.title_en }}{% else %}{{ event.title_sw }}{% endif %}</dd></div>
+                </dl>
+
+                {% if booth.public_email or booth.public_phone or booth.public_website %}
+                    <div class="booth-contact-actions">
+                        {% if booth.public_phone %}<a href="tel:{{ booth.public_phone }}" class="primary-button">{% translate "Call exhibitor" %}</a>{% endif %}
+                        {% if booth.public_email %}<a href="mailto:{{ booth.public_email }}" class="secondary-button">{% translate "Email exhibitor" %}</a>{% endif %}
+                        {% if booth.public_website %}<a href="{{ booth.public_website }}" target="_blank" rel="noopener" class="secondary-button">{% translate "Visit website" %}</a>{% endif %}
+                    </div>
+                {% endif %}
+
+                {% if offerings %}
+                    <section class="booth-offerings-section">
+                        <h2>{% translate "Products, technologies and services" %}</h2>
+                        <div class="booth-offerings-grid">
+                            {% for offering in offerings %}
+                                <article>
+                                    <span>{{ offering.get_offering_type_display }}</span>
+                                    <h3>{% if request.LANGUAGE_CODE == "en" %}{{ offering.name_en }}{% else %}{{ offering.name_sw }}{% endif %}</h3>
+                                    <p>{% if request.LANGUAGE_CODE == "en" %}{{ offering.description_en }}{% else %}{{ offering.description_sw }}{% endif %}</p>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    </section>
+                {% endif %}
+
+                <section class="booth-interest-section" id="visitor-interest">
+                    <h2>{% translate "Interested in this exhibitor?" %}</h2>
+                    <p>{% translate "Leave your contact information so the exhibitor can follow up with you." %}</p>
+
+                    {% if interest_success %}
+                        <div class="booth-interest-success" role="status">✓ {% translate "Your interest has been sent to the exhibitor." %}</div>
+                    {% endif %}
+                    {% if interest_errors.contact %}<div class="booth-interest-error" role="alert">{{ interest_errors.contact }}</div>{% endif %}
+
+                    <form method="post" class="booth-interest-form">
+                        {% csrf_token %}
+                        {% if offerings %}
+                            <label>{% translate "Product, technology or service" %}
+                                <select name="offering">
+                                    <option value="">{% translate "General interest in this exhibitor" %}</option>
+                                    {% for offering in offerings %}<option value="{{ offering.pk }}" {% if interest_values.offering == offering.pk|stringformat:"s" %}selected{% endif %}>{% if request.LANGUAGE_CODE == "en" %}{{ offering.name_en }}{% else %}{{ offering.name_sw }}{% endif %}</option>{% endfor %}
+                                </select>
+                            </label>
+                        {% endif %}
+                        <label>{% translate "Your name" %}<input type="text" name="visitor_name" value="{{ interest_values.visitor_name|default:'' }}"></label>
+                        <div class="booth-interest-contact-grid">
+                            <label>{% translate "Email address" %}<input type="email" name="email" value="{{ interest_values.email|default:'' }}">{% if interest_errors.email %}<small>{{ interest_errors.email }}</small>{% endif %}</label>
+                            <label>{% translate "Phone number" %}<input type="tel" name="phone" value="{{ interest_values.phone|default:'' }}"></label>
+                        </div>
+                        <label>{% translate "Message or question" %}<textarea name="message" rows="4">{{ interest_values.message|default:'' }}</textarea></label>
+                        <button type="submit" class="primary-button">{% translate "Send my interest" %}</button>
+                    </form>
+                </section>
+                <img class="booth-qr-preview" src="{% url 'forms_builder:booth_qr' booth.public_token %}" alt="{% translate 'Booth QR code' %}">
+            </article>
+        </div>
+    </section>
+{% endblock %}
+

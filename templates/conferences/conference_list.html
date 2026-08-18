@@ -1,0 +1,58 @@
+{% extends "events/base_public.html" %}
+{% load static i18n %}
+
+{% block title %}{% translate "Conference management" %}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/conferences.css' %}?v=20260815a">
+{% endblock %}
+
+{% block content %}
+<main class="conference-page">
+    <header class="conference-heading">
+        <div>
+            <span>{% translate "Conference module" %}</span>
+            <h1>{% translate "Conference management" %}</h1>
+            <p>{% translate "Manage registration, the public programme, speakers, QR badges and session attendance." %}</p>
+        </div>
+        <a class="conference-secondary" href="{% url 'events:home' %}">← {% translate "Back to events" %}</a>
+    </header>
+
+    <section class="conference-grid">
+        {% for registration in registrations %}
+            <article class="conference-card">
+                <div class="conference-card-copy">
+                    <span class="conference-code">{{ registration.form.event.code }}</span>
+                    <h2>{% if request.LANGUAGE_CODE == 'en' %}{{ registration.form.event.title_en }}{% else %}{{ registration.form.event.title_sw }}{% endif %}</h2>
+                    <p><strong>{% translate "Dates" %}:</strong> {{ registration.form.event.starts_at|date:"d M Y" }} – {{ registration.form.event.ends_at|date:"d M Y" }}</p>
+                    <p><strong>{% translate "Venue" %}:</strong> {{ registration.form.event.venue|default:"—" }}</p>
+                    <p><strong>{% translate "Completed registrations" %}:</strong> {{ registration.submission_count }}</p>
+                    {% if registration.form.is_published %}
+                        <div class="conference-actions">
+                            <a class="conference-primary" href="{% url 'conferences:conference_detail' registration.form.pk %}">{% translate "Manage registrations and sessions" %}</a>
+                            <a class="conference-primary" href="{{ registration.public_path }}" target="_blank" rel="noopener">{% translate "Open registration form" %}</a>
+                            <a class="conference-secondary" href="{% url 'conferences:public_programme' registration.form.event.slug %}" target="_blank" rel="noopener">{% translate "Open programme" %}</a>
+                            <a class="conference-secondary" href="{% url 'conferences:paper_submit' registration.form.event.slug %}" target="_blank" rel="noopener">{% translate "Paper submission form" %}</a>
+                            <a class="conference-secondary" href="{% url 'conferences:registration_qr' registration.form.pk %}?download=1">{% translate "Download registration QR" %}</a>
+                        </div>
+                    {% else %}
+                        <p class="conference-warning">{% translate "Publish this form in Django Admin before sharing it." %}</p>
+                    {% endif %}
+                </div>
+                {% if registration.form.is_published %}
+                    <a class="conference-qr" href="{% url 'conferences:registration_qr' registration.form.pk %}?download=1" title="{% translate 'Download registration QR' %}">
+                        <img src="{% url 'conferences:registration_qr' registration.form.pk %}" alt="{% translate 'Registration QR code' %}">
+                        <span>{% translate "Scan to register" %}</span>
+                    </a>
+                {% endif %}
+            </article>
+        {% empty %}
+            <div class="conference-empty">
+                <h2>{% translate "No conference registration form was found" %}</h2>
+                <p>{% translate "Run the conference registration setup command, then return to this page." %}</p>
+            </div>
+        {% endfor %}
+    </section>
+</main>
+{% endblock %}
+

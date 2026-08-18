@@ -1,0 +1,10 @@
+.payment-receipt { position: relative; overflow: hidden; }
+.payment-receipt > :not(.receipt-logo-watermark) { position: relative; z-index: 1; }
+.receipt-logo-watermark { position: absolute; z-index: 0; top: 50%; left: 50%; width: min(58%, 420px); max-height: 62%; transform: translate(-50%,-46%); object-fit: contain; opacity: .055; pointer-events: none; }
+.receipt-verification { display: flex; align-items: center; gap: 16px; margin-top: 24px; padding: 16px; border: 1px solid #cfdae7; border-radius: 12px; background: rgba(247,250,253,.9); }
+.receipt-verification img { flex: 0 0 118px; width: 118px; height: 118px; padding: 5px; background: #fff; }
+.receipt-verification strong { display: block; color: #173b67; font-size: 18px; }
+.receipt-verification p { margin: 6px 0 0; color: #60758b; line-height: 1.5; }
+@media(max-width:600px){.receipt-verification{align-items:flex-start;flex-direction:column}.receipt-verification img{align-self:center}}
+@media print{.receipt-logo-watermark{opacity:.07}.receipt-verification{break-inside:avoid}}
+

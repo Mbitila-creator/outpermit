@@ -44,18 +44,25 @@ INSTALLED_APPS = [
     'finance',
     'django.contrib.humanize',
     'system_admin',
-    'summit',
     'core',
     'audit',
     'workflow',
+    # Department-scoped Event Management replacement for the legacy Summit app.
+    'events',
+    'forms_builder',
+    'checkin',
+    'meetings',
+    'conferences',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'events.middleware.DepartmentEventAccessMiddleware',
     'system_admin.middleware.MaintenanceModeMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -160,6 +167,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/home/'
 LOGOUT_REDIRECT_URL = '/'
+
+# Used when Event Management generates public verification and QR links.
+PUBLIC_BASE_URL = ""
+REMINDER_SCHEDULER_TOKEN = ""
+
+LANGUAGES = [
+    ("sw", "Kiswahili"),
+    ("en", "English"),
+]
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

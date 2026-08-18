@@ -1,0 +1,10 @@
+{% extends "meetings/base_meetings.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Schedule next meeting" %}{% endblock %}
+
+{% block meeting_content %}
+<header class="meeting-page-heading"><div><a href="{% url 'meetings:series_detail' series.pk %}">← {% translate "Back to series" %}</a><h1>{% translate "Schedule next meeting" %}</h1><p>{% if request.LANGUAGE_CODE == 'en' %}{% blocktranslate with series_name=series.name_en %}Create the next occurrence of {{ series_name }} using the reusable defaults and agenda.{% endblocktranslate %}{% else %}{% blocktranslate with series_name=series.name_sw %}Create the next occurrence of {{ series_name }} using the reusable defaults and agenda.{% endblocktranslate %}{% endif %}</p></div></header>
+<form method="post" class="meeting-workflow-form">{% csrf_token %}{% if form.non_field_errors %}<div class="meeting-form-errors">{{ form.non_field_errors }}</div>{% endif %}<fieldset><legend>{% translate "Occurrence details" %}</legend><div class="meeting-form-grid">{% for field in form %}<label class="{% if field.name == 'copy_participants' or field.name == 'is_public' %}meeting-checkbox{% endif %}">{% if field.name == 'copy_participants' or field.name == 'is_public' %}{{ field }}<span>{{ field.label }}</span>{% else %}{{ field.label_tag }}{{ field }}{% endif %}{{ field.errors }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}</label>{% endfor %}</div></fieldset><div class="meeting-form-actions"><a href="{% url 'meetings:series_detail' series.pk %}">{% translate "Cancel" %}</a><button type="submit">{% translate "Schedule meeting" %}</button></div></form>
+{% endblock %}
+

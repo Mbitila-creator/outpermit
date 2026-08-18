@@ -1,0 +1,9 @@
+{% load static i18n %}
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{% translate "Certificate verification" %}</title><link rel="stylesheet" href="{% static 'css/conferences.css' %}?v=20260816a"></head>
+<body class="conference-verify-body"><main class="conference-verify-card">
+    <img src="{% static 'logo/moest_logo.png' %}" alt="Ministry of Education, Science and Technology logo">
+    {% if certificate.is_revoked %}<div class="conference-verify-state invalid">✕</div><h1>{% translate "Certificate revoked" %}</h1><p>{{ certificate.revocation_reason }}</p>{% else %}<div class="conference-verify-state valid">✓</div><h1>{% translate "Valid conference certificate" %}</h1><p>{% translate "This certificate matches an official Ministry record." %}</p>{% endif %}
+    <dl><div><dt>{% translate "Recipient" %}</dt><dd>{{ certificate.recipient_name }}</dd></div><div><dt>{% translate "Type" %}</dt><dd>{{ certificate.get_recipient_type_display }}</dd></div><div><dt>{% translate "Institution" %}</dt><dd>{{ certificate.institution|default:"—" }}</dd></div><div><dt>{% translate "Conference" %}</dt><dd>{{ certificate.event.title_en }}</dd></div><div><dt>{% translate "Certificate number" %}</dt><dd>{{ certificate.certificate_number }}</dd></div><div><dt>{% translate "Issued" %}</dt><dd>{{ certificate.issued_at|date:"d F Y" }}</dd></div></dl>
+</main></body></html>
+
+

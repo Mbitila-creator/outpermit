@@ -1,0 +1,19 @@
+{% extends "events/base_public.html" %}
+{% load static i18n %}
+
+{% block title %}{% translate "Meeting invitation" %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/meetings-workflow.css' %}">{% endblock %}
+
+{% block content %}
+{% translate "To be confirmed" as venue_tbc %}
+<section class="meeting-invitation-page"><article class="meeting-invitation-card">
+    <span class="meeting-invitation-kicker">{% translate "Meeting invitation" %}</span>
+    <h1>{% if request.LANGUAGE_CODE == 'en' %}{{ meeting.event.title_en }}{% else %}{{ meeting.event.title_sw }}{% endif %}</h1>
+    <p>{% blocktranslate with name=attendee.full_name %}Dear {{ name }}, please confirm whether you will attend this meeting.{% endblocktranslate %}</p>
+    <dl><div><dt>{% translate "Reference" %}</dt><dd>{{ meeting.reference_number }}</dd></div><div><dt>{% translate "Date and time" %}</dt><dd>{{ meeting.event.starts_at|date:"d M Y, H:i" }}</dd></div><div><dt>{% translate "Venue" %}</dt><dd>{{ meeting.event.venue|default:venue_tbc }}</dd></div><div><dt>{% translate "Chairperson" %}</dt><dd>{{ meeting.chairperson_name }}</dd></div></dl>
+    {% if submitted %}<div class="meeting-response-success"><strong>{% translate "Thank you. Your response has been recorded." %}</strong><p>{{ attendee.get_response_status_display }}</p></div>{% if meeting.attendance_mode != 'IN_PERSON' and attendee.response_status != 'DECLINED' %}<div class="meeting-online-invitation"><span>{% translate "Online meeting access" %}</span><h2>{{ meeting.get_online_platform_display }}</h2><p>{% if request.LANGUAGE_CODE == 'en' and meeting.online_instructions_en %}{{ meeting.online_instructions_en|linebreaksbr }}{% elif meeting.online_instructions_sw %}{{ meeting.online_instructions_sw|linebreaksbr }}{% endif %}</p><dl><div><dt>{% translate "Meeting ID" %}</dt><dd>{{ meeting.online_meeting_id|default:"—" }}</dd></div><div><dt>{% translate "Passcode" %}</dt><dd>{{ meeting.online_passcode|default:"—" }}</dd></div></dl><a class="meeting-primary-button" href="{{ meeting.online_join_url }}" target="_blank" rel="noopener noreferrer">{% translate "Join online meeting" %} ↗</a></div>{% endif %}{% else %}<form method="post" class="meeting-response-form">{% csrf_token %}{{ form.as_div }}<button type="submit">{% translate "Submit response" %}</button></form>{% endif %}
+    {% if checkin_qr %}<section class="meeting-public-pass"><div><span>{% translate "Meeting check-in pass" %}</span><h2>{% translate "Show this QR code at the meeting entrance" %}</h2><p>{% translate "An authorized attendance officer will scan it to record your arrival." %}</p></div><img src="{{ checkin_qr }}" alt="{% translate 'Participant QR check-in pass' %}"><small>{{ attendee.full_name }} · {{ meeting.reference_number }}</small></section>{% endif %}
+    {% if feedback_url %}<section class="meeting-feedback-invitation"><span>{% translate "Post-meeting evaluation" %}</span><h2>{% translate "Share your meeting feedback" %}</h2><p>{% translate "Your feedback helps improve future meetings." %}</p><a class="meeting-primary-button" href="{{ feedback_url }}">{% translate "Open evaluation form" %}</a></section>{% endif %}
+</article></section>
+{% endblock %}
+

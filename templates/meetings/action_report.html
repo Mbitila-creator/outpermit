@@ -1,0 +1,30 @@
+{% extends "meetings/base_meetings.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Meeting action report" %}{% endblock %}
+
+{% block meeting_content %}
+<header class="meeting-page-heading meeting-report-heading">
+    <div><a href="{% url 'meetings:meeting_list' %}">← {% translate "All meetings" %}</a><h1>{% translate "Meeting action report" %}</h1><p>{% translate "Monitor responsible persons, deadlines and implementation progress." %}</p></div>
+    <a class="meeting-primary-button" href="{% url 'meetings:meeting_calendar' %}">{% translate "Meeting calendar" %}</a>
+</header>
+
+<div class="meeting-summary-grid meeting-report-summary">
+    <article><span>{% translate "All actions" %}</span><strong>{{ summary.total }}</strong></article>
+    <article><span>{% translate "Open actions" %}</span><strong>{{ summary.open }}</strong></article>
+    <article><span>{% translate "Completed" %}</span><strong>{{ summary.completed }}</strong></article>
+    <article><span>{% translate "Overdue" %}</span><strong>{{ summary.overdue }}</strong></article>
+</div>
+
+<form method="get" class="meeting-filter-card meeting-report-filter">
+    <label>{% translate "Meeting" %}<select name="meeting"><option value="">{% translate "All meetings" %}</option>{% for meeting in meetings %}<option value="{{ meeting.pk }}" {% if selected_meeting == meeting.pk|stringformat:'s' %}selected{% endif %}>{{ meeting.reference_number }} — {% if request.LANGUAGE_CODE == 'en' %}{{ meeting.event.title_en }}{% else %}{{ meeting.event.title_sw }}{% endif %}</option>{% endfor %}</select></label>
+    <label>{% translate "Status" %}<select name="status"><option value="ALL" {% if selected_status == 'ALL' %}selected{% endif %}>{% translate "All statuses" %}</option><option value="OPEN" {% if selected_status == 'OPEN' %}selected{% endif %}>{% translate "Open actions" %}</option><option value="OVERDUE" {% if selected_status == 'OVERDUE' %}selected{% endif %}>{% translate "Overdue" %}</option>{% for value, label in status_choices %}{% if value != 'OVERDUE' %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endif %}{% endfor %}</select></label>
+    <button type="submit">{% translate "View report" %}</button>
+    <a class="meeting-export-button" href="{% url 'meetings:action_report_csv' %}?meeting={{ selected_meeting }}&amp;status={{ selected_status }}">{% translate "Download CSV" %}</a>
+</form>
+
+<div class="meeting-table-scroll meeting-report-table"><table><thead><tr><th>{% translate "Meeting" %}</th><th>#</th><th>{% translate "Action" %}</th><th>{% translate "Responsible person" %}</th><th>{% translate "Due date" %}</th><th>{% translate "Status" %}</th><th>{% translate "Progress notes" %}</th></tr></thead><tbody>
+{% for action in actions %}<tr><td><a href="{% url 'meetings:meeting_detail' action.meeting.pk %}"><strong>{{ action.meeting.reference_number }}</strong></a><small>{% if request.LANGUAGE_CODE == 'en' %}{{ action.meeting.event.title_en }}{% else %}{{ action.meeting.event.title_sw }}{% endif %}</small></td><td>{{ action.action_number }}</td><td>{% if request.LANGUAGE_CODE == 'en' and action.description_en %}{{ action.description_en }}{% else %}{{ action.description_sw }}{% endif %}</td><td>{{ action.responsible_name }}</td><td>{{ action.due_date|date:"d M Y"|default:"—" }}</td><td>{% if action.is_report_overdue %}<span class="meeting-pill warning">{% translate "Overdue" %}</span>{% else %}<span class="meeting-pill">{{ action.get_status_display }}</span>{% endif %}</td><td>{{ action.progress_notes|default:"—" }}</td></tr>{% empty %}<tr><td colspan="7" class="meeting-empty-cell">{% translate "No action items match the selected filters." %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}
+

@@ -1,0 +1,25 @@
+.review-details-page { min-height: 75vh; padding: 34px 16px 56px; background: #eef3f9; }
+.review-details-container { width: min(100%, 1180px); margin: 0 auto; }
+.review-details-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 26px; border-radius: 16px; background: linear-gradient(135deg,#17365d,#2f75b5); color: #fff; }
+.review-details-header span { font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.review-details-header h1 { margin: 7px 0; color: #fff; }
+.review-details-header p { margin: 0; }
+.review-back-button { padding: 10px 14px; border: 1px solid #fff; border-radius: 8px; color: #fff; font-weight: 750; text-decoration: none; }
+.review-card,.review-decision-card { margin-top: 20px; padding: 22px; border: 1px solid #d7e2ef; border-radius: 14px; background: #fff; }
+.review-card h2,.review-decision-card h2 { margin: 0 0 17px; color: #17365d; }
+.review-summary-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 0; }
+.review-summary-grid div,.review-answer-list div { padding: 13px; border: 1px solid #e0e8f2; border-radius: 9px; background: #f8fafc; }
+.review-summary-grid dt,.review-answer-list dt { color: #607089; font-size: 13px; font-weight: 800; }
+.review-summary-grid dd,.review-answer-list dd { margin: 5px 0 0; color: #26364a; font-weight: 650; }
+.review-answer-list { display: grid; gap: 10px; margin: 0; }
+.review-payment + .review-payment { margin-top: 18px; padding-top: 18px; border-top: 2px solid #e0e8f2; }
+.review-actions { display: flex; align-items: flex-start; gap: 12px; margin-top: 18px; }
+.review-actions form { margin: 0; }
+.review-actions form:last-child { width: min(100%,430px); }
+.review-actions label { display: block; color: #52647c; font-weight: 750; }
+.review-actions textarea { box-sizing: border-box; width: 100%; margin: 6px 0 9px; padding: 10px; border: 1px solid #afbdd0; border-radius: 8px; font: inherit; }
+.review-actions button { min-height: 42px; padding: 9px 15px; border: 0; border-radius: 8px; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.review-approve { background: #21835b; }
+.review-reject { background: #bd3f47; }
+@media(max-width:700px){.review-details-header,.review-actions{align-items:flex-start;flex-direction:column}.review-summary-grid{grid-template-columns:1fr}.review-actions form,.review-actions form:last-child{width:100%}}
+

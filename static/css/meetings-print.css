@@ -1,0 +1,24 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #e9eef5; color: #1f2937; font-family: Arial, Helvetica, sans-serif; }
+.public-header,.public-footer { display: none; }
+.meeting-print-page { width: min(100% - 24px, 1050px); margin: 24px auto 60px; }
+.meeting-print-actions { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.meeting-print-actions a,.meeting-print-actions button { display: inline-flex; min-height: 42px; align-items: center; padding: 9px 14px; border: 0; border-radius: 8px; background: #17365d; color: #fff; font: inherit; font-weight: 800; text-decoration: none; cursor: pointer; }
+.meeting-print-document { padding: 42px; background: #fff; box-shadow: 0 10px 30px rgba(15,41,73,.12); }
+.meeting-print-document > header { padding-bottom: 22px; border-bottom: 3px solid #17365d; }
+.meeting-print-document > header span { color: #2f75b5; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.meeting-print-document > header h1 { margin: 8px 0; color: #17365d; font-size: 32px; }
+.meeting-print-document > header p { margin: 0; font-weight: 800; }
+.meeting-print-meta { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; margin: 22px 0; }
+.meeting-print-meta div { padding: 12px; background: #f3f6fa; }
+.meeting-print-meta dt { color: #66758b; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+.meeting-print-meta dd { margin: 5px 0 0; }
+.meeting-print-document section { margin-top: 26px; }
+.meeting-print-document h2 { padding-bottom: 7px; border-bottom: 1px solid #ccd6e2; color: #17365d; font-size: 20px; }
+.meeting-print-document p,.meeting-print-document li { line-height: 1.55; }
+.meeting-print-document table { width: 100%; border-collapse: collapse; }
+.meeting-print-document th,.meeting-print-document td { padding: 9px; border: 1px solid #ccd6e2; text-align: left; vertical-align: top; }
+.meeting-print-document th { background: #edf2f8; font-size: 11px; text-transform: uppercase; }
+@media (max-width: 700px) { .meeting-print-document { padding: 22px 16px; overflow-x: auto; } .meeting-print-meta { grid-template-columns: 1fr; } .meeting-print-document table { min-width: 650px; } }
+@media print { @page { size: A4; margin: 13mm; } body { background: #fff; font-size: 10.5pt; } .meeting-print-page { width: 100%; margin: 0; } .meeting-print-actions { display: none; } .meeting-print-document { padding: 0; box-shadow: none; } .meeting-print-document section { break-inside: avoid; } .meeting-print-document table { font-size: 9pt; } }
+

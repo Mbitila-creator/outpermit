@@ -1,0 +1,18 @@
+{% load static i18n %}
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ certificate.certificate_number }}</title><link rel="stylesheet" href="{% static 'css/conferences.css' %}?v=20260816a"></head>
+<body class="conference-certificate-body">
+<div class="certificate-toolbar no-print"><button type="button" onclick="window.print()">{% translate "Print / save as PDF" %}</button><a href="{% url 'conferences:certificate_verify' certificate.verification_token %}">{% translate "Verify certificate" %}</a></div>
+<main class="conference-certificate-sheet{% if certificate.is_revoked %} certificate-revoked{% endif %}">
+    <header><img src="{% static 'logo/moest_logo.png' %}" alt="Ministry of Education, Science and Technology logo"><div><strong>UNITED REPUBLIC OF TANZANIA</strong><h1>MINISTRY OF EDUCATION, SCIENCE AND TECHNOLOGY</h1></div></header>
+    <p class="certificate-kicker">{{ certificate.event.code }} · {{ certificate.event.title_en }}</p>
+    <h2>CERTIFICATE OF {{ certificate.get_recipient_type_display|upper }}</h2>
+    <p class="certificate-presented">This certificate is proudly presented to</p>
+    <h3>{{ certificate.recipient_name }}</h3>
+    {% if certificate.institution %}<p class="certificate-institution">{{ certificate.institution }}</p>{% endif %}
+    <p class="certificate-copy">{% if certificate.recipient_type == 'PARTICIPANT' %}for active participation in the conference.{% elif certificate.recipient_type == 'PRESENTER' %}for presenting the paper{% if certificate.paper %} “{{ certificate.paper.title }}”{% endif %} at the conference.{% else %}in recognition of valuable service as a peer reviewer for the conference.{% endif %}</p>
+    {% if certificate.is_revoked %}<div class="certificate-revoked-notice">REVOKED — {{ certificate.revocation_reason }}</div>{% endif %}
+    <footer><div><span>Certificate number</span><strong>{{ certificate.certificate_number }}</strong><small>Issued {{ certificate.issued_at|date:"d F Y" }}</small></div><img src="{% url 'conferences:certificate_qr' certificate.verification_token %}" alt="Certificate verification QR code"><div><span>Scan to verify</span><strong>{% if certificate.is_revoked %}Revoked{% else %}Authentic record{% endif %}</strong></div></footer>
+</main>
+</body></html>
+
+

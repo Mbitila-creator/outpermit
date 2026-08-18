@@ -1,0 +1,11 @@
+{% extends "meetings/base_meetings.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Meeting resources" %}{% endblock %}
+
+{% block meeting_content %}
+<header class="meeting-hero"><div><span>{% translate "Meeting logistics" %}</span><h1>{% translate "Meeting resources" %}</h1><p>{% translate "Maintain reusable equipment and track the quantity available for meeting bookings." %}</p></div><div class="meeting-hero-actions"><a class="meeting-secondary-button" href="{% url 'meetings:meeting_list' %}">← {% translate "All meetings" %}</a>{% if can_manage %}<a class="meeting-primary-button" href="{% url 'meetings:resource_create' %}">＋ {% translate "Add resource" %}</a>{% endif %}</div></header>
+
+<section class="meeting-series-grid">{% for resource in resources %}<article class="meeting-series-card"><div class="meeting-card-kickers"><span>{{ resource.code }}</span><span>{% if resource.is_active %}{% translate "Available" %}{% else %}{% translate "Inactive" %}{% endif %}</span></div><h2>{% if request.LANGUAGE_CODE == 'en' %}{{ resource.name_en }}{% else %}{{ resource.name_sw }}{% endif %}</h2><p>{% if request.LANGUAGE_CODE == 'en' and resource.description_en %}{{ resource.description_en }}{% else %}{{ resource.description_sw }}{% endif %}</p><dl><div><dt>{% translate "Total quantity" %}</dt><dd>{{ resource.total_quantity }}</dd></div><div><dt>{% translate "Bookings" %}</dt><dd>{{ resource.booking_count }}</dd></div><div><dt>{% translate "Storage location" %}</dt><dd>{{ resource.storage_location|default:"—" }}</dd></div></dl>{% if can_manage %}<a href="{% url 'meetings:resource_edit' resource.pk %}">{% translate "Edit resource" %} →</a>{% endif %}</article>{% empty %}<div class="meeting-empty"><h2>{% translate "No meeting resources found" %}</h2><p>{% translate "Add equipment such as projectors, microphones, laptops, or video-conferencing kits." %}</p></div>{% endfor %}</section>
+{% endblock %}
+

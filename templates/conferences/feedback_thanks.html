@@ -1,0 +1,8 @@
+{% extends "events/base_public.html" %}
+{% load static i18n %}
+
+{% block title %}{% translate "Thank you for your feedback" %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/conferences.css' %}?v=20260816b">{% endblock %}
+
+{% block content %}<main class="conference-page conference-feedback-thanks"><section class="conference-panel"><div class="conference-thanks-mark">✓</div><span>{{ feedback.event.code }}</span><h1>{% translate "Thank you for your feedback" %}</h1><p>{% translate "Your conference evaluation has been received successfully and will support continuous improvement." %}</p><dl><div><dt>{% translate "Reference" %}</dt><dd>{{ feedback.reference_number }}</dd></div><div><dt>{% translate "Evaluation" %}</dt><dd>{% if feedback.session %}{{ feedback.session.title }}{% else %}{% translate "Overall conference" %}{% endif %}</dd></div></dl><a class="conference-primary" href="{% url 'conferences:public_programme' feedback.event.slug %}">{% translate "Return to conference programme" %}</a></section></main>{% endblock %}
+

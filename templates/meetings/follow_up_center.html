@@ -1,0 +1,43 @@
+{% extends "meetings/base_meetings.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Meeting follow-up centre" %}{% endblock %}
+
+{% block meeting_content %}
+<header class="meeting-detail-hero meeting-follow-up-hero">
+    <div><a href="{% url 'meetings:meeting_list' %}">← {% translate "All meetings" %}</a><span>{% translate "Notifications and escalation" %}</span><h1>{% translate "Meeting follow-up centre" %}</h1><p>{% translate "Coordinate upcoming reminders, overdue action escalations and failed email follow-up from one workspace." %}</p></div>
+    <div class="meeting-hero-actions"><a class="meeting-secondary-button" href="{% url 'meetings:action_report' %}">{% translate "Action report" %}</a>{% if can_manage and summary.overdue %}<form method="post" action="{% url 'meetings:action_escalation_bulk_send' %}">{% csrf_token %}<button class="meeting-danger-button" type="submit">{% translate "Escalate all overdue actions" %}</button></form>{% endif %}</div>
+</header>
+
+<div class="meeting-summary-grid meeting-follow-up-summary">
+    <article><span>{% translate "Meetings in next 7 days" %}</span><strong>{{ summary.upcoming }}</strong></article>
+    <article><span>{% translate "Actions due within 7 days" %}</span><strong>{{ summary.due_soon }}</strong></article>
+    <article><span>{% translate "Overdue actions" %}</span><strong>{{ summary.overdue }}</strong></article>
+    <article><span>{% translate "Failed email deliveries" %}</span><strong>{{ summary.failed }}</strong></article>
+</div>
+
+<section class="meeting-dashboard-panel meeting-follow-up-panel">
+    <div class="meeting-section-heading"><div><span>{% translate "Before the meeting" %}</span><h2>{% translate "Upcoming meetings and participant reminders" %}</h2></div></div>
+    <div class="meeting-table-scroll"><table><thead><tr><th>{% translate "Meeting" %}</th><th>{% translate "Date" %}</th><th>{% translate "Confirmed" %}</th><th>{% translate "Tentative" %}</th><th>{% translate "Awaiting response" %}</th><th>{% translate "Reminders sent" %}</th><th>{% translate "Follow-up" %}</th></tr></thead><tbody>
+    {% for meeting in upcoming_meetings %}<tr><td><a href="{% url 'meetings:meeting_detail' meeting.pk %}"><strong>{{ meeting.reference_number }}</strong><small>{% if request.LANGUAGE_CODE == 'en' %}{{ meeting.event.title_en }}{% else %}{{ meeting.event.title_sw }}{% endif %}</small></a></td><td>{{ meeting.event.starts_at|date:"d M Y, H:i" }}</td><td>{{ meeting.confirmed_total }}</td><td>{{ meeting.tentative_total }}</td><td>{{ meeting.pending_total }}</td><td>{{ meeting.reminder_sent_total }}</td><td>{% if can_manage and meeting.confirmed_total or can_manage and meeting.tentative_total %}<form method="post" action="{% url 'meetings:meeting_reminder_bulk_send' meeting.pk %}">{% csrf_token %}<button class="meeting-link-button meeting-reminder-button" type="submit">{% translate "Send meeting reminder" %}</button></form>{% else %}—{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="7" class="meeting-empty-cell">{% translate "No meetings are scheduled within the next seven days." %}</td></tr>{% endfor %}
+    </tbody></table></div>
+</section>
+
+<div class="meeting-follow-up-grid">
+    <section class="meeting-dashboard-panel meeting-follow-up-panel">
+        <div class="meeting-section-heading"><div><span>{% translate "Immediate attention" %}</span><h2>{% translate "Overdue actions" %}</h2></div></div>
+        <div class="meeting-follow-up-list">{% for action in overdue_actions %}<article class="meeting-follow-up-item overdue"><div><span>{{ action.meeting.reference_number }} · #{{ action.action_number }}</span><h3>{% if request.LANGUAGE_CODE == 'en' and action.description_en %}{{ action.description_en }}{% else %}{{ action.description_sw }}{% endif %}</h3><p>{{ action.responsible_name }} · {% blocktranslate count days=action.days_overdue %}{{ days }} day overdue{% plural %}{{ days }} days overdue{% endblocktranslate %}</p><small>{% translate "Reminders" %}: {{ action.reminder_count }} · {% translate "Escalations" %}: {{ action.escalation_count }} · {% translate "Last contact" %}: {{ action.last_contact_at|date:"d M Y, H:i"|default:"—" }}</small></div>{% if can_manage %}<form method="post" action="{% url 'meetings:action_escalation_send' action.meeting.pk action.pk %}">{% csrf_token %}<button class="meeting-danger-button" type="submit">{% translate "Send escalation" %}</button></form>{% endif %}</article>{% empty %}<div class="meeting-empty-cell">{% translate "There are no overdue actions." %}</div>{% endfor %}</div>
+    </section>
+    <section class="meeting-dashboard-panel meeting-follow-up-panel">
+        <div class="meeting-section-heading"><div><span>{% translate "Plan ahead" %}</span><h2>{% translate "Actions due within 7 days" %}</h2></div></div>
+        <div class="meeting-follow-up-list">{% for action in due_soon_actions %}<article class="meeting-follow-up-item"><div><span>{{ action.meeting.reference_number }} · #{{ action.action_number }}</span><h3>{% if request.LANGUAGE_CODE == 'en' and action.description_en %}{{ action.description_en }}{% else %}{{ action.description_sw }}{% endif %}</h3><p>{{ action.responsible_name }} · {% blocktranslate count days=action.days_until_due %}Due today{% plural %}Due in {{ days }} days{% endblocktranslate %}</p><small>{% translate "Reminders" %}: {{ action.reminder_count }} · {% translate "Last contact" %}: {{ action.last_contact_at|date:"d M Y, H:i"|default:"—" }}</small></div></article>{% empty %}<div class="meeting-empty-cell">{% translate "There are no actions due within the next seven days." %}</div>{% endfor %}</div>
+    </section>
+</div>
+
+<section class="meeting-dashboard-panel meeting-follow-up-panel">
+    <div class="meeting-section-heading"><div><span>{% translate "Delivery control" %}</span><h2>{% translate "Failed email deliveries" %}</h2></div></div>
+    <div class="meeting-table-scroll"><table><thead><tr><th>{% translate "Sent at" %}</th><th>{% translate "Meeting" %}</th><th>{% translate "Communication" %}</th><th>{% translate "Recipient" %}</th><th>{% translate "Failure reason" %}</th></tr></thead><tbody>{% for communication in failed_deliveries %}<tr><td>{{ communication.sent_at|date:"d M Y, H:i" }}</td><td><a href="{% url 'meetings:meeting_detail' communication.meeting.pk %}">{{ communication.meeting.reference_number }}</a></td><td>{{ communication.get_communication_type_display }}</td><td><strong>{{ communication.recipient_name }}</strong><small>{{ communication.recipient_email }}</small></td><td>{{ communication.error_message|default:"—" }}</td></tr>{% empty %}<tr><td colspan="5" class="meeting-empty-cell">{% translate "No failed email deliveries are recorded." %}</td></tr>{% endfor %}</tbody></table></div>
+</section>
+{% endblock %}
+

@@ -1,0 +1,21 @@
+.evaluation-report-page { padding: 36px 0 64px; }
+.evaluation-report-container { width: min(1180px, calc(100% - 28px)); margin: 0 auto; }
+.evaluation-report-heading, .evaluation-report-filter, .evaluation-report-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.evaluation-report-heading h1 { margin: 5px 0; }
+.evaluation-report-filter, .evaluation-response-table { margin-top: 24px; padding: 20px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; box-shadow: 0 7px 22px rgba(15, 23, 42, .07); }
+.evaluation-report-filter label { font-weight: 800; }
+.evaluation-report-filter select { min-width: min(100%, 430px); min-height: 48px; padding: 8px 12px; border: 1px solid #b9c5d4; border-radius: 9px; background: #fff; font: inherit; }
+.evaluation-summary-grid, .evaluation-rating-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 24px; }
+.evaluation-rating-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.evaluation-summary-grid article, .evaluation-rating-grid article { padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
+.evaluation-summary-grid span, .evaluation-summary-grid strong, .evaluation-rating-grid span, .evaluation-rating-grid strong, .evaluation-rating-grid small { display: block; }
+.evaluation-summary-grid span, .evaluation-rating-grid span, .evaluation-rating-grid small { color: var(--muted); }
+.evaluation-summary-grid strong, .evaluation-rating-grid strong { margin: 8px 0; color: var(--primary); font-size: 30px; }
+.evaluation-report-actions { justify-content: flex-start; margin-top: 22px; }
+.evaluation-table-scroll { overflow-x: auto; }
+.evaluation-response-table table { width: 100%; border-collapse: collapse; }
+.evaluation-response-table th, .evaluation-response-table td { min-width: 170px; padding: 13px 11px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+.evaluation-response-table th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+.evaluation-empty { margin-top: 24px; padding: 20px; border-radius: 12px; background: #fff8df; }
+@media (max-width: 760px) { .evaluation-rating-grid { grid-template-columns: 1fr; } .evaluation-report-filter { align-items: stretch; flex-direction: column; } }
+

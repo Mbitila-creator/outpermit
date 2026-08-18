@@ -1,0 +1,20 @@
+{% extends "meetings/base_meetings.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Meeting series" %}{% endblock %}
+
+{% block meeting_content %}
+<header class="meeting-hero">
+    <div><span>{% translate "Reusable meeting templates" %}</span><h1>{% translate "Meeting series" %}</h1><p>{% translate "Standardize recurring meetings and schedule each occurrence quickly." %}</p></div>
+    <div class="meeting-hero-actions"><a class="meeting-secondary-button" href="{% url 'meetings:meeting_list' %}">{% translate "All meetings" %}</a>{% if can_manage %}<a class="meeting-primary-button" href="{% url 'meetings:series_create' %}">＋ {% translate "Create series" %}</a>{% endif %}</div>
+</header>
+
+<section class="meeting-series-grid">
+{% for series in series_list %}
+    <article class="meeting-series-card"><div class="meeting-card-kickers"><span>{{ series.code }}</span><span>{{ series.get_frequency_display }}</span>{% if not series.is_active %}<span>{% translate "Inactive" %}</span>{% endif %}</div><h2>{% if request.LANGUAGE_CODE == 'en' %}{{ series.name_en }}{% else %}{{ series.name_sw }}{% endif %}</h2><dl><div><dt>{% translate "Meeting type" %}</dt><dd>{{ series.get_meeting_type_display }}</dd></div><div><dt>{% translate "Chairperson" %}</dt><dd>{{ series.chairperson_name }}</dd></div><div><dt>{% translate "Occurrences" %}</dt><dd>{{ series.occurrence_count }}</dd></div><div><dt>{% translate "Default duration" %}</dt><dd>{{ series.default_duration_minutes }} {% translate "minutes" %}</dd></div></dl><a href="{% url 'meetings:series_detail' series.pk %}">{% translate "Open series" %} →</a></article>
+{% empty %}
+    <div class="meeting-empty"><h2>{% translate "No meeting series found" %}</h2><p>{% translate "Create a series for meetings that follow the same structure." %}</p></div>
+{% endfor %}
+</section>
+{% endblock %}
+

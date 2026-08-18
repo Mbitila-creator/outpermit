@@ -1,0 +1,120 @@
+{% extends "events/base_public.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% translate "Attendance and certificate reports" %}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/checkin.css' %}">
+{% endblock %}
+
+{% block content %}
+    <section class="report-page">
+        <div class="report-container">
+            <div class="report-heading">
+                <div>
+                    <span class="section-kicker">{% translate "Event reporting" %}</span>
+                    <h1>{% translate "Attendance and certificate reports" %}</h1>
+                    <p>{% translate "Review event participation and download spreadsheet-ready reports." %}</p>
+                </div>
+                <a href="{% url 'system_home' %}" class="secondary-button">
+                    {% translate "Return to workspace" %}
+                </a>
+            </div>
+
+            <form method="get" class="report-filter-card">
+                <label for="report-event">{% translate "Select event" %}</label>
+                <select id="report-event" name="event">
+                    {% for event in events %}
+                        <option value="{{ event.pk }}" {% if selected_event.pk == event.pk %}selected{% endif %}>
+                            {{ event.code }} — {% if request.LANGUAGE_CODE == "en" %}{{ event.title_en }}{% else %}{{ event.title_sw }}{% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="primary-button">{% translate "View report" %}</button>
+            </form>
+
+            {% if selected_event and summary %}
+                <div class="report-event-title">
+                    <h2>{% if request.LANGUAGE_CODE == "en" %}{{ selected_event.title_en }}{% else %}{{ selected_event.title_sw }}{% endif %}</h2>
+                    <span>{{ selected_event.code }}</span>
+                </div>
+
+                <div class="report-summary-grid">
+                    <a href="?event={{ selected_event.pk }}&amp;filter=all" class="report-summary-card {% if selected_filter == 'all' %}is-selected{% endif %}" {% if selected_filter == 'all' %}aria-current="true"{% endif %}><span>{% translate "Registrations" %}</span><strong>{{ summary.registered }}</strong></a>
+                    <a href="?event={{ selected_event.pk }}&amp;filter=approved" class="report-summary-card {% if selected_filter == 'approved' %}is-selected{% endif %}" {% if selected_filter == 'approved' %}aria-current="true"{% endif %}><span>{% translate "Approved" %}</span><strong>{{ summary.approved }}</strong></a>
+                    <a href="?event={{ selected_event.pk }}&amp;filter=checked_in" class="report-summary-card {% if selected_filter == 'checked_in' %}is-selected{% endif %}" {% if selected_filter == 'checked_in' %}aria-current="true"{% endif %}><span>{% translate "Checked in" %}</span><strong>{{ summary.checked_in }}</strong></a>
+                    <a href="?event={{ selected_event.pk }}&amp;filter=not_checked_in" class="report-summary-card {% if selected_filter == 'not_checked_in' %}is-selected{% endif %}" {% if selected_filter == 'not_checked_in' %}aria-current="true"{% endif %}><span>{% translate "Not checked in" %}</span><strong>{{ summary.not_checked_in }}</strong></a>
+                    <a href="?event={{ selected_event.pk }}&amp;filter=attendance_rate" class="report-summary-card {% if selected_filter == 'attendance_rate' %}is-selected{% endif %}" {% if selected_filter == 'attendance_rate' %}aria-current="true"{% endif %}><span>{% translate "Attendance rate" %}</span><strong>{{ summary.attendance_rate }}%</strong></a>
+                    <a href="?event={{ selected_event.pk }}&amp;filter=certificate_eligible" class="report-summary-card {% if selected_filter == 'certificate_eligible' %}is-selected{% endif %}" {% if selected_filter == 'certificate_eligible' %}aria-current="true"{% endif %}><span>{% translate "Certificate eligible" %}</span><strong>{{ summary.certificate_eligible }}</strong></a>
+                    <a href="?event={{ selected_event.pk }}&amp;filter=pending" class="report-summary-card {% if selected_filter == 'pending' %}is-selected{% endif %}" {% if selected_filter == 'pending' %}aria-current="true"{% endif %}><span>{% translate "Pending" %}</span><strong>{{ summary.pending }}</strong></a>
+                    <a href="?event={{ selected_event.pk }}&amp;filter=rejected" class="report-summary-card {% if selected_filter == 'rejected' %}is-selected{% endif %}" {% if selected_filter == 'rejected' %}aria-current="true"{% endif %}><span>{% translate "Rejected" %}</span><strong>{{ summary.rejected }}</strong></a>
+                </div>
+
+                <div class="report-downloads">
+                    <a class="primary-button" href="{% url 'checkin:reports_csv' %}?event={{ selected_event.pk }}&amp;report=attendance">
+                        {% translate "Download attendance CSV" %}
+                    </a>
+                    {% if selected_event.certificate_enabled %}
+                        <a class="secondary-button" href="{% url 'checkin:reports_csv' %}?event={{ selected_event.pk }}&amp;report=certificates">
+                            {% translate "Download certificate CSV" %}
+                        </a>
+                    {% endif %}
+                </div>
+
+                <div class="report-table-card">
+                    <div class="report-table-heading">
+                        <strong>{% translate "Filtered participants" %}: {{ filtered_total }}</strong>
+                        {% if selected_filter != "all" %}
+                            <a href="?event={{ selected_event.pk }}&amp;filter=all">{% translate "Clear filter" %}</a>
+                        {% endif %}
+                    </div>
+                    <div class="report-table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>{% translate "Reference number" %}</th>
+                                    <th>{% translate "Representative" %}</th>
+                                    <th>{% translate "Organization" %}</th>
+                                    <th>{% translate "Status" %}</th>
+                                    <th>{% translate "Attendance" %}</th>
+                                    <th>{% translate "Certificate authorized" %}</th>
+                                    <th>{% translate "Checked in at" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for submission in rows %}
+                                    <tr>
+                                        <td>{{ submission.reference_number }}</td>
+                                        <td>{{ submission.badge_display_name }}</td>
+                                        <td>{{ submission.badge_organization|default:"—" }}</td>
+                                        <td>{{ submission.get_review_status_display }}</td>
+                                        <td>
+                                            {% if submission.check_in %}
+                                                <span class="report-status report-status-success">{% translate "Checked in" %}</span>
+                                            {% else %}
+                                                <span class="report-status report-status-muted">{% translate "Not checked in" %}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if submission.certificate_record.status == "AUTHORIZED" %}
+                                                <span class="report-status report-status-success">{% translate "Yes" %}</span>
+                                            {% else %}
+                                                <span class="report-status report-status-muted">{% translate "No" %}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{% if submission.check_in %}{{ submission.check_in.checked_in_at|date:"d M Y, H:i" }}{% else %}—{% endif %}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr><td colspan="7">{% translate "No registrations are available for this event." %}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% else %}
+                <div class="checkin-alert checkin-alert-warning">{% translate "No events are available for reporting." %}</div>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}
