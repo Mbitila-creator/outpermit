@@ -1,4 +1,5 @@
 from datetime import timedelta
+from uuid import uuid4
 
 from django.contrib.auth.models import User
 from django.contrib import messages
@@ -169,4 +170,28 @@ class DepartmentEventAccessTests(TestCase):
         self.assertNotIn(
             b"User account updated successfully.",
             response.content,
+        )
+
+    def test_old_badge_qr_url_redirects_to_integrated_check_in(self):
+        participant_token = uuid4()
+
+        response = self.client.get(
+            f"/en/check-in/{participant_token}/?auto=1",
+        )
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(
+            response["Location"],
+            f"/event-management/check-in/{participant_token}/?auto=1",
+        )
+
+    def test_old_participant_portal_url_redirects_with_same_token(self):
+        participant_token = uuid4()
+
+        response = self.client.get(f"/sw/participants/{participant_token}/")
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(
+            response["Location"],
+            f"/event-management/participants/{participant_token}/",
         )
