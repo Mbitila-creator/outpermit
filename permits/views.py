@@ -1639,6 +1639,10 @@ def system_home(request):
     """
     System home page with standardized role-aware navigation.
     """
+    # The module launcher is not the destination for workflow feedback.
+    # Consume any notification left by a previous page so it cannot appear on
+    # an unrelated dashboard later.
+    list(messages.get_messages(request))
     role = _get_user_role(request.user)
 
     context = {

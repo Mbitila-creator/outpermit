@@ -20,6 +20,25 @@
             box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
         }
 
+        .messages {
+            max-width: 1200px;
+            margin: 0 auto 18px;
+        }
+
+        .message {
+            padding: 12px 14px;
+            border: 1px solid #b7dfc7;
+            border-radius: 8px;
+            background: #eaf7ef;
+            color: #185c37;
+        }
+
+        .message.error {
+            border-color: #efb8bd;
+            background: #fdecee;
+            color: #842029;
+        }
+
         h2, h3 {
             margin-top: 0;
         }
@@ -249,6 +268,13 @@
 </head>
 
 <body>
+{% if messages %}
+<div class="messages" role="status" aria-live="polite">
+    {% for message in messages %}
+    <div class="message {{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+</div>
+{% endif %}
 <div class="card">
     <h2>User Management</h2>
 

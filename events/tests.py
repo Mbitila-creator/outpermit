@@ -1,7 +1,11 @@
 from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.contrib import messages
+from django.contrib.messages.middleware import MessageMiddleware
+from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import TestCase
+from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
 
@@ -12,6 +16,7 @@ from .auth import EventRole
 from .models import Event, EventCategory
 from forms_builder.models import EventForm
 from conferences.views import _conference_registration_forms
+from permits.views import system_home
 
 
 class DepartmentEventAccessTests(TestCase):
@@ -143,3 +148,25 @@ class DepartmentEventAccessTests(TestCase):
         user.profile.role = "REGISTRATION_OFFICER"
         user.profile.save(update_fields=["role"])
         self.assertEqual(user.role, EventRole.REGISTRATION_OFFICER)
+
+    def test_system_home_discards_messages_from_unrelated_workflows(self):
+        admin = User.objects.create_superuser(
+            username="message-admin",
+            email="messages@example.test",
+            password="safe-password",
+        )
+        request = RequestFactory().get("/")
+        SessionMiddleware(lambda response: response).process_request(request)
+        request.session.save()
+        MessageMiddleware(lambda response: response).process_request(request)
+        request.user = admin
+        messages.success(request, "User account updated successfully.")
+
+        response = system_home(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(request._messages.used)
+        self.assertNotIn(
+            b"User account updated successfully.",
+            response.content,
+        )
