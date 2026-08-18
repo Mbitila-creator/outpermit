@@ -29,9 +29,14 @@ class SpecialEventParticipantImportForm(forms.Form):
         widget=forms.ClearableFileInput(attrs={"accept": ".xlsx"}),
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["event"].queryset = special_event_queryset()
+        queryset = special_event_queryset()
+        if user is not None:
+            from .access import events_visible_to
+
+            queryset = queryset.filter(pk__in=events_visible_to(user))
+        self.fields["event"].queryset = queryset
 
     def clean_event(self):
         event = self.cleaned_data["event"]
@@ -48,4 +53,3 @@ class SpecialEventParticipantImportForm(forms.Form):
         if workbook.size > 5 * 1024 * 1024:
             raise ValidationError("The Excel file must not exceed 5 MB.")
         return workbook
-
