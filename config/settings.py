@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -147,10 +148,30 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 
-# Email settings (development)
-# Emails will print in terminal/console for testing notifications
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-DEFAULT_FROM_EMAIL = "noreply@permit.local"
+# Email notifications default to the console locally. Production can use SMTP
+# or the bundled Brevo HTTPS backend entirely through environment variables.
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL",
+    "OutPermit Event Management <noreply@localhost>",
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() in {
+    "1", "true", "yes", "on",
+}
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "15"))
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+BREVO_API_URL = os.getenv(
+    "BREVO_API_URL",
+    "https://api.brevo.com/v3/smtp/email",
+)
+BREVO_TIMEOUT = int(os.getenv("BREVO_TIMEOUT", str(EMAIL_TIMEOUT)))
 
 
 # File upload limits
@@ -169,8 +190,8 @@ LOGIN_REDIRECT_URL = '/home/'
 LOGOUT_REDIRECT_URL = '/'
 
 # Used when Event Management generates public verification and QR links.
-PUBLIC_BASE_URL = ""
-REMINDER_SCHEDULER_TOKEN = ""
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
+REMINDER_SCHEDULER_TOKEN = os.getenv("REMINDER_SCHEDULER_TOKEN", "")
 
 LANGUAGES = [
     ("sw", "Kiswahili"),
