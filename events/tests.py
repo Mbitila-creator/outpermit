@@ -15,7 +15,7 @@ from permits.models import Department
 from .access import events_visible_to
 from .auth import EventRole
 from .models import Event, EventCategory
-from forms_builder.models import EventForm
+from forms_builder.models import EventForm, FormSubmission
 from conferences.views import _conference_registration_forms
 from permits.views import system_home
 
@@ -195,6 +195,38 @@ class DepartmentEventAccessTests(TestCase):
             response["Location"],
             f"/event-management/participants/{participant_token}/",
         )
+
+    def test_conference_evaluation_is_available_in_participant_portal(self):
+        registration_form = EventForm.objects.create(
+            event=self.dsti_event,
+            name_sw="Usajili wa NESIF",
+            name_en="NESIF registration",
+            form_type=EventForm.FormType.REGISTRATION,
+            is_active=True,
+        )
+        submission = FormSubmission.objects.create(
+            event_form=registration_form,
+            submitter_email="participant@example.test",
+            is_complete=True,
+            is_active=True,
+        )
+
+        response = self.client.get(
+            reverse(
+                "forms_builder:participant_portal",
+                kwargs={"participant_token": submission.participant_token},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse(
+                "conferences:feedback_submit",
+                kwargs={"event_slug": self.dsti_event.slug},
+            ),
+        )
+        self.assertContains(response, "Conference feedback and evaluation")
 
     def test_event_administrator_sees_complete_operations_workspace(self):
         user = self._staff("event-admin", self.dsti)

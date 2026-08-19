@@ -1069,6 +1069,7 @@ def participant_portal(request, participant_token):
     submission = get_object_or_404(
         FormSubmission.objects.select_related(
             "event_form__event",
+            "event_form__event__category",
             "event_form__event__venue",
             "check_in",
             "booth_assignment",
@@ -1118,6 +1119,7 @@ def participant_portal(request, participant_token):
             "certificate_record": certificate_record,
             "booth": getattr(submission, "booth_assignment", None),
             "evaluation_form": evaluation_form,
+            "conference_feedback_available": event.category.is_conference,
             "selected_conference_sessions": selected_conference_sessions,
         },
     )
