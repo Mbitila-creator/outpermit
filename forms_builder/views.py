@@ -751,9 +751,11 @@ def public_event_form(request, event_slug, form_slug):
                         "message": _(
                             "You have already submitted this evaluation."
                         ),
-                        "redirect_url": (
-                            f"/{language_code}/submissions/"
-                            f"{previous_submission.reference_number}/success/"
+                        "redirect_url": reverse(
+                            "forms_builder:submission_success",
+                            kwargs={
+                                "reference_number": previous_submission.reference_number,
+                            },
                         ),
                     },
                     status=409,
@@ -974,9 +976,9 @@ def public_event_form(request, event_slug, form_slug):
                 request=request,
             )
 
-        success_url = (
-            f"/{language_code}/submissions/"
-            f"{submission.reference_number}/success/"
+        success_url = reverse(
+            "forms_builder:submission_success",
+            kwargs={"reference_number": submission.reference_number},
         )
         recent_submissions = request.session.get("recent_submissions", {})
         recent_submissions[submission.reference_number] = str(
