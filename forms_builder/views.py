@@ -57,6 +57,46 @@ EVALUATION_REPORT_ROLES = {
 }
 
 
+def normalize_registration_email(value):
+    return "".join((value or "").casefold().split())
+
+
+def normalize_registration_phone(value):
+    digits = re.sub(r"\D", "", value or "")
+    if digits.startswith("0"):
+        return f"255{digits[1:]}"
+    return digits
+
+
+def registration_identity_conflicts(candidates, email, phone):
+    """Return a duplicate and the identity fields that conflict."""
+    normalized_email = normalize_registration_email(email)
+    normalized_phone = normalize_registration_phone(phone)
+    duplicate = None
+    email_conflict = False
+    phone_conflict = False
+
+    for candidate in candidates:
+        candidate_email = normalize_registration_email(candidate.submitter_email)
+        candidate_phone = normalize_registration_phone(candidate.submitter_phone)
+        matches_email = bool(
+            normalized_email
+            and candidate_email
+            and normalized_email == candidate_email
+        )
+        matches_phone = bool(
+            normalized_phone
+            and candidate_phone
+            and normalized_phone == candidate_phone
+        )
+        if matches_email or matches_phone:
+            duplicate = duplicate or candidate
+            email_conflict = email_conflict or matches_email
+            phone_conflict = phone_conflict or matches_phone
+
+    return duplicate, email_conflict, phone_conflict
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def run_due_reminders(request):
@@ -808,8 +848,6 @@ def public_event_form(request, event_slug, form_slug):
 
         email_answers = []
         phone_answers = []
-        name_answers = []
-
         for answer_data in validated_answers:
             question = answer_data["question"]
 
@@ -829,12 +867,6 @@ def public_event_form(request, event_slug, form_slug):
                     (question, answer_data.get("text_value", ""))
                 )
 
-            labels = f"{question.label_en} {question.label_sw}".casefold()
-            if "full name" in labels or "jina kamili" in labels:
-                name_answers.append(
-                    (question, answer_data.get("text_value", ""))
-                )
-
         def representative_answer(answers):
             for question, value in answers:
                 labels = f"{question.label_en} {question.label_sw}".lower()
@@ -844,56 +876,41 @@ def public_event_form(request, event_slug, form_slug):
 
         submitter_email = representative_answer(email_answers)
         submitter_phone = representative_answer(phone_answers)
-        submitter_name = representative_answer(name_answers)
-
-        def normalize_text(value):
-            return " ".join(value.casefold().split())
-
-        def normalize_phone(value):
-            digits = re.sub(r"\D", "", value)
-            if digits.startswith("0"):
-                return f"255{digits[1:]}"
-            return digits
-
-        normalized_identity = (
-            normalize_text(submitter_name),
-            normalize_text(submitter_email),
-            normalize_phone(submitter_phone),
-        )
-
         def find_duplicate_submission():
-            if not all(normalized_identity):
-                return None
-            for candidate in FormSubmission.objects.filter(
+            candidates = FormSubmission.objects.filter(
                 event_form=event_form,
                 is_active=True,
                 is_complete=True,
             ).only(
-                "id", "badge_name", "submitter_email", "submitter_phone"
-            ):
-                candidate_identity = (
-                    normalize_text(candidate.badge_name),
-                    normalize_text(candidate.submitter_email),
-                    normalize_phone(candidate.submitter_phone),
-                )
-                if candidate_identity == normalized_identity:
-                    return candidate
-            return None
+                "id", "submitter_email", "submitter_phone"
+            )
+            return registration_identity_conflicts(
+                candidates,
+                submitter_email,
+                submitter_phone,
+            )
 
         with transaction.atomic():
             EventForm.objects.select_for_update().get(pk=event_form.pk)
-            duplicate_submission = find_duplicate_submission()
+            (
+                duplicate_submission,
+                email_conflict,
+                phone_conflict,
+            ) = find_duplicate_submission()
             if duplicate_submission is not None:
                 duplicate_message = _(
-                    "A registration with this name, email address and phone "
-                    "number already exists. Use the registration-status page "
-                    "to access your existing registration."
+                    "A registration with this email address or phone number "
+                    "already exists. Use the registration-status page to "
+                    "access your existing registration."
                 )
+                conflicting_answers = []
+                if email_conflict:
+                    conflicting_answers.extend(email_answers)
+                if phone_conflict:
+                    conflicting_answers.extend(phone_answers)
                 identity_errors = {
                     str(question.pk): duplicate_message
-                    for question, _value in (
-                        name_answers + email_answers + phone_answers
-                    )
+                    for question, _value in conflicting_answers
                 }
                 return JsonResponse(
                     {
