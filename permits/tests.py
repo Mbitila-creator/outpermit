@@ -1,13 +1,13 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
 
-from events.auth import EventRole, event_role
+from events.auth import EventRole, event_role, has_event_role
 from finance.views import get_user_role as get_finance_role
 from tasks.views import _get_user_role as get_task_role
 
 from .forms import AdminUserUpdateForm
 from .models import Department, ModuleRoleAssignment
-from .module_roles import set_module_role
+from .module_roles import set_module_roles
 
 
 class ModuleRoleAssignmentTests(TestCase):
@@ -19,22 +19,22 @@ class ModuleRoleAssignmentTests(TestCase):
         self.user.profile.save()
 
     def test_each_module_uses_its_assigned_role_without_changing_primary_role(self):
-        set_module_role(
+        set_module_roles(
             self.user,
             ModuleRoleAssignment.Module.EVENT,
-            "EVENT_ADMIN",
+            ["EVENT_ADMIN"],
             self.department,
         )
-        set_module_role(
+        set_module_roles(
             self.user,
             ModuleRoleAssignment.Module.FINANCE,
-            "ACCOUNTANT",
+            ["ACCOUNTANT"],
             self.department,
         )
-        set_module_role(
+        set_module_roles(
             self.user,
             ModuleRoleAssignment.Module.TASK,
-            "HEAD_OF_UNIT",
+            ["HEAD_OF_UNIT"],
             self.department,
         )
 
@@ -44,17 +44,11 @@ class ModuleRoleAssignmentTests(TestCase):
         self.user.profile.refresh_from_db()
         self.assertEqual(self.user.profile.role, "REQUESTER")
 
-    def test_only_one_role_is_kept_per_module(self):
-        set_module_role(
+    def test_multiple_roles_are_kept_in_the_same_module(self):
+        set_module_roles(
             self.user,
             ModuleRoleAssignment.Module.EVENT,
-            "REPORT_OFFICER",
-            self.department,
-        )
-        set_module_role(
-            self.user,
-            ModuleRoleAssignment.Module.EVENT,
-            "EVENT_ADMIN",
+            ["REPORT_OFFICER", "ATTENDANCE_OFFICER"],
             self.department,
         )
 
@@ -62,8 +56,18 @@ class ModuleRoleAssignmentTests(TestCase):
             user=self.user,
             module=ModuleRoleAssignment.Module.EVENT,
         )
-        self.assertEqual(assignments.count(), 1)
-        self.assertEqual(assignments.get().role_code, "EVENT_ADMIN")
+        self.assertEqual(assignments.count(), 2)
+        self.assertEqual(
+            set(assignments.values_list("role_code", flat=True)),
+            {"REPORT_OFFICER", "ATTENDANCE_OFFICER"},
+        )
+        self.assertTrue(
+            has_event_role(self.user, {EventRole.ATTENDANCE_OFFICER})
+        )
+        self.assertTrue(has_event_role(self.user, {EventRole.REPORT_OFFICER}))
+        self.assertFalse(
+            has_event_role(self.user, {EventRole.REGISTRATION_OFFICER})
+        )
 
     def test_module_role_requires_a_department(self):
         form = AdminUserUpdateForm(
@@ -79,9 +83,9 @@ class ModuleRoleAssignmentTests(TestCase):
                 "unit_name": "",
                 "head_of_unit": "",
                 "role": "REQUESTER",
-                "event_role": "EVENT_ADMIN",
-                "finance_role": "",
-                "task_role": "",
+                "event_role": ["EVENT_ADMIN"],
+                "finance_role": [],
+                "task_role": [],
                 "is_staff": "",
             }
         )

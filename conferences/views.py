@@ -19,7 +19,7 @@ from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from events.auth import User
+from events.auth import User, has_event_role
 from events.models import Event
 from events.access import events_visible_to
 from forms_builder.models import EventForm, FormSubmission, NotificationLog
@@ -87,7 +87,7 @@ def _require_access(user):
     if not (
         user.is_authenticated
         and user.is_active
-        and (user.is_superuser or user.role in CONFERENCE_VIEW_ROLES)
+        and (user.is_superuser or has_event_role(user, CONFERENCE_VIEW_ROLES))
     ):
         raise PermissionDenied
 
@@ -96,7 +96,7 @@ def _require_manager(user):
     if not (
         user.is_authenticated
         and user.is_active
-        and (user.is_superuser or user.role in CONFERENCE_MANAGER_ROLES)
+        and (user.is_superuser or has_event_role(user, CONFERENCE_MANAGER_ROLES))
     ):
         raise PermissionDenied
 
@@ -105,7 +105,7 @@ def _require_checkin(user):
     if not (
         user.is_authenticated
         and user.is_active
-        and (user.is_superuser or user.role in CONFERENCE_CHECKIN_ROLES)
+        and (user.is_superuser or has_event_role(user, CONFERENCE_CHECKIN_ROLES))
     ):
         raise PermissionDenied
 
@@ -689,7 +689,7 @@ def peer_review(request, assignment_id):
         pk=assignment_id,
         is_active=True,
     )
-    is_manager = request.user.is_superuser or request.user.role in CONFERENCE_MANAGER_ROLES
+    is_manager = request.user.is_superuser or has_event_role(request.user, CONFERENCE_MANAGER_ROLES)
     if assignment.reviewer.user_id != request.user.id and not is_manager:
         raise PermissionDenied
     if request.method == "POST":
@@ -983,7 +983,7 @@ def certificate_list(request, form_id):
         "eligible_reviewers": eligible[recipient_types.REVIEWER],
         "recipient_types": recipient_types,
         "can_manage": request.user.is_superuser
-        or request.user.role in CONFERENCE_MANAGER_ROLES,
+        or has_event_role(request.user, CONFERENCE_MANAGER_ROLES),
     })
 
 
@@ -1211,7 +1211,7 @@ def conference_detail(request, form_id):
         "sessions": sessions,
         "summary": summary,
         "can_manage": request.user.is_superuser
-        or request.user.role in CONFERENCE_MANAGER_ROLES,
+        or has_event_role(request.user, CONFERENCE_MANAGER_ROLES),
     })
 
 

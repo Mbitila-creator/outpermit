@@ -519,9 +519,9 @@ class AdminUserCreateForm(forms.Form):
     password = forms.CharField(widget=forms.PasswordInput)
     confirm_password = forms.CharField(widget=forms.PasswordInput)
     role = forms.ChoiceField(choices=ROLE_CHOICES)
-    event_role = forms.ChoiceField(choices=EVENT_ROLE_CHOICES, required=False)
-    finance_role = forms.ChoiceField(choices=FINANCE_ROLE_CHOICES, required=False)
-    task_role = forms.ChoiceField(choices=TASK_ROLE_CHOICES, required=False)
+    event_role = forms.MultipleChoiceField(choices=EVENT_ROLE_CHOICES[1:], required=False, widget=forms.CheckboxSelectMultiple)
+    finance_role = forms.MultipleChoiceField(choices=FINANCE_ROLE_CHOICES[1:], required=False, widget=forms.CheckboxSelectMultiple)
+    task_role = forms.MultipleChoiceField(choices=TASK_ROLE_CHOICES[1:], required=False, widget=forms.CheckboxSelectMultiple)
     is_staff = forms.BooleanField(required=False)
 
     def clean_username(self):
@@ -610,9 +610,9 @@ class AdminUserUpdateForm(forms.Form):
     )
 
     role = forms.ChoiceField(choices=ROLE_CHOICES)
-    event_role = forms.ChoiceField(choices=EVENT_ROLE_CHOICES, required=False)
-    finance_role = forms.ChoiceField(choices=FINANCE_ROLE_CHOICES, required=False)
-    task_role = forms.ChoiceField(choices=TASK_ROLE_CHOICES, required=False)
+    event_role = forms.MultipleChoiceField(choices=EVENT_ROLE_CHOICES[1:], required=False, widget=forms.CheckboxSelectMultiple)
+    finance_role = forms.MultipleChoiceField(choices=FINANCE_ROLE_CHOICES[1:], required=False, widget=forms.CheckboxSelectMultiple)
+    task_role = forms.MultipleChoiceField(choices=TASK_ROLE_CHOICES[1:], required=False, widget=forms.CheckboxSelectMultiple)
     is_staff = forms.BooleanField(required=False)
 
     def clean(self):
