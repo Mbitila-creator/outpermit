@@ -69,7 +69,11 @@ def get_user_role(user):
     if user.is_superuser:
         return "ADMIN"
 
-    assigned_role = module_role(user, ModuleRoleAssignment.Module.FINANCE)
+    assigned_role = module_role(
+        user,
+        ModuleRoleAssignment.Module.FINANCE,
+        priority=("DIVISION_BUDGET_OFFICER", "ACCOUNTANT"),
+    )
     if assigned_role:
         return assigned_role
 

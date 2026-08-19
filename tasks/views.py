@@ -42,7 +42,11 @@ def _get_user_role(user):
     if user.is_superuser:
         return "ADMIN"
 
-    assigned_role = module_role(user, ModuleRoleAssignment.Module.TASK)
+    assigned_role = module_role(
+        user,
+        ModuleRoleAssignment.Module.TASK,
+        priority=("DIRECTOR", "ASSISTANT_DIRECTOR", "HEAD_OF_UNIT"),
+    )
     if assigned_role:
         return assigned_role
 

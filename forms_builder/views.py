@@ -16,7 +16,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 
-from events.auth import User
+from events.auth import User, has_event_role
 from events.models import Event
 from events.access import events_visible_to
 from .models import (
@@ -92,7 +92,7 @@ def can_view_evaluation_reports(user):
         user.is_authenticated
         and (
             user.is_superuser
-            or user.role in EVALUATION_REPORT_ROLES
+            or has_event_role(user, EVALUATION_REPORT_ROLES)
         )
     )
 

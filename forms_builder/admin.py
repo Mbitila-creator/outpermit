@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
-from events.auth import User
+from events.auth import User, has_event_role
 
 from .models import (
     Booth,
@@ -760,10 +760,10 @@ class FormSubmissionAdmin(admin.ModelAdmin):
         actions = super().get_actions(request)
         if not (
             request.user.is_superuser
-            or request.user.role in {
+            or has_event_role(request.user, {
                 User.Role.SYSTEM_ADMIN,
                 User.Role.EVENT_ADMIN,
-            }
+            })
         ):
             actions.pop("authorize_certificates", None)
             actions.pop("revoke_certificate_authorization", None)
@@ -871,10 +871,10 @@ class FormSubmissionAdmin(admin.ModelAdmin):
     def authorize_certificates(self, request, queryset):
         if not (
             request.user.is_superuser
-            or request.user.role in {
+            or has_event_role(request.user, {
                 User.Role.SYSTEM_ADMIN,
                 User.Role.EVENT_ADMIN,
-            }
+            })
         ):
             self.message_user(
                 request, _("You cannot authorize certificates."), messages.ERROR,
@@ -934,10 +934,10 @@ class FormSubmissionAdmin(admin.ModelAdmin):
     def revoke_certificate_authorization(self, request, queryset):
         if not (
             request.user.is_superuser
-            or request.user.role in {
+            or has_event_role(request.user, {
                 User.Role.SYSTEM_ADMIN,
                 User.Role.EVENT_ADMIN,
-            }
+            })
         ):
             return
         CertificateRecord.objects.filter(

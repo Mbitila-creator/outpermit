@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 
 from permits.models import ModuleRoleAssignment
-from permits.module_roles import module_role
+from permits.module_roles import module_role, module_roles
 
 
 class EventRole:
@@ -34,12 +34,38 @@ def event_role(user):
     if user.is_superuser:
         return EventRole.SYSTEM_ADMIN
     profile = getattr(user, "profile", None)
-    assigned_role = module_role(user, ModuleRoleAssignment.Module.EVENT)
+    assigned_role = module_role(
+        user,
+        ModuleRoleAssignment.Module.EVENT,
+        priority=(
+            EventRole.EVENT_ADMIN,
+            EventRole.REGISTRATION_OFFICER,
+            EventRole.ATTENDANCE_OFFICER,
+            EventRole.REPORT_OFFICER,
+        ),
+    )
     if assigned_role:
         return assigned_role
     return OUTPERMIT_EVENT_ROLE_MAP.get(
         getattr(profile, "role", ""), EventRole.PARTICIPANT
     )
+
+
+def event_roles(user):
+    if user.is_superuser:
+        return {EventRole.SYSTEM_ADMIN}
+    profile = getattr(user, "profile", None)
+    roles = module_roles(user, ModuleRoleAssignment.Module.EVENT)
+    roles.add(
+        OUTPERMIT_EVENT_ROLE_MAP.get(
+            getattr(profile, "role", ""), EventRole.PARTICIPANT
+        )
+    )
+    return roles
+
+
+def has_event_role(user, allowed_roles):
+    return bool(event_roles(user).intersection(set(allowed_roles)))
 
 
 # The imported views use User.Role constants and request.user.role. Expose a

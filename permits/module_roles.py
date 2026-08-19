@@ -23,34 +23,42 @@ TASK_ROLE_CHOICES = (
 )
 
 
-def module_role(user, module):
+def module_roles(user, module):
     if not user or not getattr(user, "is_authenticated", False):
-        return ""
-    return (
+        return set()
+    return set(
         ModuleRoleAssignment.objects.filter(
             user=user,
             module=module,
             is_active=True,
         )
         .values_list("role_code", flat=True)
-        .first()
-        or ""
     )
 
 
-def set_module_role(user, module, role_code, department):
-    role_code = (role_code or "").strip().upper()
-    if not role_code:
-        ModuleRoleAssignment.objects.filter(user=user, module=module).delete()
-        return
-    if department is None:
+def module_role(user, module, priority=()):
+    roles = module_roles(user, module)
+    for role_code in priority:
+        if role_code in roles:
+            return role_code
+    return sorted(roles)[0] if roles else ""
+
+
+def set_module_roles(user, module, role_codes, department):
+    normalized = {
+        role_code.strip().upper()
+        for role_code in (role_codes or [])
+        if role_code and role_code.strip()
+    }
+    if normalized and department is None:
         raise ValueError("A department is required for additional module roles.")
-    ModuleRoleAssignment.objects.update_or_create(
-        user=user,
-        module=module,
-        defaults={
-            "role_code": role_code,
-            "department": department,
-            "is_active": True,
-        },
-    )
+    ModuleRoleAssignment.objects.filter(user=user, module=module).exclude(
+        role_code__in=normalized
+    ).delete()
+    for role_code in normalized:
+        ModuleRoleAssignment.objects.update_or_create(
+            user=user,
+            module=module,
+            role_code=role_code,
+            defaults={"department": department, "is_active": True},
+        )

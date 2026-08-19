@@ -16,7 +16,7 @@ from django.views.decorators.http import require_http_methods
 
 from .forms import SpecialEventParticipantImportForm, special_event_queryset
 from .access import events_visible_to
-from .auth import User
+from .auth import User, has_event_role
 from .models import (
     Event,
     EventCategory,
@@ -40,7 +40,7 @@ def _require_events_permission(user, action="view"):
     }
     if not user.is_active or not (
         user.is_superuser
-        or user.role in allowed_roles
+        or has_event_role(user, allowed_roles)
         or user.has_perm(f"events.{action}_specialeventparticipant")
     ):
         raise PermissionDenied
@@ -305,12 +305,12 @@ def special_event_participant_list(request):
         "search_query": search_query,
         "selected_sheet": source_sheet,
         "sheet_choices": sheet_choices,
-        "can_import": request.user.role in {
+        "can_import": has_event_role(request.user, {
             User.Role.SYSTEM_ADMIN,
             User.Role.EVENT_ADMIN,
             User.Role.DIRECTOR,
             User.Role.ASSISTANT_DIRECTOR,
-        } or request.user.has_perm("events.add_specialeventparticipant"),
+        }) or request.user.has_perm("events.add_specialeventparticipant"),
     })
 
 

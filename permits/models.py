@@ -440,8 +440,8 @@ class ModuleRoleAssignment(models.Model):
         ordering = ("user__username", "module")
         constraints = [
             models.UniqueConstraint(
-                fields=("user", "module"),
-                name="unique_module_role_per_user",
+                fields=("user", "module", "role_code"),
+                name="unique_user_module_role",
             ),
         ]
 

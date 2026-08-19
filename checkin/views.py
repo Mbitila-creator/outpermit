@@ -8,7 +8,7 @@ from django.utils.translation import gettext as _
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
-from events.auth import User
+from events.auth import User, has_event_role
 from events.models import Event
 from events.access import events_visible_to
 from forms_builder.models import CertificateRecord, EventForm, FormSubmission
@@ -37,7 +37,7 @@ def can_check_in(user):
         user.is_authenticated
         and (
             user.is_superuser
-            or user.role in CHECK_IN_ROLES
+            or has_event_role(user, CHECK_IN_ROLES)
         )
     )
 
@@ -62,7 +62,7 @@ def can_view_reports(user):
         user.is_authenticated
         and (
             user.is_superuser
-            or user.role in REPORT_ROLES
+            or has_event_role(user, REPORT_ROLES)
         )
     )
 

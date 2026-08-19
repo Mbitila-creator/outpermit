@@ -20,7 +20,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
-from events.auth import User
+from events.auth import User, has_event_role
 from events.models import Event
 from events.access import events_visible_to
 
@@ -98,7 +98,7 @@ def _can_manage(user):
     return bool(
         user.is_authenticated
         and user.is_active
-        and (user.is_superuser or user.role in MEETING_MANAGER_ROLES)
+        and (user.is_superuser or has_event_role(user, MEETING_MANAGER_ROLES))
     )
 
 
@@ -108,8 +108,10 @@ def _can_record_attendance(user):
         and user.is_active
         and (
             user.is_superuser
-            or user.role in MEETING_MANAGER_ROLES
-            or user.role == User.Role.ATTENDANCE_OFFICER
+            or has_event_role(
+                user,
+                MEETING_MANAGER_ROLES | {User.Role.ATTENDANCE_OFFICER},
+            )
         )
     )
 
@@ -118,7 +120,7 @@ def _can_approve_minutes(user):
     return bool(
         user.is_authenticated
         and user.is_active
-        and (user.is_superuser or user.role in MINUTES_APPROVER_ROLES)
+        and (user.is_superuser or has_event_role(user, MINUTES_APPROVER_ROLES))
     )
 
 
@@ -126,7 +128,7 @@ def _require_view_access(user):
     if not (
         user.is_authenticated
         and user.is_active
-        and (user.is_superuser or user.role in MEETING_VIEW_ROLES)
+        and (user.is_superuser or has_event_role(user, MEETING_VIEW_ROLES))
     ):
         raise PermissionDenied
 
@@ -898,7 +900,7 @@ def action_progress_evidence_download(request, update_id):
         request.user.is_active
         and (
             request.user.is_superuser
-            or request.user.role in MEETING_VIEW_ROLES
+            or has_event_role(request.user, MEETING_VIEW_ROLES)
         )
     ):
         updates = updates.filter(action__responsible_user=request.user)
