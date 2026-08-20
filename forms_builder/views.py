@@ -531,16 +531,31 @@ def get_public_event_form(event_slug, form_slug):
 
 def form_availability(event_form):
     current_time = timezone.now()
+    event = event_form.event
+    is_evaluation = event_form.form_type == EventForm.FormType.EVALUATION
 
-    form_not_open = (
-        event_form.opens_at
-        and current_time < event_form.opens_at
-    )
+    opening_dates = [date for date in (
+        event_form.opens_at,
+        None if is_evaluation else event.registration_opens_at,
+    ) if date]
+    form_not_open = bool(opening_dates and current_time < max(opening_dates))
 
-    form_closed = (
-        event_form.closes_at
-        and current_time > event_form.closes_at
-    )
+    closing_dates = [date for date in (
+        event_form.closes_at,
+        None if is_evaluation else event.registration_closes_at,
+        None if is_evaluation else event.ends_at,
+    ) if date]
+    form_closed = bool(closing_dates and current_time > min(closing_dates))
+
+    if not is_evaluation:
+        if event.status == Event.Status.DRAFT:
+            form_not_open = True
+        elif event.status in {
+            Event.Status.REGISTRATION_CLOSED,
+            Event.Status.COMPLETED,
+            Event.Status.CANCELLED,
+        }:
+            form_closed = True
 
     return form_not_open, form_closed
 

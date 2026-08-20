@@ -464,11 +464,11 @@ class Event(BaseModel):
 
         if (
             self.registration_closes_at
-            and self.starts_at
-            and self.registration_closes_at > self.starts_at
+            and self.ends_at
+            and self.registration_closes_at > self.ends_at
         ):
             errors["registration_closes_at"] = _(
-                "Registration cannot close after the event has started."
+                "Registration cannot close after the event has ended."
             )
 
         if self.payment_enabled:
