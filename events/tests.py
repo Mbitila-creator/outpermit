@@ -313,6 +313,86 @@ class DepartmentEventAccessTests(TestCase):
         )
         self.assertContains(response, "Conference feedback and evaluation")
 
+    def test_registration_remains_available_while_event_is_ongoing(self):
+        now = timezone.now()
+        self.dsti_event.starts_at = now - timedelta(hours=1)
+        self.dsti_event.ends_at = now + timedelta(hours=2)
+        self.dsti_event.status = Event.Status.ONGOING
+        self.dsti_event.is_public = True
+        self.dsti_event.registration_enabled = True
+        self.dsti_event.save()
+        registration_form = EventForm.objects.create(
+            event=self.dsti_event,
+            name_sw="Usajili unaoendelea",
+            name_en="Ongoing registration",
+            form_type=EventForm.FormType.REGISTRATION,
+            is_active=True,
+            is_published=True,
+        )
+
+        response = self.client.get(reverse(
+            "events:event_detail",
+            kwargs={"event_slug": self.dsti_event.slug},
+        ))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["registration_available"])
+        self.assertContains(
+            response,
+            reverse(
+                "forms_builder:public_event_form",
+                kwargs={
+                    "event_slug": self.dsti_event.slug,
+                    "form_slug": registration_form.slug,
+                },
+            ),
+        )
+
+    def test_registration_closes_when_event_ends(self):
+        now = timezone.now()
+        self.dsti_event.starts_at = now - timedelta(hours=2)
+        self.dsti_event.ends_at = now - timedelta(minutes=1)
+        self.dsti_event.status = Event.Status.ONGOING
+        self.dsti_event.is_public = True
+        self.dsti_event.registration_enabled = True
+        self.dsti_event.save()
+        registration_form = EventForm.objects.create(
+            event=self.dsti_event,
+            name_sw="Usajili uliofungwa",
+            name_en="Ended registration",
+            form_type=EventForm.FormType.REGISTRATION,
+            is_active=True,
+            is_published=True,
+        )
+
+        detail_response = self.client.get(reverse(
+            "events:event_detail",
+            kwargs={"event_slug": self.dsti_event.slug},
+        ))
+        form_response = self.client.post(reverse(
+            "forms_builder:public_event_form",
+            kwargs={
+                "event_slug": self.dsti_event.slug,
+                "form_slug": registration_form.slug,
+            },
+        ))
+
+        self.assertFalse(detail_response.context["registration_available"])
+        self.assertTrue(detail_response.context["registration_closed"])
+        self.assertEqual(form_response.status_code, 400)
+        self.assertEqual(
+            form_response.json()["message"],
+            "The submission period for this form has ended.",
+        )
+
+    def test_registration_can_be_configured_to_close_after_event_starts(self):
+        now = timezone.now()
+        self.dsti_event.starts_at = now
+        self.dsti_event.ends_at = now + timedelta(hours=3)
+        self.dsti_event.registration_closes_at = now + timedelta(hours=2)
+
+        self.dsti_event.full_clean()
+
     def test_event_operations_are_inside_selected_event_workspace(self):
         user = self._staff("event-admin", self.dsti)
         user.profile.role = "EVENT_ADMIN"

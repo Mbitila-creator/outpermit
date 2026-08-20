@@ -101,6 +101,10 @@ class DepartmentEventForm(forms.ModelForm):
         self.fields["venue"].queryset = Venue.objects.filter(
             is_active=True
         ).select_related("council").order_by("name")
+        self.fields["registration_closes_at"].help_text = (
+            "Registration may remain open after the event starts, but it cannot "
+            "close later than the event ending time. Leave empty to use the event end."
+        )
         self.fields["new_venue_country"].queryset = Country.objects.filter(
             is_active=True
         ).order_by("name_en")

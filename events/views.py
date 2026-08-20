@@ -196,10 +196,10 @@ def event_detail(request, event_slug):
         and current_time < event.registration_opens_at
     )
 
-    registration_closed = (
-        event.registration_closes_at
-        and current_time > event.registration_closes_at
-    )
+    registration_deadlines = [event.ends_at]
+    if event.registration_closes_at:
+        registration_deadlines.append(event.registration_closes_at)
+    registration_closed = current_time > min(registration_deadlines)
 
     registration_available = (
         event.registration_enabled
@@ -207,6 +207,7 @@ def event_detail(request, event_slug):
         in [
             Event.Status.PUBLISHED,
             Event.Status.REGISTRATION_OPEN,
+            Event.Status.ONGOING,
         ]
         and not registration_not_open
         and not registration_closed
