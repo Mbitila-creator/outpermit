@@ -14,7 +14,7 @@ from permits.models import Department
 
 from .access import events_visible_to
 from .auth import EventRole
-from .models import Event, EventCategory
+from .models import Event, EventCategory, Venue
 from forms_builder.models import EventForm, FormSubmission
 from conferences.views import _conference_registration_forms
 from permits.views import system_home
@@ -118,6 +118,64 @@ class DepartmentEventAccessTests(TestCase):
         created = Event.objects.get(code="DHE-FORUM-2027")
         self.assertEqual(created.owning_department, self.dhe)
         self.assertNotIn(created, events_visible_to(self._staff("dsti-other", self.dsti)))
+
+    def test_event_administrator_can_create_event_with_manually_entered_venue(self):
+        user = self._staff("manual-venue-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+        now = timezone.now()
+
+        response = self.client.post(
+            reverse("events:department_event_create"),
+            {
+                "category": self.category.pk,
+                "new_venue_name": "  Ministry   Conference Hall  ",
+                "code": "DSTI-HALL-2027",
+                "title_sw": "Tukio la DSTI",
+                "title_en": "DSTI Hall Event",
+                "starts_at": now.strftime("%Y-%m-%dT%H:%M"),
+                "ends_at": (now + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M"),
+                "status": Event.Status.DRAFT,
+                "payment_currency": "TZS",
+            },
+        )
+
+        self.assertRedirects(response, reverse("events:department_event_list"))
+        created = Event.objects.get(code="DSTI-HALL-2027")
+        self.assertEqual(created.venue.name, "Ministry Conference Hall")
+        self.assertEqual(created.venue.created_by, user)
+
+    def test_event_creation_rejects_existing_and_manual_venue_together(self):
+        venue = Venue.objects.create(name="Existing Hall")
+        user = self._staff("ambiguous-venue-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+        now = timezone.now()
+
+        response = self.client.post(
+            reverse("events:department_event_create"),
+            {
+                "category": self.category.pk,
+                "venue": venue.pk,
+                "new_venue_name": "Another Hall",
+                "code": "DSTI-AMBIGUOUS-2027",
+                "title_sw": "Tukio la DSTI",
+                "title_en": "DSTI Ambiguous Event",
+                "starts_at": now.strftime("%Y-%m-%dT%H:%M"),
+                "ends_at": (now + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M"),
+                "status": Event.Status.DRAFT,
+                "payment_currency": "TZS",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Choose an existing venue or enter a new venue, not both.",
+        )
+        self.assertFalse(Event.objects.filter(code="DSTI-AMBIGUOUS-2027").exists())
 
     def test_direct_staff_url_cannot_bypass_department_ownership(self):
         dsti_form = EventForm.objects.create(
