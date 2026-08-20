@@ -295,16 +295,32 @@ def attendance_report_csv(request):
 @require_http_methods(["GET", "POST"])
 def check_in_lookup(request):
     lookup_error = ""
+    selected_event_id = request.GET.get("event", "").strip()
+    selected_event = None
+    if selected_event_id:
+        selected_event = get_object_or_404(
+            events_visible_to(request.user), pk=selected_event_id
+        )
 
     if request.method == "POST":
+        selected_event_id = request.POST.get("event", "").strip()
+        if selected_event_id:
+            selected_event = get_object_or_404(
+                events_visible_to(request.user), pk=selected_event_id
+            )
         identifier = request.POST.get("identifier", "").strip()
-        submission = approved_submission_queryset().filter(
+        submissions = approved_submission_queryset().filter(
+            event_form__event__in=events_visible_to(request.user),
+        )
+        if selected_event:
+            submissions = submissions.filter(event_form__event=selected_event)
+        submission = submissions.filter(
             reference_number__iexact=identifier
         ).first()
 
         if submission is None:
             try:
-                submission = approved_submission_queryset().filter(
+                submission = submissions.filter(
                     participant_token=identifier
                 ).first()
             except (TypeError, ValueError):
@@ -321,7 +337,7 @@ def check_in_lookup(request):
     return render(
         request,
         "checkin/lookup.html",
-        {"lookup_error": lookup_error},
+        {"lookup_error": lookup_error, "selected_event": selected_event},
     )
 
 

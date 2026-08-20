@@ -228,20 +228,73 @@ class DepartmentEventAccessTests(TestCase):
         )
         self.assertContains(response, "Conference feedback and evaluation")
 
-    def test_event_administrator_sees_complete_operations_workspace(self):
+    def test_event_operations_are_inside_selected_event_workspace(self):
         user = self._staff("event-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        registration_form = EventForm.objects.create(
+            event=self.dsti_event,
+            name_sw="Usajili wa NESIF",
+            name_en="NESIF registration",
+            form_type=EventForm.FormType.REGISTRATION,
+            is_active=True,
+        )
+        evaluation_form = EventForm.objects.create(
+            event=self.dsti_event,
+            name_sw="Tathmini ya NESIF",
+            name_en="NESIF evaluation",
+            form_type=EventForm.FormType.EVALUATION,
+            is_active=True,
+        )
+        self.client.force_login(user)
+
+        list_response = self.client.get(reverse("events:department_event_list"))
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertNotContains(list_response, "Your event operations")
+        self.assertNotContains(list_response, reverse("checkin:lookup"))
+        self.assertContains(
+            list_response,
+            reverse(
+                "events:department_event_detail",
+                kwargs={"event_slug": self.dsti_event.slug},
+            ),
+        )
+
+        response = self.client.get(reverse(
+            "events:department_event_detail",
+            kwargs={"event_slug": self.dsti_event.slug},
+        ))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.dsti_event.code)
+        self.assertContains(
+            response,
+            reverse(
+                "conferences:conference_detail",
+                kwargs={"form_id": registration_form.pk},
+            ),
+        )
+        self.assertContains(response, f"{reverse('checkin:lookup')}?event={self.dsti_event.pk}")
+        self.assertContains(response, f"{reverse('checkin:reports')}?event={self.dsti_event.pk}")
+        self.assertContains(
+            response,
+            f"{reverse('forms_builder:evaluation_reports')}?form={evaluation_form.pk}",
+        )
+        self.assertNotContains(response, reverse("meetings:meeting_list"))
+
+    def test_event_workspace_cannot_bypass_department_ownership(self):
+        user = self._staff("dsti-workspace-user", self.dsti)
         user.profile.role = "EVENT_ADMIN"
         user.profile.save(update_fields=["role"])
         self.client.force_login(user)
 
-        response = self.client.get(reverse("events:department_event_list"))
+        response = self.client.get(reverse(
+            "events:department_event_detail",
+            kwargs={"event_slug": self.dhe_event.slug},
+        ))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, reverse("conferences:conference_list"))
-        self.assertContains(response, reverse("checkin:lookup"))
-        self.assertContains(response, reverse("checkin:reports"))
-        self.assertContains(response, reverse("forms_builder:evaluation_reports"))
-        self.assertContains(response, reverse("meetings:meeting_list"))
+        self.assertEqual(response.status_code, 404)
 
     def test_event_administrator_special_events_are_department_scoped(self):
         special_category = EventCategory.objects.create(
