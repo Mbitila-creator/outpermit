@@ -605,6 +605,9 @@ def meeting_list(request):
     search_query = request.GET.get("q", "").strip()
     status = request.GET.get("status", "").strip()
     meeting_type = request.GET.get("type", "").strip()
+    selected_event_id = request.GET.get("event", "").strip()
+    if selected_event_id:
+        meetings = meetings.filter(event_id=selected_event_id)
     if search_query:
         meetings = meetings.filter(
             Q(reference_number__icontains=search_query)

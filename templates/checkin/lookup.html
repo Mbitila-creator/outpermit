@@ -13,12 +13,14 @@
         <div class="checkin-container checkin-container-small">
             <span class="section-kicker">{% translate "Event attendance" %}</span>
             <h1>{% translate "Participant check-in" %}</h1>
+            {% if selected_event %}<p><strong>{{ selected_event.code }} — {% if request.LANGUAGE_CODE == "en" %}{{ selected_event.title_en }}{% else %}{{ selected_event.title_sw }}{% endif %}</strong></p>{% endif %}
             <p class="checkin-introduction">
                 {% translate "Scan the participant badge QR code, or enter the reference number or participant token below." %}
             </p>
 
             <form method="post" class="checkin-card checkin-lookup-form">
                 {% csrf_token %}
+                {% if selected_event %}<input type="hidden" name="event" value="{{ selected_event.pk }}">{% endif %}
 
                 {% if lookup_error %}
                     <div class="checkin-alert checkin-alert-error" role="alert">
@@ -46,4 +48,3 @@
         </div>
     </section>
 {% endblock %}
-

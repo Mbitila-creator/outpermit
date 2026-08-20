@@ -1,7 +1,11 @@
 from django.urls import path
 
 from . import views
-from .department_views import department_event_create, department_event_list
+from .department_views import (
+    department_event_create,
+    department_event_detail,
+    department_event_list,
+)
 
 
 app_name = "events"
@@ -18,6 +22,11 @@ urlpatterns = [
         name="home",
     ),
     path("new/", department_event_create, name="department_event_create"),
+    path(
+        "manage/<slug:event_slug>/",
+        department_event_detail,
+        name="department_event_detail",
+    ),
     path(
         "events/<slug:event_slug>/",
         views.event_detail,
