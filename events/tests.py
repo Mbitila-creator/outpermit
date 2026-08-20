@@ -10,6 +10,7 @@ from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
 
+from core.models import Council, Country, Region
 from permits.models import Department
 
 from .access import events_visible_to
@@ -125,12 +126,34 @@ class DepartmentEventAccessTests(TestCase):
         user.profile.save(update_fields=["role"])
         self.client.force_login(user)
         now = timezone.now()
+        country = Country.objects.create(
+            name_sw="Tanzania",
+            name_en="Tanzania",
+            code="TZA",
+        )
+        region = Region.objects.create(
+            country=country,
+            name_sw="Dodoma",
+            name_en="Dodoma",
+            code="DOM",
+        )
+        council = Council.objects.create(
+            region=region,
+            name_sw="Jiji la Dodoma",
+            name_en="Dodoma City",
+            code="DODOMA-CITY",
+            council_type=Council.CouncilType.CITY,
+        )
 
         response = self.client.post(
             reverse("events:department_event_create"),
             {
                 "category": self.category.pk,
+                "venue_mode": "NEW",
                 "new_venue_name": "  Ministry   Conference Hall  ",
+                "new_venue_country": country.pk,
+                "new_venue_region": region.pk,
+                "new_venue_council": council.pk,
                 "code": "DSTI-HALL-2027",
                 "title_sw": "Tukio la DSTI",
                 "title_en": "DSTI Hall Event",
@@ -144,6 +167,9 @@ class DepartmentEventAccessTests(TestCase):
         self.assertRedirects(response, reverse("events:department_event_list"))
         created = Event.objects.get(code="DSTI-HALL-2027")
         self.assertEqual(created.venue.name, "Ministry Conference Hall")
+        self.assertEqual(created.venue.council, council)
+        self.assertEqual(created.venue.council.region, region)
+        self.assertEqual(created.venue.council.region.country, country)
         self.assertEqual(created.venue.created_by, user)
 
     def test_event_creation_rejects_existing_and_manual_venue_together(self):
@@ -158,6 +184,7 @@ class DepartmentEventAccessTests(TestCase):
             reverse("events:department_event_create"),
             {
                 "category": self.category.pk,
+                "venue_mode": "NEW",
                 "venue": venue.pk,
                 "new_venue_name": "Another Hall",
                 "code": "DSTI-AMBIGUOUS-2027",
@@ -173,7 +200,7 @@ class DepartmentEventAccessTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            "Choose an existing venue or enter a new venue, not both.",
+            "Clear the saved venue when creating a new one.",
         )
         self.assertFalse(Event.objects.filter(code="DSTI-AMBIGUOUS-2027").exists())
 
