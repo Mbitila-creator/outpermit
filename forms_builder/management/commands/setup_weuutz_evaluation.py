@@ -120,7 +120,7 @@ class Command(BaseCommand):
         )
         form.success_message_sw = "Asante. Tathmini yako ya WEUUTz imepokelewa."
         form.success_message_en = "Thank you. Your WEUUTz evaluation has been received."
-        form.show_event_summary = True
+        form.show_event_summary = False
         form.allow_multiple_submissions = False
         form.requires_participant_registration = True
         form.is_published = True
