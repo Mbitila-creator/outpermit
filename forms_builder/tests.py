@@ -1,9 +1,17 @@
 from types import SimpleNamespace
 from io import BytesIO
+from io import StringIO
 from tempfile import NamedTemporaryFile
+from datetime import timedelta
 
-from django.test import SimpleTestCase
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.test import SimpleTestCase, TestCase
+from django.utils import timezone
 from PIL import Image
+
+from events.models import Event, EventCategory
+from .models import EventForm, FormQuestion
 
 from .services import (
     certificate_is_for_institution,
@@ -100,3 +108,83 @@ class InstitutionCertificateTests(SimpleTestCase):
         self.assertGreater(center[0], 180)
         self.assertLess(center[1], 80)
         self.assertLess(center[2], 80)
+
+
+class WEUUTzEvaluationSetupTests(TestCase):
+    def setUp(self):
+        category = EventCategory.objects.create(
+            name_sw="Maonesho",
+            name_en="Exhibition",
+            code="EXHIBITION",
+        )
+        starts_at = timezone.now() + timedelta(days=1)
+        self.event = Event.objects.create(
+            category=category,
+            code="WEUUTz-2026",
+            title_sw="Wiki ya Elimu na Ubunifu",
+            title_en="Education and Innovation Week",
+            starts_at=starts_at,
+            ends_at=starts_at + timedelta(days=3),
+        )
+        self.form = EventForm.objects.create(
+            event=self.event,
+            name_sw="Tathmini",
+            name_en="Exhibition Evaluation",
+            form_type=EventForm.FormType.EVALUATION,
+            is_published=True,
+        )
+        section = self.form.sections.create(
+            title_sw="Maoni ya Washiriki",
+            title_en="Participants Views",
+        )
+        self.original_question = section.questions.create(
+            label_sw="Ni bidhaa gani iliyokuvutia?",
+            label_en="Which product, technology, or exhibitor interested you most?",
+            question_type=FormQuestion.QuestionType.SHORT_TEXT,
+            is_required=True,
+        )
+
+    def test_command_requires_confirmation(self):
+        with self.assertRaises(CommandError):
+            call_command("setup_weuutz_evaluation")
+
+    def test_command_improves_only_weuutz_form_and_is_idempotent(self):
+        output = StringIO()
+        call_command("setup_weuutz_evaluation", "--confirm", stdout=output)
+        call_command("setup_weuutz_evaluation", "--confirm", stdout=output)
+
+        self.event.refresh_from_db()
+        self.form.refresh_from_db()
+        self.original_question.refresh_from_db()
+        questions = FormQuestion.objects.filter(section__event_form=self.form)
+
+        self.assertTrue(self.event.evaluation_enabled)
+        self.assertTrue(self.form.is_published)
+        self.assertEqual(self.form.name_en, "Commemoration Evaluation Questionnaire")
+        self.assertEqual(questions.filter(is_active=True).count(), 9)
+        self.assertFalse(self.original_question.is_active)
+        self.assertEqual(
+            set(questions.filter(is_active=True).values_list("label_sw", flat=True)),
+            {
+                "Jina la taasisi",
+                "Anuani",
+                "Aina ya huduma unayotoa kwa jamii: Tafadhali, chagua kati ya zifuatazo.",
+                "Tafadhali, taja huduma nyinginezo",
+                "Idadi ya mabanda ya taasisi yako katika Maadhimisho ya Wiki ya Kitaifa ya Elimu, Ujuzi na Ubunifu, mwaka 2026",
+                "Tafadhali, taja idadi ya wananchi waliotembelea banda lako katika maadhimisho ya mwaka huu, 2026.",
+                "Tafadhali, taja mafanikio uliyoyapata katika maadhimisho ya mwaka huu, 2026.",
+                "Tafadhali, taja changamoto ulizozipata katika Maadhimisho ya mwaka huu, 2026 hapa Jijini Tanga.",
+                "Tafadhali, toa maoni ya kuboresha Maadhimisho haya kwa mwaka ujao, 2027.",
+            },
+        )
+        service_question = questions.get(
+            label_en="What type of service does your institution provide to the community? Select all that apply."
+        )
+        self.assertEqual(service_question.options.filter(is_active=True).count(), 10)
+        self.assertEqual(
+            list(service_question.options.filter(is_active=True).values_list("value", flat=True)),
+            [
+                "RESEARCH", "TRAINING", "AGENCY", "EDUCATION", "CONSULTANCY",
+                "RESCUE", "COORDINATION", "SECURITY", "MARKETING", "OTHER",
+            ],
+        )
