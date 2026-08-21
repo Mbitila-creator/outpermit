@@ -461,6 +461,48 @@ class DepartmentEventAccessTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_event_administrator_can_open_safe_elimu_certificate_preview(self):
+        self.dsti_event.code = "ELIMU-2026"
+        self.dsti_event.title_en = "Education and Innovation Week"
+        self.dsti_event.save()
+        user = self._staff("elimu-preview-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+
+        detail_response = self.client.get(reverse(
+            "events:department_event_detail",
+            kwargs={"event_slug": self.dsti_event.slug},
+        ))
+        preview_url = reverse(
+            "events:department_certificate_preview",
+            kwargs={"event_slug": self.dsti_event.slug},
+        )
+        preview_response = self.client.get(preview_url)
+
+        self.assertContains(detail_response, preview_url)
+        self.assertEqual(preview_response.status_code, 200)
+        self.assertContains(preview_response, "SAMPLE · NOT VALID")
+        self.assertContains(preview_response, "Sample Participating Institution")
+        self.assertContains(preview_response, "Sample Representative")
+        self.assertContains(preview_response, "data:image/png;base64,")
+        self.assertNotContains(preview_response, "Download PDF certificate")
+
+    def test_registration_officer_cannot_open_certificate_preview(self):
+        self.dsti_event.code = "ELIMU-2026"
+        self.dsti_event.save()
+        user = self._staff("elimu-preview-registration", self.dsti)
+        user.profile.role = "REGISTRATION_OFFICER"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+
+        response = self.client.get(reverse(
+            "events:department_certificate_preview",
+            kwargs={"event_slug": self.dsti_event.slug},
+        ))
+
+        self.assertEqual(response.status_code, 403)
+
     def test_event_administrator_special_events_are_department_scoped(self):
         special_category = EventCategory.objects.create(
             code="SPECIAL_EVENT",

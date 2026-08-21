@@ -1,0 +1,30 @@
+{% extends "events/base_public.html" %}
+{% load static i18n %}
+
+{% block title %}Certificate preview — {{ event.code }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/participant-certificate.css' %}">
+<style>
+.certificate-preview-warning{padding:14px 18px;margin-bottom:18px;border:1px solid #e6b84f;border-radius:12px;background:#fff7d6;color:#684c00;font-weight:700}.participant-certificate{position:relative;overflow:hidden}.participant-certificate::after{content:"SAMPLE · NOT VALID";position:absolute;inset:42% -10%;z-index:4;transform:rotate(-18deg);color:rgba(153,27,27,.16);font-size:clamp(46px,8vw,110px);font-weight:900;letter-spacing:.08em;pointer-events:none}.certificate-preview-number{color:#991b1b!important}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="certificate-page">
+    <div class="certificate-actions no-print">
+        <div><span class="section-kicker">Administrator-only preview</span><h1>Institution certificate preview</h1><p>This sample does not use or authorize a real participant certificate.</p></div>
+        <div class="certificate-action-buttons"><a class="secondary-button" href="{% url 'events:department_event_detail' event.slug %}">← Back to event</a><button type="button" class="primary-button" id="print-certificate">Print sample</button></div>
+    </div>
+    <div class="certificate-preview-warning no-print">SAMPLE ONLY — it has no valid certificate number and its QR code does not verify a certificate.</div>
+    <article class="participant-certificate" aria-label="Sample certificate of participation">
+        <div class="certificate-border">
+            <header class="certificate-header">{% if event.logo %}<img src="{{ event.logo.url }}" alt="{{ event.code }}">{% else %}<img src="{% static 'logo/moest_logo.png' %}" alt="Ministry logo">{% endif %}<p class="certificate-event-code">{{ event.code }}</p><h2>{{ event_display_name }}</h2></header>
+            <div class="certificate-content"><p class="certificate-kicker">Certificate of Participation</p><p>This certificate is proudly presented to</p><h3>{{ sample_institution }}</h3><p class="certificate-organization">Represented by {{ sample_representative }}</p><p class="certificate-statement">for institutional participation in {{ event_display_name }} with verified attendance.</p></div>
+            <footer class="certificate-footer"><div><span>Event date</span><strong>{{ event_date_range }}</strong></div><div><span>Attendance</span><strong>Preview only</strong></div><div><span>Certificate number</span><strong class="certificate-preview-number">PREVIEW — NOT ISSUED</strong></div><div class="certificate-verification-qr"><img src="data:image/png;base64,{{ preview_qr_data }}" alt="Sample QR code with centered logo"><span>Sample QR — not verification</span></div></footer>
+        </div>
+    </article>
+</section>
+{% endblock %}
+
+{% block extra_js %}<script>document.addEventListener("DOMContentLoaded",()=>{document.getElementById("print-certificate")?.addEventListener("click",()=>window.print())});</script>{% endblock %}

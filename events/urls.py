@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 from .department_views import (
     department_event_create,
+    department_certificate_preview,
     department_event_detail,
     department_event_list,
 )
@@ -26,6 +27,11 @@ urlpatterns = [
         "manage/<slug:event_slug>/",
         department_event_detail,
         name="department_event_detail",
+    ),
+    path(
+        "manage/<slug:event_slug>/certificate-preview/",
+        department_certificate_preview,
+        name="department_certificate_preview",
     ),
     path(
         "events/<slug:event_slug>/",
