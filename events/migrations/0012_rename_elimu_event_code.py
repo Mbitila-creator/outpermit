@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 OLD_CODE = "ELIMU-2026"
-NEW_CODE = "WEUUTz-2026"
+NEW_CODE = "WEUUTZ-2026"
 
 
 def rename_event_code(apps, schema_editor):
@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
             model_name="event",
             name="code",
             field=models.CharField(
-                help_text=_("Use a short unique code, for example WEUUTz-2026."),
+                help_text=_("Use a short unique code, for example WEUUTZ-2026."),
                 max_length=50,
                 unique=True,
                 verbose_name="event code",
