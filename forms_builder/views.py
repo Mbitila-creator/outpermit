@@ -737,6 +737,14 @@ def section_is_visible_for_submission(request, section):
     return section.condition_value in request.POST.getlist(field_name)
 
 
+def question_is_visible_for_submission(request, question):
+    """Apply a question's configured answer condition on the server."""
+    if not question.condition_question_id or not question.condition_value:
+        return True
+    field_name = f"question_{question.condition_question_id}"
+    return question.condition_value in request.POST.getlist(field_name)
+
+
 @require_http_methods(["GET", "POST"])
 def public_event_form(request, event_slug, form_slug):
     event_form = get_public_event_form(
@@ -825,7 +833,9 @@ def public_event_form(request, event_slug, form_slug):
                 section__is_active=True,
                 is_active=True,
             )
-            .select_related("section", "section__condition_question")
+            .select_related(
+                "section", "section__condition_question", "condition_question"
+            )
             .prefetch_related("options")
             .order_by(
                 "section__display_order",
@@ -842,6 +852,8 @@ def public_event_form(request, event_slug, form_slug):
                 request,
                 question.section,
             ):
+                continue
+            if not question_is_visible_for_submission(request, question):
                 continue
 
             answer_data, error = validate_question_answer(

@@ -59,6 +59,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
         });
+
+        form.querySelectorAll(
+            ".form-field[data-condition-question-id][data-condition-value]"
+        ).forEach((field) => {
+            const questionId = field.dataset.conditionQuestionId;
+            const expectedValue = field.dataset.conditionValue;
+            const visible = Array.from(
+                form.querySelectorAll(`[name="question_${questionId}"]`)
+            ).some((control) => {
+                if (control.type === "checkbox" || control.type === "radio") {
+                    return control.checked && control.value === expectedValue;
+                }
+                return control.value === expectedValue;
+            });
+            field.hidden = !visible;
+            field.querySelectorAll("input, select, textarea").forEach((control) => {
+                control.disabled = !visible;
+                control.required = visible &&
+                    control.dataset.originalRequired === "true";
+                if (!visible) {
+                    control.setCustomValidity("");
+                }
+            });
+        });
     };
 
     const originalButtonText = submitButton
@@ -532,4 +556,3 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
-

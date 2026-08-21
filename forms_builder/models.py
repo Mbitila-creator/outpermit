@@ -350,10 +350,57 @@ class FormQuestion(BaseModel):
         blank=True,
     )
 
+    condition_question = models.ForeignKey(
+        "self",
+        verbose_name=_("show when question"),
+        related_name="conditional_questions",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text=_("Leave blank to always show this question."),
+    )
+
+    condition_value = models.CharField(
+        _("show when answer contains"),
+        max_length=100,
+        blank=True,
+        help_text=_("Use the stored value of an option from the controlling question."),
+    )
+
     class Meta:
         verbose_name = _("form question")
         verbose_name_plural = _("form questions")
         ordering = ["section", "display_order", "id"]
+
+    def clean(self):
+        super().clean()
+        has_question = bool(self.condition_question_id)
+        has_value = bool(self.condition_value)
+        if has_question != has_value:
+            raise ValidationError(_(
+                "Both the controlling question and answer value are required for conditional display."
+            ))
+        if has_question and self.condition_question_id == self.pk:
+            raise ValidationError({"condition_question": _("A question cannot control itself.")})
+        if (
+            has_question
+            and self.section_id
+            and self.condition_question.section.event_form_id
+            != self.section.event_form_id
+        ):
+            raise ValidationError({
+                "condition_question": _("The controlling question must belong to the same form.")
+            })
+        if (
+            has_question
+            and has_value
+            and not self.condition_question.options.filter(
+                value=self.condition_value, is_active=True
+            ).exists()
+        ):
+            raise ValidationError({
+                "condition_value": _("Enter an active stored option value from the controlling question.")
+            })
 
     def __str__(self):
         return self.label_sw
@@ -1342,4 +1389,3 @@ def validate_answer_selected_options(sender, instance, action, pk_set, **kwargs)
     ).exists()
     if invalid:
         raise ValidationError(_("Selected options must belong to the answered question."))
-

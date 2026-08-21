@@ -554,6 +554,8 @@ class FormQuestionAdmin(AuditAdminMixin, admin.ModelAdmin):
         "label_sw",
         "section",
         "question_type",
+        "condition_question",
+        "condition_value",
         "is_required",
         "display_order",
         "is_active",
