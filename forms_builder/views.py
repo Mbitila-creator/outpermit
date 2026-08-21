@@ -844,6 +844,10 @@ def public_event_form(request, event_slug, form_slug):
     participant_registration = None
     draft_submission = None
     draft_answer_values = {}
+    draft_token = (
+        request.GET.get("draft", "").strip()
+        or request.POST.get("_draft_token", "").strip()
+    )
     participant_token = request.GET.get("participant", "").strip()
     if participant_token:
         try:
@@ -880,17 +884,38 @@ def public_event_form(request, event_slug, form_slug):
             .order_by("pk")
             .first()
         )
-        if request.method == "GET" and draft_submission is not None:
-            draft_answer_values = {
-                str(answer.question_id): draft_answer_value(answer)
-                for answer in draft_submission.answers.all()
-            }
+    elif not is_evaluation and draft_token:
+        try:
+            draft_token = uuid.UUID(draft_token)
+        except (ValueError, AttributeError):
+            raise Http404("Invalid draft link.")
+        draft_submission = (
+            FormSubmission.objects.filter(
+                event_form=event_form,
+                participant_token=draft_token,
+                registration_submission__isnull=True,
+                is_active=True,
+                is_complete=False,
+            )
+            .prefetch_related("answers__selected_options")
+            .first()
+        )
+        if draft_submission is None:
+            raise Http404("This registration draft was not found.")
+
+    if request.method == "GET" and draft_submission is not None:
+        draft_answer_values = {
+            str(answer.question_id): draft_answer_value(answer)
+            for answer in draft_submission.answers.all()
+        }
 
     if request.method == "POST":
         save_draft = request.POST.get("_save_draft") == "1"
         if save_draft and (
-            not is_evaluation
-            or participant_registration is None
+            (
+                is_evaluation
+                and participant_registration is None
+            )
             or staff_preview
         ):
             return JsonResponse(
@@ -1023,8 +1048,7 @@ def public_event_form(request, event_slug, form_slug):
                 draft_submission = (
                     FormSubmission.objects.select_for_update()
                     .filter(
-                        event_form=event_form,
-                        registration_submission=participant_registration,
+                        pk=(draft_submission.pk if draft_submission else None),
                         is_active=True,
                         is_complete=False,
                     )
@@ -1036,8 +1060,14 @@ def public_event_form(request, event_slug, form_slug):
                         event_form=event_form,
                         registration_submission=participant_registration,
                         language=language_code,
-                        submitter_email=participant_registration.submitter_email,
-                        submitter_phone=participant_registration.submitter_phone,
+                        submitter_email=(
+                            participant_registration.submitter_email
+                            if participant_registration else ""
+                        ),
+                        submitter_phone=(
+                            participant_registration.submitter_phone
+                            if participant_registration else ""
+                        ),
                         ip_address=get_client_ip(request),
                         user_agent=request.META.get("HTTP_USER_AGENT", ""),
                         is_complete=False,
@@ -1052,7 +1082,11 @@ def public_event_form(request, event_slug, form_slug):
                         "language", "ip_address", "user_agent", "updated_at",
                     ])
                 save_answer_data(draft_submission, validated_answers)
-            return JsonResponse({"success": True, "draft_saved": True})
+            return JsonResponse({
+                "success": True,
+                "draft_saved": True,
+                "draft_token": str(draft_submission.participant_token),
+            })
 
         email_answers = []
         phone_answers = []
@@ -1142,12 +1176,11 @@ def public_event_form(request, event_slug, form_slug):
                     status=409,
                 )
             submission = None
-            if participant_registration is not None:
+            if draft_submission is not None:
                 submission = (
                     FormSubmission.objects.select_for_update()
                     .filter(
-                        event_form=event_form,
-                        registration_submission=participant_registration,
+                        pk=draft_submission.pk,
                         is_active=True,
                         is_complete=False,
                     )
@@ -1231,9 +1264,15 @@ def public_event_form(request, event_slug, form_slug):
         "staff_preview": staff_preview,
         "draft_answer_values": draft_answer_values,
         "draft_autosave_enabled": bool(
-            is_evaluation
-            and participant_registration is not None
-            and not staff_preview
+            not staff_preview
+            and (
+                not is_evaluation
+                or participant_registration is not None
+            )
+        ),
+        "draft_token": (
+            str(draft_submission.participant_token)
+            if draft_submission is not None else ""
         ),
     }
 

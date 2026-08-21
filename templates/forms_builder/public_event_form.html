@@ -299,6 +299,7 @@
                     enctype="multipart/form-data"
                     id="dynamic-event-form"
                     {% if draft_autosave_enabled %}data-draft-autosave="true"{% endif %}
+                    {% if draft_token %}data-draft-token="{{ draft_token }}"{% endif %}
                 >
                     {% csrf_token %}
 
@@ -516,7 +517,7 @@
         </section>
     </main>
 
-    <script src="{% static 'js/public-event-form.js' %}?v=20260822-draft-autosave"></script>
+    <script src="{% static 'js/public-event-form.js' %}?v=20260822-registration-drafts"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {

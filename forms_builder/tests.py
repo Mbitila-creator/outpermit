@@ -172,6 +172,11 @@ class WEUUTzEvaluationSetupTests(TestCase):
             title_en="Institution Information",
             display_order=1,
         )
+        institution_name_question = institution.questions.create(
+            label_sw="Jina la Taasisi",
+            label_en="Institution Name",
+            is_required=True,
+        )
         representative = registration_form.sections.create(
             title_sw="Taarifa za Mwakilishi",
             title_en="Representative Information",
@@ -244,12 +249,21 @@ class WEUUTzEvaluationSetupTests(TestCase):
         other_section.refresh_from_db()
         booth_section.refresh_from_db()
         participation_question.refresh_from_db()
+        institution_name_question.refresh_from_db()
         self.assertFalse(participation.is_active)
         self.assertFalse(participation_question.is_active)
         self.assertFalse(conference_section.is_active)
         self.assertFalse(other_section.is_active)
         self.assertIsNone(booth_section.condition_question_id)
         self.assertEqual(booth_section.condition_value, "")
+        self.assertEqual(
+            institution_name_question.placeholder_en,
+            "e.g., University of Dar es Salaam (UDSM)",
+        )
+        self.assertEqual(
+            institution_name_question.placeholder_sw,
+            "mf., Chuo Kikuu cha Dar es Salaam (UDSM)",
+        )
         self.assertEqual(
             list(
                 registration_form.sections.filter(is_active=True)
@@ -261,6 +275,66 @@ class WEUUTzEvaluationSetupTests(TestCase):
                 (representative.title_en, 2),
                 (booth_section.title_en, 3),
             ],
+        )
+
+    def test_registration_draft_is_saved_and_restored_by_private_token(self):
+        self.event.status = self.event.Status.REGISTRATION_OPEN
+        self.event.save(update_fields=["status", "updated_at"])
+        registration_form = EventForm.objects.create(
+            event=self.event,
+            name_sw="Usajili wa Maonesho",
+            name_en="Exhibition Registration",
+            slug="resumable-exhibition-registration",
+            form_type=EventForm.FormType.EXHIBITOR,
+            is_published=True,
+        )
+        section = registration_form.sections.create(
+            title_sw="Taarifa za Taasisi",
+            title_en="Institution Information",
+        )
+        question = section.questions.create(
+            label_sw="Jina la Taasisi",
+            label_en="Institution Name",
+            is_required=True,
+        )
+        registration_url = reverse(
+            "forms_builder:public_event_form",
+            kwargs={
+                "event_slug": self.event.slug,
+                "form_slug": registration_form.slug,
+            },
+        )
+
+        initial_response = self.client.get(registration_url)
+        self.assertContains(initial_response, 'data-draft-autosave="true"')
+        save_response = self.client.post(
+            registration_url,
+            {
+                "_save_draft": "1",
+                f"question_{question.pk}": "University of Dodoma",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(save_response.status_code, 200)
+        draft_token = save_response.json()["draft_token"]
+        draft = FormSubmission.objects.get(
+            event_form=registration_form,
+            participant_token=draft_token,
+            is_complete=False,
+        )
+        self.assertEqual(draft.answers.get().text_value, "University of Dodoma")
+        restored_response = self.client.get(
+            registration_url,
+            {"draft": draft_token},
+        )
+        self.assertEqual(
+            restored_response.context["draft_answer_values"],
+            {str(question.pk): "University of Dodoma"},
+        )
+        self.assertContains(
+            restored_response,
+            f'data-draft-token="{draft_token}"',
         )
 
     def test_command_improves_only_weuutz_form_and_is_idempotent(self):
