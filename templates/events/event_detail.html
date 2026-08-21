@@ -94,14 +94,14 @@
                 </div>
             </article>
 
-            {% if active_forms %}
+            {% if public_forms %}
                 <article class="content-card">
                     <h2>
                         {% translate "Event forms" %}
                     </h2>
 
                     <div class="event-form-list">
-                        {% for event_form in active_forms %}
+                        {% for event_form in public_forms %}
                             <div class="event-form-item">
                                 <div>
                                     <h3>

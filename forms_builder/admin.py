@@ -452,6 +452,15 @@ class EventFormAdmin(AuditAdminMixin, admin.ModelAdmin):
             return "Publish and activate the form first."
 
         public_url = public_form_path(obj)
+        if obj.requires_participant_registration:
+            return format_html(
+                '<a href="{}?preview=1" target="_blank" rel="noopener">'
+                'Preview form</a>'
+                '<br><small>Participants access this form from their '
+                'participant portal. A generic public QR code is not used.'
+                '</small>',
+                public_url,
+            )
         qr_url = reverse(
             "admin:forms_builder_eventform_qr_code",
             args=[obj.pk],

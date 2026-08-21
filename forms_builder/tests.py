@@ -6,6 +6,7 @@ from datetime import timedelta
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.contrib import admin
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -13,6 +14,7 @@ from PIL import Image
 
 from events.models import Event, EventCategory
 from .models import EventForm, FormQuestion, FormSubmission
+from .admin import EventFormAdmin
 
 from .services import (
     certificate_is_for_institution,
@@ -239,6 +241,23 @@ class WEUUTzEvaluationSetupTests(TestCase):
             f"?participant={registration.participant_token}",
             count=2,
         )
+
+        public_event_response = self.client.get(
+            reverse(
+                "events:event_detail",
+                kwargs={"event_slug": self.event.slug},
+            )
+        )
+        self.assertNotContains(public_event_response, evaluation_url)
+
+        admin_tools = str(
+            EventFormAdmin(EventForm, admin.site).registration_tools(
+                evaluation_form
+            )
+        )
+        self.assertIn(f"{evaluation_url}?preview=1", admin_tools)
+        self.assertIn("Preview form", admin_tools)
+        self.assertNotIn("View QR", admin_tools)
 
     def test_pending_registration_can_access_badge_but_not_certificate(self):
         self.event.badge_enabled = True
