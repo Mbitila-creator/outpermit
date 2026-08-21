@@ -165,6 +165,7 @@ class WEUUTzEvaluationSetupTests(TestCase):
         self.assertTrue(self.event.evaluation_enabled)
         self.assertTrue(self.form.is_published)
         self.assertTrue(self.form.requires_participant_registration)
+        self.assertFalse(self.form.show_event_summary)
         self.assertEqual(self.form.name_en, "Commemoration Evaluation Questionnaire")
         self.assertEqual(questions.filter(is_active=True).count(), 38)
         self.assertFalse(self.original_question.is_active)
