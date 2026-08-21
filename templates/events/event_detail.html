@@ -94,14 +94,14 @@
                 </div>
             </article>
 
-            {% if public_forms %}
+            {% if active_forms %}
                 <article class="content-card">
                     <h2>
                         {% translate "Event forms" %}
                     </h2>
 
                     <div class="event-form-list">
-                        {% for event_form in public_forms %}
+                        {% for event_form in active_forms %}
                             <div class="event-form-item">
                                 <div>
                                     <h3>
@@ -117,12 +117,21 @@
                                     </p>
                                 </div>
 
-                                <a
-                                    href="{% url 'forms_builder:public_event_form' event.slug event_form.slug %}"
-                                    class="secondary-button"
-                                >
-                                    {% translate "Open form" %}
-                                </a>
+                                {% if event_form.requires_participant_registration %}
+                                    <a
+                                        href="{% url 'forms_builder:registration_status' %}"
+                                        class="secondary-button"
+                                    >
+                                        {% translate "Open participant portal" %}
+                                    </a>
+                                {% else %}
+                                    <a
+                                        href="{% url 'forms_builder:public_event_form' event.slug event_form.slug %}"
+                                        class="secondary-button"
+                                    >
+                                        {% translate "Open form" %}
+                                    </a>
+                                {% endif %}
                             </div>
                         {% endfor %}
                     </div>

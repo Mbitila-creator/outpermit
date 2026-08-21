@@ -248,7 +248,19 @@ class WEUUTzEvaluationSetupTests(TestCase):
                 kwargs={"event_slug": self.event.slug},
             )
         )
-        self.assertNotContains(public_event_response, evaluation_url)
+        self.assertContains(
+            public_event_response,
+            evaluation_form.name_en,
+        )
+        self.assertContains(
+            public_event_response,
+            reverse("forms_builder:registration_status"),
+        )
+        self.assertContains(
+            public_event_response,
+            "Open participant portal",
+        )
+        self.assertNotContains(public_event_response, f'href="{evaluation_url}"')
 
         admin_tools = str(
             EventFormAdmin(EventForm, admin.site).registration_tools(

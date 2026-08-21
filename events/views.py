@@ -177,9 +177,6 @@ def event_detail(request, event_slug):
         "form_type",
         "name_sw",
     )
-    public_forms = active_forms.filter(
-        requires_participant_registration=False,
-    )
 
     registration_form = active_forms.filter(
         form_type="REGISTRATION",
@@ -220,7 +217,6 @@ def event_detail(request, event_slug):
     context = {
         "event": event,
         "active_forms": active_forms,
-        "public_forms": public_forms,
         "registration_form": registration_form,
         "evaluation_form": evaluation_form,
         "registration_not_open": registration_not_open,
