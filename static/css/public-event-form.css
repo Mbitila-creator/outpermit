@@ -515,12 +515,6 @@ img {
     gap: 20px;
 }
 
-.likert-instruction {
-    margin-bottom: 14px;
-    color: #27364a;
-    line-height: 1.55;
-}
-
 .likert-table-scroll {
     width: 100%;
     overflow-x: auto;
