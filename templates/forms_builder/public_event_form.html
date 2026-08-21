@@ -298,6 +298,7 @@
                     method="post"
                     enctype="multipart/form-data"
                     id="dynamic-event-form"
+                    {% if draft_autosave_enabled %}data-draft-autosave="true"{% endif %}
                 >
                     {% csrf_token %}
 
@@ -508,11 +509,14 @@
                         </p>
                     {% endif %}
                 </form>
+                {% if draft_autosave_enabled %}
+                    {{ draft_answer_values|json_script:"draft-answer-values" }}
+                {% endif %}
             {% endif %}
         </section>
     </main>
 
-    <script src="{% static 'js/public-event-form.js' %}?v=20260822-likert"></script>
+    <script src="{% static 'js/public-event-form.js' %}?v=20260822-draft-autosave"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {

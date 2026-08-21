@@ -17,7 +17,39 @@ document.addEventListener("DOMContentLoaded", () => {
     const reviewContainer = form.querySelector(".review-sections");
     const language =
         document.documentElement.lang === "en" ? "en" : "sw";
+    const draftAutosaveEnabled = form.dataset.draftAutosave === "true";
+    const draftDataElement = document.getElementById("draft-answer-values");
     let currentStep = 0;
+    let draftSaveTimer = null;
+    let submissionInProgress = false;
+
+    const restoreDraftAnswers = () => {
+        if (!draftDataElement) {
+            return;
+        }
+        let draftAnswers = {};
+        try {
+            draftAnswers = JSON.parse(draftDataElement.textContent);
+        } catch (error) {
+            console.error("Could not restore the saved evaluation draft.", error);
+            return;
+        }
+        Object.entries(draftAnswers).forEach(([questionId, storedValue]) => {
+            const values = Array.isArray(storedValue)
+                ? storedValue.map(String)
+                : [String(storedValue)];
+            form.querySelectorAll(`[name="question_${questionId}"]`)
+                .forEach((control) => {
+                    if (control.type === "checkbox" || control.type === "radio") {
+                        control.checked = values.includes(control.value);
+                    } else if (control.type !== "file") {
+                        control.value = values[0] || "";
+                    }
+                });
+        });
+    };
+
+    restoreDraftAnswers();
 
     allSteps.forEach((step) => {
         step.querySelectorAll("input, select, textarea").forEach((control) => {
@@ -401,6 +433,37 @@ document.addEventListener("DOMContentLoaded", () => {
         showStep(0, false);
     }
 
+    const saveDraft = async () => {
+        if (!draftAutosaveEnabled || submissionInProgress) {
+            return;
+        }
+        const formData = new FormData(form);
+        formData.append("_save_draft", "1");
+        try {
+            const response = await fetch(window.location.href, {
+                method: "POST",
+                body: formData,
+                headers: {"X-Requested-With": "XMLHttpRequest"},
+            });
+            if (!response.ok) {
+                console.error("Evaluation draft autosave failed.");
+            }
+        } catch (error) {
+            console.error("Evaluation draft autosave failed.", error);
+        }
+    };
+
+    const scheduleDraftSave = () => {
+        if (!draftAutosaveEnabled || submissionInProgress) {
+            return;
+        }
+        window.clearTimeout(draftSaveTimer);
+        draftSaveTimer = window.setTimeout(saveDraft, 800);
+    };
+
+    form.addEventListener("input", scheduleDraftSave);
+    form.addEventListener("change", scheduleDraftSave);
+
     const showGeneralMessage = (message, type = "error") => {
         const messageBox = document.createElement("div");
         messageBox.className =
@@ -470,6 +533,9 @@ document.addEventListener("DOMContentLoaded", () => {
             firstInvalid?.reportValidity();
             return;
         }
+
+        submissionInProgress = true;
+        window.clearTimeout(draftSaveTimer);
 
         if (submitButton) {
             submitButton.disabled = true;
@@ -549,6 +615,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     : "Fomu haikuweza kuwasilishwa. Tafadhali jaribu tena."
             );
         } finally {
+            submissionInProgress = false;
             if (submitButton) {
                 submitButton.disabled = false;
                 submitButton.textContent = originalButtonText;

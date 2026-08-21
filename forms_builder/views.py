@@ -564,7 +564,7 @@ def form_availability(event_form):
     return form_not_open, form_closed
 
 
-def validate_question_answer(request, question):
+def validate_question_answer(request, question, *, enforce_required=True):
     field_name = f"question_{question.id}"
     question_type = question.question_type
 
@@ -584,7 +584,7 @@ def validate_question_answer(request, question):
         or raw_value == []
     )
 
-    if question.is_required and is_empty:
+    if enforce_required and question.is_required and is_empty:
         return None, "This field is required."
 
     if is_empty:
@@ -729,6 +729,45 @@ def validate_question_answer(request, question):
     return result, None
 
 
+def draft_answer_value(answer):
+    """Return the stored form-control value for restoring a draft answer."""
+    selected_values = list(
+        answer.selected_options.values_list("value", flat=True)
+    )
+    if selected_values:
+        return selected_values
+    if answer.text_value:
+        return answer.text_value
+    if answer.number_value is not None:
+        return str(answer.number_value)
+    if answer.date_value:
+        return answer.date_value.isoformat()
+    if answer.datetime_value:
+        return answer.datetime_value.strftime("%Y-%m-%dT%H:%M")
+    if answer.boolean_value is not None:
+        return "yes" if answer.boolean_value else "no"
+    return ""
+
+
+def save_answer_data(submission, validated_answers):
+    """Replace a submission's answers with the supplied validated values."""
+    submission.answers.all().delete()
+    for answer_data in validated_answers:
+        if answer_data.get("empty"):
+            continue
+        answer_data = answer_data.copy()
+        selected_options = answer_data.pop("selected_options", [])
+        question = answer_data.pop("question")
+        answer_data.pop("empty", None)
+        answer = FormAnswer.objects.create(
+            submission=submission,
+            question=question,
+            **answer_data,
+        )
+        if selected_options:
+            answer.selected_options.set(selected_options)
+
+
 def section_is_visible_for_submission(request, section):
     """Apply a section's configured answer condition on the server."""
     if not section.condition_question_id or not section.condition_value:
@@ -803,6 +842,8 @@ def public_event_form(request, event_slug, form_slug):
         and events_visible_to(request.user).filter(pk=event_form.event_id).exists()
     )
     participant_registration = None
+    draft_submission = None
+    draft_answer_values = {}
     participant_token = request.GET.get("participant", "").strip()
     if participant_token:
         try:
@@ -827,7 +868,35 @@ def public_event_form(request, event_slug, form_slug):
     ):
         return redirect("forms_builder:registration_status")
 
+    if is_evaluation and participant_registration is not None:
+        draft_submission = (
+            FormSubmission.objects.filter(
+                event_form=event_form,
+                registration_submission=participant_registration,
+                is_active=True,
+                is_complete=False,
+            )
+            .prefetch_related("answers__selected_options")
+            .order_by("pk")
+            .first()
+        )
+        if request.method == "GET" and draft_submission is not None:
+            draft_answer_values = {
+                str(answer.question_id): draft_answer_value(answer)
+                for answer in draft_submission.answers.all()
+            }
+
     if request.method == "POST":
+        save_draft = request.POST.get("_save_draft") == "1"
+        if save_draft and (
+            not is_evaluation
+            or participant_registration is None
+            or staff_preview
+        ):
+            return JsonResponse(
+                {"success": False, "message": "Draft saving is unavailable."},
+                status=403,
+            )
         if form_not_open:
             return JsonResponse(
                 {
@@ -850,7 +919,11 @@ def public_event_form(request, event_slug, form_slug):
                 status=400,
             )
 
-        if is_evaluation and not event_form.allow_multiple_submissions:
+        if (
+            is_evaluation
+            and not save_draft
+            and not event_form.allow_multiple_submissions
+        ):
             previous_submission = None
             if participant_registration is not None:
                 previous_submission = FormSubmission.objects.filter(
@@ -926,6 +999,7 @@ def public_event_form(request, event_slug, form_slug):
             answer_data, error = validate_question_answer(
                 request,
                 question,
+                enforce_required=not save_draft,
             )
 
             if error:
@@ -942,6 +1016,43 @@ def public_event_form(request, event_slug, form_slug):
                 },
                 status=400,
             )
+
+        if save_draft:
+            with transaction.atomic():
+                EventForm.objects.select_for_update().get(pk=event_form.pk)
+                draft_submission = (
+                    FormSubmission.objects.select_for_update()
+                    .filter(
+                        event_form=event_form,
+                        registration_submission=participant_registration,
+                        is_active=True,
+                        is_complete=False,
+                    )
+                    .order_by("pk")
+                    .first()
+                )
+                if draft_submission is None:
+                    draft_submission = FormSubmission.objects.create(
+                        event_form=event_form,
+                        registration_submission=participant_registration,
+                        language=language_code,
+                        submitter_email=participant_registration.submitter_email,
+                        submitter_phone=participant_registration.submitter_phone,
+                        ip_address=get_client_ip(request),
+                        user_agent=request.META.get("HTTP_USER_AGENT", ""),
+                        is_complete=False,
+                    )
+                else:
+                    draft_submission.language = language_code
+                    draft_submission.ip_address = get_client_ip(request)
+                    draft_submission.user_agent = request.META.get(
+                        "HTTP_USER_AGENT", ""
+                    )
+                    draft_submission.save(update_fields=[
+                        "language", "ip_address", "user_agent", "updated_at",
+                    ])
+                save_answer_data(draft_submission, validated_answers)
+            return JsonResponse({"success": True, "draft_saved": True})
 
         email_answers = []
         phone_answers = []
@@ -1030,57 +1141,39 @@ def public_event_form(request, event_slug, form_slug):
                     },
                     status=409,
                 )
-            submission = FormSubmission.objects.create(
-                event_form=event_form,
-                registration_submission=participant_registration,
-                submitted_by=(
-                    request.user
-                    if request.user.is_authenticated
-                    else None
-                ),
-                language=language_code,
-                submitter_email=submitter_email,
-                submitter_phone=submitter_phone,
-                ip_address=get_client_ip(request),
-                user_agent=request.META.get(
-                    "HTTP_USER_AGENT",
-                    "",
-                ),
-                is_complete=True,
-                created_by=(
-                    request.user
-                    if request.user.is_authenticated
-                    else None
-                ),
-                updated_by=(
-                    request.user
-                    if request.user.is_authenticated
-                    else None
-                ),
-            )
-
-            for answer_data in validated_answers:
-                if answer_data.get("empty"):
-                    continue
-
-                selected_options = answer_data.pop(
-                    "selected_options",
-                    [],
-                )
-
-                question = answer_data.pop("question")
-                answer_data.pop("empty", None)
-
-                answer = FormAnswer.objects.create(
-                    submission=submission,
-                    question=question,
-                    **answer_data,
-                )
-
-                if selected_options:
-                    answer.selected_options.set(
-                        selected_options
+            submission = None
+            if participant_registration is not None:
+                submission = (
+                    FormSubmission.objects.select_for_update()
+                    .filter(
+                        event_form=event_form,
+                        registration_submission=participant_registration,
+                        is_active=True,
+                        is_complete=False,
                     )
+                    .order_by("pk")
+                    .first()
+                )
+            if submission is None:
+                submission = FormSubmission(event_form=event_form)
+            submission.registration_submission = participant_registration
+            submission.submitted_by = (
+                request.user if request.user.is_authenticated else None
+            )
+            submission.language = language_code
+            submission.submitter_email = submitter_email
+            submission.submitter_phone = submitter_phone
+            submission.ip_address = get_client_ip(request)
+            submission.user_agent = request.META.get("HTTP_USER_AGENT", "")
+            submission.is_complete = True
+            submission.created_by = (
+                request.user if request.user.is_authenticated else None
+            )
+            submission.updated_by = (
+                request.user if request.user.is_authenticated else None
+            )
+            submission.save()
+            save_answer_data(submission, validated_answers)
 
         if event_form.form_type != EventForm.FormType.EVALUATION:
             sync_badge_identity_from_answers(submission)
@@ -1136,6 +1229,12 @@ def public_event_form(request, event_slug, form_slug):
         "is_evaluation": is_evaluation,
         "participant_registration": participant_registration,
         "staff_preview": staff_preview,
+        "draft_answer_values": draft_answer_values,
+        "draft_autosave_enabled": bool(
+            is_evaluation
+            and participant_registration is not None
+            and not staff_preview
+        ),
     }
 
     return render(
