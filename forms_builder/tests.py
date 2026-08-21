@@ -186,6 +186,35 @@ class WEUUTzEvaluationSetupTests(TestCase):
                 "SECTION E: ACHIEVEMENTS, CHALLENGES AND RECOMMENDATIONS",
             ],
         )
+        section_b = self.form.sections.get(display_order=2, is_active=True)
+        section_c = self.form.sections.get(display_order=3, is_active=True)
+        self.assertEqual(
+            section_b.description_en,
+            "Please rate the following areas using the 1–5 scale, where "
+            "1 = Very poor, 2 = Poor, 3 = Fair, 4 = Good, 5 = Very good.",
+        )
+        self.assertEqual(
+            section_c.description_en,
+            "To what extent did your institution's participation achieve the "
+            "following outcomes? Where 1 = Not achieved, 2 = Slightly, "
+            "3 = Moderate, 4 = Achieved, 5 = Highly achieved.",
+        )
+        expected_question_counts = {"A": 5, "B": 12, "C": 11, "D": 3, "E": 7}
+        for section_letter, question_count in expected_question_counts.items():
+            section = self.form.sections.get(
+                display_order=ord(section_letter) - ord("A") + 1,
+                is_active=True,
+            )
+            labels = list(
+                section.questions.filter(is_active=True)
+                .order_by("display_order", "pk")
+                .values_list("label_en", flat=True)
+            )
+            self.assertEqual(len(labels), question_count)
+            self.assertEqual(
+                [label.split(".", 1)[0] for label in labels],
+                [f"{section_letter}{number}" for number in range(1, question_count + 1)],
+            )
         self.assertFalse(
             self.form.sections.filter(
                 is_active=True,

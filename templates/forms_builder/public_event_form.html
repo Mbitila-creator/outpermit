@@ -372,15 +372,6 @@
                             </div>
 
                             {% if section.use_likert_matrix %}
-                                <div class="likert-instruction">
-                                    <strong>
-                                        {% if section.display_order == 2 %}
-                                            {% if language_code == "en" %}Please rate the following areas using the 1–5 scale:{% else %}Tafadhali tathmini maeneo yafuatayo kwa kutumia kipimo cha 1–5:{% endif %}
-                                        {% else %}
-                                            {% if language_code == "en" %}To what extent did your institution's participation achieve the following outcomes?{% else %}Ushiriki wa taasisi yako katika maonesho umefanikisha kwa kiwango gani mambo yafuatayo?{% endif %}
-                                        {% endif %}
-                                    </strong>
-                                </div>
                                 <div class="likert-table-scroll">
                                     <table class="likert-table">
                                         <thead>
