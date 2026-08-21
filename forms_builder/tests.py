@@ -7,11 +7,12 @@ from datetime import timedelta
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import SimpleTestCase, TestCase
+from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
 from events.models import Event, EventCategory
-from .models import EventForm, FormQuestion
+from .models import EventForm, FormQuestion, FormSubmission
 
 from .services import (
     certificate_is_for_institution,
@@ -160,25 +161,108 @@ class WEUUTzEvaluationSetupTests(TestCase):
 
         self.assertTrue(self.event.evaluation_enabled)
         self.assertTrue(self.form.is_published)
+        self.assertTrue(self.form.requires_participant_registration)
         self.assertEqual(self.form.name_en, "Commemoration Evaluation Questionnaire")
-        self.assertEqual(questions.filter(is_active=True).count(), 44)
+        self.assertEqual(questions.filter(is_active=True).count(), 38)
         self.assertFalse(self.original_question.is_active)
         self.assertEqual(
             self.form.sections.filter(is_active=True).count(),
-            6,
+            5,
         )
-        service_question = questions.get(
-            label_en="Main service/activity areas (select all that apply)"
+        self.assertFalse(
+            self.form.sections.filter(
+                is_active=True,
+                title_en="SECTION A: PARTICIPANT/INSTITUTION INFORMATION",
+            ).exists()
         )
-        self.assertEqual(service_question.options.filter(is_active=True).count(), 9)
-        self.assertEqual(
-            list(service_question.options.filter(is_active=True).values_list("value", flat=True)),
-            [
-                "EDUCATION", "RESEARCH", "STI", "TVET", "CONSULTANCY",
-                "PRODUCTION", "SOCIAL", "REGULATION", "OTHER",
-            ],
+        self.assertFalse(
+            questions.filter(
+                is_active=True,
+                label_en="Institution/organization name",
+            ).exists()
         )
         other_fields = questions.filter(is_active=True, condition_value="OTHER")
-        self.assertEqual(other_fields.count(), 4)
+        self.assertEqual(other_fields.count(), 2)
         self.assertTrue(all(question.is_required for question in other_fields))
         self.assertTrue(all(question.condition_question_id for question in other_fields))
+
+    def test_evaluation_is_available_only_through_linked_participant_portal(self):
+        call_command("setup_weuutz_evaluation", "--confirm")
+        self.event.refresh_from_db()
+        evaluation_form = self.event.forms.get(
+            form_type=EventForm.FormType.EVALUATION,
+        )
+        registration_form = EventForm.objects.create(
+            event=self.event,
+            name_sw="Usajili",
+            name_en="Registration",
+            form_type=EventForm.FormType.REGISTRATION,
+            is_published=True,
+        )
+        registration = FormSubmission.objects.create(
+            event_form=registration_form,
+            submitter_email="representative@example.com",
+            submitter_phone="0712345678",
+            is_complete=True,
+        )
+        evaluation_url = reverse(
+            "forms_builder:public_event_form",
+            kwargs={
+                "event_slug": self.event.slug,
+                "form_slug": evaluation_form.slug,
+            },
+        )
+
+        self.assertEqual(self.client.get(evaluation_url).status_code, 404)
+        response = self.client.get(
+            evaluation_url,
+            {"participant": registration.participant_token},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["participant_registration"], registration)
+
+        portal_url = reverse(
+            "forms_builder:participant_portal",
+            kwargs={"participant_token": registration.participant_token},
+        )
+        portal_response = self.client.get(portal_url)
+        self.assertContains(
+            portal_response,
+            f"?participant={registration.participant_token}",
+        )
+
+    def test_pending_registration_can_access_badge_but_not_certificate(self):
+        self.event.badge_enabled = True
+        self.event.certificate_enabled = True
+        self.event.save(update_fields=[
+            "badge_enabled", "certificate_enabled", "updated_at",
+        ])
+        registration_form = EventForm.objects.create(
+            event=self.event,
+            name_sw="Usajili",
+            name_en="Registration",
+            form_type=EventForm.FormType.REGISTRATION,
+            is_published=True,
+        )
+        registration = FormSubmission.objects.create(
+            event_form=registration_form,
+            review_status=FormSubmission.ReviewStatus.PENDING,
+            is_complete=True,
+        )
+
+        badge_url = reverse(
+            "forms_builder:participant_badge",
+            kwargs={"participant_token": registration.participant_token},
+        )
+        self.assertEqual(self.client.get(badge_url).status_code, 200)
+
+        portal_url = reverse(
+            "forms_builder:participant_portal",
+            kwargs={"participant_token": registration.participant_token},
+        )
+        portal_response = self.client.get(portal_url)
+        certificate_url = reverse(
+            "forms_builder:participant_certificate",
+            kwargs={"participant_token": registration.participant_token},
+        )
+        self.assertNotContains(portal_response, certificate_url)

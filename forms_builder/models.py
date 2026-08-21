@@ -114,6 +114,15 @@ class EventForm(BaseModel):
         default=False,
     )
 
+    requires_participant_registration = models.BooleanField(
+        _("requires participant registration"),
+        default=False,
+        help_text=_(
+            "Allow access only from the portal of a participant registered "
+            "for this event."
+        ),
+    )
+
     is_published = models.BooleanField(
         _("published"),
         default=False,
@@ -460,6 +469,19 @@ class FormSubmission(BaseModel):
         verbose_name=_("event form"),
         related_name="submissions",
         on_delete=models.CASCADE,
+    )
+
+    registration_submission = models.ForeignKey(
+        "self",
+        verbose_name=_("linked participant registration"),
+        related_name="linked_evaluation_submissions",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text=_(
+            "The participant registration that supplied the identity for "
+            "this evaluation submission."
+        ),
     )
 
     submitted_by = models.ForeignKey(

@@ -122,6 +122,7 @@ class Command(BaseCommand):
         form.success_message_en = "Thank you. Your WEUUTz evaluation has been received."
         form.show_event_summary = True
         form.allow_multiple_submissions = False
+        form.requires_participant_registration = True
         form.is_published = True
         form.is_active = True
         form.save()
@@ -130,52 +131,17 @@ class Command(BaseCommand):
         FormQuestion.objects.filter(section__event_form=form).update(is_active=False)
 
         sections = {
-            "A": configure_section(form, 1, "SEHEMU A: TAARIFA ZA MSHIRIKI/TAASISI", "SECTION A: PARTICIPANT/INSTITUTION INFORMATION"),
-            "B": configure_section(form, 2, "SEHEMU B: USHIRIKI NA MWITIKIO WA WATEMBELEAJI", "SECTION B: PARTICIPATION AND VISITOR RESPONSE"),
-            "C": configure_section(form, 3, "SEHEMU C: TATHMINI YA MAANDALIZI NA UENDESHAJI WA MAONESHO", "SECTION C: EXHIBITION ORGANIZATION AND OPERATIONS", "1 = Duni sana, 2 = Duni, 3 = Wastani, 4 = Nzuri, 5 = Nzuri sana.", "1 = Very poor, 2 = Poor, 3 = Fair, 4 = Good, 5 = Very good."),
-            "D": configure_section(form, 4, "SEHEMU D: MANUFAA NA MATOKEO YA USHIRIKI", "SECTION D: PARTICIPATION BENEFITS AND OUTCOMES", "1 = Haijafanikiwa kabisa, 2 = Kidogo, 3 = Wastani, 4 = Imefanikiwa, 5 = Imefanikiwa sana.", "1 = Not achieved, 2 = Slightly, 3 = Moderate, 4 = Achieved, 5 = Highly achieved."),
-            "E": configure_section(form, 5, "SEHEMU E: TATHMINI YA JUMLA", "SECTION E: OVERALL EVALUATION"),
-            "F": configure_section(form, 6, "SEHEMU F: MAFANIKIO, CHANGAMOTO NA MAPENDEKEZO", "SECTION F: ACHIEVEMENTS, CHALLENGES AND RECOMMENDATIONS"),
+            "B": configure_section(form, 1, "SEHEMU B: USHIRIKI NA MWITIKIO WA WATEMBELEAJI", "SECTION B: PARTICIPATION AND VISITOR RESPONSE"),
+            "C": configure_section(form, 2, "SEHEMU C: TATHMINI YA MAANDALIZI NA UENDESHAJI WA MAONESHO", "SECTION C: EXHIBITION ORGANIZATION AND OPERATIONS", "1 = Duni sana, 2 = Duni, 3 = Wastani, 4 = Nzuri, 5 = Nzuri sana.", "1 = Very poor, 2 = Poor, 3 = Fair, 4 = Good, 5 = Very good."),
+            "D": configure_section(form, 3, "SEHEMU D: MANUFAA NA MATOKEO YA USHIRIKI", "SECTION D: PARTICIPATION BENEFITS AND OUTCOMES", "1 = Haijafanikiwa kabisa, 2 = Kidogo, 3 = Wastani, 4 = Imefanikiwa, 5 = Imefanikiwa sana.", "1 = Not achieved, 2 = Slightly, 3 = Moderate, 4 = Achieved, 5 = Highly achieved."),
+            "E": configure_section(form, 4, "SEHEMU E: TATHMINI YA JUMLA", "SECTION E: OVERALL EVALUATION"),
+            "F": configure_section(form, 5, "SEHEMU F: MAFANIKIO, CHANGAMOTO NA MAPENDEKEZO", "SECTION F: ACHIEVEMENTS, CHALLENGES AND RECOMMENDATIONS"),
         }
-
-        institution_types = (
-            ("MINISTRY", "Wizara/Idara ya Serikali", "Ministry/Government department"),
-            ("AGENCY", "Wakala/Taasisi ya Serikali", "Government agency/institution"),
-            ("LOCAL_GOVERNMENT", "Serikali za Mitaa", "Local government authority"),
-            ("UNIVERSITY", "Chuo Kikuu/Chuo cha Elimu ya Juu", "University/Higher education institution"),
-            ("TVET", "Chuo cha Ufundi na Mafunzo ya Ufundi Stadi", "Technical/Vocational training institution"),
-            ("SCHOOL", "Shule/Taasisi ya Elimu", "School/Education institution"),
-            ("RESEARCH", "Taasisi ya Utafiti na Maendeleo", "Research and development institution"),
-            ("PRIVATE", "Kampuni/Sekta Binafsi", "Company/Private sector"),
-            ("NGO", "Shirika Lisilo la Kiserikali", "Non-governmental organization"),
-            ("PARTNER", "Mshirika wa Maendeleo", "Development partner"),
-            ("INNOVATOR", "Mbunifu/Mvumbuzi/Mjasiriamali", "Innovator/Inventor/Entrepreneur"),
-            ("OTHER", "Nyingine", "Other"),
-        )
-        service_areas = (
-            ("EDUCATION", "Elimu na Mafunzo", "Education and training"),
-            ("RESEARCH", "Utafiti na Maendeleo", "Research and development"),
-            ("STI", "Sayansi, Teknolojia na Ubunifu", "Science, technology and innovation"),
-            ("TVET", "Ujuzi na Mafunzo ya Ufundi", "Skills and vocational training"),
-            ("CONSULTANCY", "Huduma za Ushauri", "Consultancy services"),
-            ("PRODUCTION", "Uzalishaji/Biashara", "Production/Business"),
-            ("SOCIAL", "Huduma za Kijamii", "Social services"),
-            ("REGULATION", "Uratibu/Udhibiti", "Coordination/Regulation"),
-            ("OTHER", "Nyingine", "Other"),
-        )
         generic_rating = tuple((str(i), sw, en) for i, sw, en in (
             (1, "1 – Duni sana", "1 – Very poor"), (2, "2 – Duni", "2 – Poor"),
             (3, "3 – Wastani", "3 – Fair"), (4, "4 – Nzuri", "4 – Good"),
             (5, "5 – Nzuri sana", "5 – Very good"),
         ))
-
-        configure_question(form, sections["A"], label_en="Institution/organization name", label_sw="A1. Jina la Taasisi/Shirika", question_type=FormQuestion.QuestionType.SHORT_TEXT, order=1, required=True)
-        institution_type = configure_question(form, sections["A"], label_en="Institution/organization type", label_sw="A2. Aina ya Taasisi/Shirika", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=2, required=True, options=institution_types)
-        configure_question(form, sections["A"], label_en="Other institution type (specify)", label_sw="A2. Nyingine, taja", question_type=FormQuestion.QuestionType.SHORT_TEXT, order=3, required=True, condition_question=institution_type, condition_value="OTHER")
-        service_question = configure_question(form, sections["A"], label_en="Main service/activity areas (select all that apply)", label_sw="A3. Eneo kuu la huduma/shughuli za taasisi yako (Unaweza kuchagua zaidi ya moja)", question_type=FormQuestion.QuestionType.MULTIPLE_CHOICE, order=4, required=True, options=service_areas)
-        configure_question(form, sections["A"], label_en="Other service/activity area (specify)", label_sw="A3. Nyingine, taja", question_type=FormQuestion.QuestionType.SHORT_TEXT, order=5, required=True, condition_question=service_question, condition_value="OTHER")
-        booths = configure_question(form, sections["A"], label_en="How many booths did your institution have at the exhibition?", label_sw="A4. Taasisi yako ilikuwa na mabanda mangapi katika maonesho?", question_type=FormQuestion.QuestionType.NUMBER, order=6, required=True)
-        booths.minimum_value = 0; booths.save(update_fields=["minimum_value", "updated_at"])
 
         visitor_ranges = (
             ("LT100", "Chini ya 100", "Below 100"), ("100_499", "100–499", "100–499"),
