@@ -191,6 +191,21 @@ def event_detail(request, event_slug):
         form_type="EVALUATION",
     ).first()
 
+    can_preview_evaluation = bool(
+        request.user.is_authenticated
+        and has_event_role(
+            request.user,
+            {
+                User.Role.SYSTEM_ADMIN,
+                User.Role.EVENT_ADMIN,
+                User.Role.REPORT_OFFICER,
+                User.Role.DIRECTOR,
+                User.Role.ASSISTANT_DIRECTOR,
+            },
+        )
+        and events_visible_to(request.user).filter(pk=event.pk).exists()
+    )
+
     registration_not_open = (
         event.registration_opens_at
         and current_time < event.registration_opens_at
@@ -219,6 +234,7 @@ def event_detail(request, event_slug):
         "active_forms": active_forms,
         "registration_form": registration_form,
         "evaluation_form": evaluation_form,
+        "can_preview_evaluation": can_preview_evaluation,
         "registration_not_open": registration_not_open,
         "registration_closed": registration_closed,
         "registration_available": registration_available,
