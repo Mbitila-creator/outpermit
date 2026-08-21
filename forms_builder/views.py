@@ -1,6 +1,7 @@
 import csv
 import re
 import secrets
+import uuid
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
@@ -765,6 +766,26 @@ def public_event_form(request, event_slug, form_slug):
 
     language_code = request.LANGUAGE_CODE
     is_evaluation = event_form.form_type == EventForm.FormType.EVALUATION
+    participant_registration = None
+    participant_token = request.GET.get("participant", "").strip()
+    if participant_token:
+        try:
+            participant_token = uuid.UUID(participant_token)
+        except (ValueError, AttributeError):
+            raise Http404("Invalid participant portal link.")
+        participant_registration = FormSubmission.objects.filter(
+            participant_token=participant_token,
+            event_form__event=event_form.event,
+            event_form__form_type__in=[
+                EventForm.FormType.REGISTRATION,
+                EventForm.FormType.EXHIBITOR,
+                EventForm.FormType.SPEAKER,
+            ],
+            is_active=True,
+            is_complete=True,
+        ).first()
+    if event_form.requires_participant_registration and participant_registration is None:
+        raise Http404("Use your participant portal to access this evaluation.")
 
     if request.method == "POST":
         if form_not_open:
@@ -791,7 +812,13 @@ def public_event_form(request, event_slug, form_slug):
 
         if is_evaluation and not event_form.allow_multiple_submissions:
             previous_submission = None
-            if request.user.is_authenticated:
+            if participant_registration is not None:
+                previous_submission = FormSubmission.objects.filter(
+                    event_form=event_form,
+                    registration_submission=participant_registration,
+                    is_complete=True,
+                ).first()
+            elif request.user.is_authenticated:
                 previous_submission = FormSubmission.objects.filter(
                     event_form=event_form,
                     submitted_by=request.user,
@@ -906,7 +933,19 @@ def public_event_form(request, event_slug, form_slug):
 
         submitter_email = representative_answer(email_answers)
         submitter_phone = representative_answer(phone_answers)
+        if participant_registration is not None:
+            submitter_email = participant_registration.submitter_email
+            submitter_phone = participant_registration.submitter_phone
+
         def find_duplicate_submission():
+            if participant_registration is not None:
+                duplicate = FormSubmission.objects.filter(
+                    event_form=event_form,
+                    registration_submission=participant_registration,
+                    is_active=True,
+                    is_complete=True,
+                ).first()
+                return duplicate, bool(duplicate), False
             candidates = FormSubmission.objects.filter(
                 event_form=event_form,
                 is_active=True,
@@ -953,6 +992,7 @@ def public_event_form(request, event_slug, form_slug):
                 )
             submission = FormSubmission.objects.create(
                 event_form=event_form,
+                registration_submission=participant_registration,
                 submitted_by=(
                     request.user
                     if request.user.is_authenticated
@@ -1054,6 +1094,7 @@ def public_event_form(request, event_slug, form_slug):
         "form_not_open": form_not_open,
         "form_closed": form_closed,
         "is_evaluation": is_evaluation,
+        "participant_registration": participant_registration,
     }
 
     return render(
@@ -1363,7 +1404,7 @@ def registration_status(request):
     )
 
 
-def get_approved_badge_submission(participant_token):
+def get_badge_submission(participant_token):
     return get_object_or_404(
         FormSubmission.objects.select_related(
             "event_form",
@@ -1371,7 +1412,6 @@ def get_approved_badge_submission(participant_token):
             "event_form__event__venue",
         ),
         participant_token=participant_token,
-        review_status=FormSubmission.ReviewStatus.APPROVED,
         is_complete=True,
         is_active=True,
         event_form__event__badge_enabled=True,
@@ -1385,7 +1425,7 @@ def get_approved_badge_submission(participant_token):
 
 @require_http_methods(["GET"])
 def participant_badge(request, participant_token):
-    submission = get_approved_badge_submission(participant_token)
+    submission = get_badge_submission(participant_token)
 
     return render(
         request,
@@ -1537,7 +1577,7 @@ def certificate_verification(request, participant_token):
 
 @require_http_methods(["GET"])
 def participant_badge_qr(request, participant_token):
-    submission = get_approved_badge_submission(participant_token)
+    submission = get_badge_submission(participant_token)
     check_in_url = participant_check_in_url(
         submission,
         request=request,

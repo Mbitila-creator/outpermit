@@ -223,7 +223,7 @@
                         </div>
                     {% endif %}
 
-                    {% if event.evaluation_enabled and evaluation_form %}
+                    {% if event.evaluation_enabled and evaluation_form and not evaluation_form.requires_participant_registration %}
                         <a
                             href="{% url 'forms_builder:public_event_form' event.slug evaluation_form.slug %}"
                             class="secondary-button full-width-button"
@@ -246,4 +246,3 @@
     </div>
 </section>
 {% endblock %}
-
