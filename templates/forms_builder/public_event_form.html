@@ -373,6 +373,10 @@
                                             data-question-type="{{ question.question_type }}"
                                             data-required="{% if question.is_required %}true{% else %}false{% endif %}"
                                             data-question-label="{% if request.LANGUAGE_CODE == 'en' %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}"
+                                            {% if question.condition_question_id and question.condition_value %}
+                                                data-condition-question-id="{{ question.condition_question_id }}"
+                                                data-condition-value="{{ question.condition_value }}"
+                                            {% endif %}
                                         >
                                             {% if question.question_type == "SINGLE_CHOICE" or question.question_type == "MULTIPLE_CHOICE" or question.question_type == "YES_NO" %}
                                                 <div
@@ -547,5 +551,4 @@
     </script>
 </body>
 </html>
-
 

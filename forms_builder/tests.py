@@ -161,30 +161,24 @@ class WEUUTzEvaluationSetupTests(TestCase):
         self.assertTrue(self.event.evaluation_enabled)
         self.assertTrue(self.form.is_published)
         self.assertEqual(self.form.name_en, "Commemoration Evaluation Questionnaire")
-        self.assertEqual(questions.filter(is_active=True).count(), 9)
+        self.assertEqual(questions.filter(is_active=True).count(), 44)
         self.assertFalse(self.original_question.is_active)
         self.assertEqual(
-            set(questions.filter(is_active=True).values_list("label_sw", flat=True)),
-            {
-                "Jina la taasisi",
-                "Anuani",
-                "Aina ya huduma unayotoa kwa jamii: Tafadhali, chagua kati ya zifuatazo.",
-                "Tafadhali, taja huduma nyinginezo",
-                "Idadi ya mabanda ya taasisi yako katika Maadhimisho ya Wiki ya Kitaifa ya Elimu, Ujuzi na Ubunifu, mwaka 2026",
-                "Tafadhali, taja idadi ya wananchi waliotembelea banda lako katika maadhimisho ya mwaka huu, 2026.",
-                "Tafadhali, taja mafanikio uliyoyapata katika maadhimisho ya mwaka huu, 2026.",
-                "Tafadhali, taja changamoto ulizozipata katika Maadhimisho ya mwaka huu, 2026 hapa Jijini Tanga.",
-                "Tafadhali, toa maoni ya kuboresha Maadhimisho haya kwa mwaka ujao, 2027.",
-            },
+            self.form.sections.filter(is_active=True).count(),
+            6,
         )
         service_question = questions.get(
-            label_en="What type of service does your institution provide to the community? Select all that apply."
+            label_en="Main service/activity areas (select all that apply)"
         )
-        self.assertEqual(service_question.options.filter(is_active=True).count(), 10)
+        self.assertEqual(service_question.options.filter(is_active=True).count(), 9)
         self.assertEqual(
             list(service_question.options.filter(is_active=True).values_list("value", flat=True)),
             [
-                "RESEARCH", "TRAINING", "AGENCY", "EDUCATION", "CONSULTANCY",
-                "RESCUE", "COORDINATION", "SECURITY", "MARKETING", "OTHER",
+                "EDUCATION", "RESEARCH", "STI", "TVET", "CONSULTANCY",
+                "PRODUCTION", "SOCIAL", "REGULATION", "OTHER",
             ],
         )
+        other_fields = questions.filter(is_active=True, condition_value="OTHER")
+        self.assertEqual(other_fields.count(), 4)
+        self.assertTrue(all(question.is_required for question in other_fields))
+        self.assertTrue(all(question.condition_question_id for question in other_fields))
