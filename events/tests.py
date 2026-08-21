@@ -462,7 +462,7 @@ class DepartmentEventAccessTests(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_event_administrator_can_open_safe_elimu_certificate_preview(self):
-        self.dsti_event.code = "ELIMU-2026"
+        self.dsti_event.code = "WEUUTZ-2026"
         self.dsti_event.title_en = "Education and Innovation Week"
         self.dsti_event.save()
         user = self._staff("elimu-preview-admin", self.dsti)
@@ -489,7 +489,7 @@ class DepartmentEventAccessTests(TestCase):
         self.assertNotContains(preview_response, "Download PDF certificate")
 
     def test_registration_officer_cannot_open_certificate_preview(self):
-        self.dsti_event.code = "ELIMU-2026"
+        self.dsti_event.code = "WEUUTZ-2026"
         self.dsti_event.save()
         user = self._staff("elimu-preview-registration", self.dsti)
         user.profile.role = "REGISTRATION_OFFICER"

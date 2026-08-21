@@ -267,7 +267,7 @@ def sync_badge_identity_from_answers(submission):
     )
 
 
-INSTITUTION_CERTIFICATE_EVENT_CODES = {"ELIMU-2026"}
+INSTITUTION_CERTIFICATE_EVENT_CODES = {"WEUUTZ-2026"}
 
 
 def certificate_is_for_institution(submission):

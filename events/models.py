@@ -255,7 +255,7 @@ class Event(BaseModel):
         max_length=50,
         unique=True,
         help_text=_(
-            "Use a short unique code, for example ELIMU-2026."
+            "Use a short unique code, for example WEUUTZ-2026."
         ),
     )
 

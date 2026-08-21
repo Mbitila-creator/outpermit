@@ -58,7 +58,7 @@ class RegistrationIdentityConflictTests(SimpleTestCase):
 
 
 class InstitutionCertificateTests(SimpleTestCase):
-    def submission(self, event_code="ELIMU-2026", organization="Innovation Institute"):
+    def submission(self, event_code="WEUUTZ-2026", organization="Innovation Institute"):
         event = SimpleNamespace(code=event_code)
         event_form = SimpleNamespace(event=event)
         return SimpleNamespace(
@@ -67,7 +67,7 @@ class InstitutionCertificateTests(SimpleTestCase):
             badge_display_name="Asha Representative",
         )
 
-    def test_elimu_certificate_is_awarded_to_institution(self):
+    def test_weuutz_certificate_is_awarded_to_institution(self):
         submission = self.submission()
 
         self.assertTrue(certificate_is_for_institution(submission))
