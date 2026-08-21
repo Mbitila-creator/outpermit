@@ -27,7 +27,7 @@
 
     <link
         rel="stylesheet"
-        href="{% static 'css/public-event-form.css' %}?v=20260822-layout-language"
+        href="{% static 'css/public-event-form.css' %}?v=20260822-likert"
     >
 
     <link
@@ -371,88 +371,77 @@
                                 {% endif %}
                             </div>
 
-                            <div class="questions-container">
-                                {% for question in section.questions.all %}
-                                    {% if question.is_active %}
-                                        <div
-                                            class="form-field"
-                                            data-question-id="{{ question.id }}"
-                                            data-question-type="{{ question.question_type }}"
-                                            data-required="{% if question.is_required %}true{% else %}false{% endif %}"
-                                            data-question-label="{% if request.LANGUAGE_CODE == 'en' %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}"
-                                            {% if question.condition_question_id and question.condition_value %}
-                                                data-condition-question-id="{{ question.condition_question_id }}"
-                                                data-condition-value="{{ question.condition_value }}"
-                                                hidden
-                                            {% endif %}
-                                        >
-                                            {% if question.question_type == "SINGLE_CHOICE" or question.question_type == "MULTIPLE_CHOICE" or question.question_type == "YES_NO" %}
-                                                <div
-                                                    class="field-label"
-                                                    id="question-label-{{ question.id }}"
+                            {% if section.use_likert_matrix %}
+                                <div class="likert-instruction">
+                                    <strong>
+                                        {% if section.display_order == 2 %}
+                                            {% if language_code == "en" %}Please rate the following areas using the 1–5 scale:{% else %}Tafadhali tathmini maeneo yafuatayo kwa kutumia kipimo cha 1–5:{% endif %}
+                                        {% else %}
+                                            {% if language_code == "en" %}To what extent did your institution's participation achieve the following outcomes?{% else %}Ushiriki wa taasisi yako katika maonesho umefanikisha kwa kiwango gani mambo yafuatayo?{% endif %}
+                                        {% endif %}
+                                    </strong>
+                                </div>
+                                <div class="likert-table-scroll">
+                                    <table class="likert-table">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">
+                                                    {% if section.display_order == 2 %}{% if language_code == "en" %}Evaluation area{% else %}Eneo la Tathmini{% endif %}{% else %}{% if language_code == "en" %}Outcome{% else %}Matokeo{% endif %}{% endif %}
+                                                </th>
+                                                {% for option in section.likert_options %}<th scope="col">{{ option.value }}</th>{% endfor %}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for question in section.likert_questions %}
+                                                <tr
+                                                    class="form-field"
+                                                    data-question-id="{{ question.id }}"
+                                                    data-question-type="{{ question.question_type }}"
+                                                    data-required="{% if question.is_required %}true{% else %}false{% endif %}"
+                                                    data-question-label="{% if language_code == 'en' %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}"
                                                 >
-                                                    {% if language_code == "en" %}
-                                                        {{ question.label_en }}
-                                                    {% else %}
-                                                        {{ question.label_sw }}
-                                                    {% endif %}
-
-                                                    {% if question.is_required %}
-                                                        <span
-                                                            class="required-mark"
-                                                            aria-label="{% translate 'Required' %}"
-                                                            title="{% translate 'Required' %}"
-                                                        >
-                                                            *
-                                                        </span>
-                                                    {% endif %}
-                                                </div>
-                                            {% else %}
-                                                <label
-                                                    for="question-{{ question.id }}"
-                                                    class="field-label"
-                                                >
-                                                    {% if language_code == "en" %}
-                                                        {{ question.label_en }}
-                                                    {% else %}
-                                                        {{ question.label_sw }}
-                                                    {% endif %}
-
-                                                    {% if question.is_required %}
-                                                        <span
-                                                            class="required-mark"
-                                                            aria-label="{% translate 'Required' %}"
-                                                            title="{% translate 'Required' %}"
-                                                        >
-                                                            *
-                                                        </span>
-                                                    {% endif %}
-                                                </label>
-                                            {% endif %}
-
-                                            {% if request.LANGUAGE_CODE == "en" %}
-                                                {% with help_text=question.help_text_en placeholder=question.placeholder_en %}
-                                                    {% include "forms_builder/partials/question_input.html" %}
-                                                {% endwith %}
-                                            {% else %}
-                                                {% with help_text=question.help_text_sw placeholder=question.placeholder_sw %}
-                                                    {% include "forms_builder/partials/question_input.html" %}
-                                                {% endwith %}
-                                            {% endif %}
-
-                                            <div
-                                                class="field-error"
-                                                id="error-question-{{ question.id }}"
-                                                aria-live="polite"
-                                            ></div>
-                                        </div>
-                                    {% endif %}
+                                                    <th scope="row">
+                                                        {% if language_code == "en" %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}
+                                                        {% if question.is_required %}<span class="required-mark" aria-hidden="true">*</span>{% endif %}
+                                                        <div class="field-error" id="error-question-{{ question.id }}" aria-live="polite"></div>
+                                                    </th>
+                                                    {% for option in question.options.all %}
+                                                        {% if option.is_active %}
+                                                            <td>
+                                                                <label class="likert-choice">
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="question_{{ question.id }}"
+                                                                        value="{{ option.value }}"
+                                                                        data-option-label="{% if language_code == 'en' %}{{ option.label_en }}{% else %}{{ option.label_sw }}{% endif %}"
+                                                                        aria-label="{% if language_code == 'en' %}{{ question.label_en }}: {{ option.label_en }}{% else %}{{ question.label_sw }}: {{ option.label_sw }}{% endif %}"
+                                                                        {% if question.is_required %}required{% endif %}
+                                                                    >
+                                                                </label>
+                                                            </td>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% if section.regular_questions %}
+                                    <div class="questions-container likert-follow-up">
+                                        {% for question in section.regular_questions %}
+                                            {% include "forms_builder/partials/question_field.html" %}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            {% else %}<div class="questions-container">
+                                {% for question in section.active_questions %}
+                                    {% include "forms_builder/partials/question_field.html" %}
                                 {% empty %}
                                     <p class="empty-message">
                                         {% translate "There are no questions in this section." %}
                                     </p>
                                 {% endfor %}
-                            </div>
+                            </div>{% endif %}
                         </section>
                     {% empty %}
                         <div
@@ -532,7 +521,7 @@
         </section>
     </main>
 
-    <script src="{% static 'js/public-event-form.js' %}?v=20260821-conditional2"></script>
+    <script src="{% static 'js/public-event-form.js' %}?v=20260822-likert"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {

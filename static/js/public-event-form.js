@@ -135,7 +135,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const choice = control.closest(".choice-item");
                 return choice
                     ? choice.textContent.trim()
-                    : control.value;
+                    : control.dataset.optionLabel || control.value;
             }).join(", ");
         }
 
