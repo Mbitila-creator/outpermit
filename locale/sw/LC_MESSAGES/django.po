@@ -1,0 +1,79 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: OutPermit Event Management\n"
+"Language: sw\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Back"
+msgstr "Rudi"
+
+msgid "Event Management System"
+msgstr "Mfumo wa Usimamizi wa Matukio"
+
+msgid "Exit"
+msgstr "Ondoka"
+
+msgid "Language"
+msgstr "Lugha"
+
+msgid "Introduction"
+msgstr "Utangulizi"
+
+msgid "Organizer"
+msgstr "Mratibu"
+
+msgid "Start date"
+msgstr "Tarehe ya kuanza"
+
+msgid "End date"
+msgstr "Tarehe ya mwisho"
+
+msgid "Venue"
+msgstr "Mahali"
+
+msgid "Previous"
+msgstr "Iliyotangulia"
+
+msgid "Next"
+msgstr "Inayofuata"
+
+msgid "Submit evaluation"
+msgstr "Wasilisha tathmini"
+
+msgid "Submit form"
+msgstr "Wasilisha fomu"
+
+msgid "Required field"
+msgstr "Sehemu ya lazima"
+
+msgid "Review evaluation"
+msgstr "Kagua tathmini"
+
+msgid "Review and submit"
+msgstr "Kagua na uwasilishe"
+
+msgid "Please review your feedback before submitting the evaluation."
+msgstr "Tafadhali kagua maoni yako kabla ya kuwasilisha tathmini."
+
+msgid "Please review your information before submitting the form."
+msgstr "Tafadhali kagua taarifa zako kabla ya kuwasilisha fomu."
+
+msgid "Please review the information above before submitting."
+msgstr "Tafadhali kagua taarifa zilizo hapo juu kabla ya kuwasilisha."
+
+msgid "This form is not open yet."
+msgstr "Fomu hii bado haijafunguliwa."
+
+msgid "The submission period for this form has ended."
+msgstr "Muda wa kuwasilisha fomu hii umeisha."
+
+msgid "There are no questions in this section."
+msgstr "Hakuna maswali katika sehemu hii."
+
+msgid "This form has no sections or questions yet."
+msgstr "Fomu hii bado haina sehemu au maswali."
+
+msgid "Administrator preview: responses cannot be submitted from this page. Participants must use the evaluation link in their participant portal."
+msgstr "Onyesho la msimamizi: majibu hayawezi kuwasilishwa kutoka ukurasa huu. Washiriki lazima watumie kiungo cha tathmini kilicho kwenye tovuti yao ya mshiriki."

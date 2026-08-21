@@ -172,6 +172,20 @@ class WEUUTzEvaluationSetupTests(TestCase):
             self.form.sections.filter(is_active=True).count(),
             5,
         )
+        self.assertEqual(
+            list(
+                self.form.sections.filter(is_active=True)
+                .order_by("display_order")
+                .values_list("title_en", flat=True)
+            ),
+            [
+                "SECTION A: PARTICIPATION AND VISITOR RESPONSE",
+                "SECTION B: EXHIBITION ORGANIZATION AND OPERATIONS",
+                "SECTION C: PARTICIPATION BENEFITS AND OUTCOMES",
+                "SECTION D: OVERALL EVALUATION",
+                "SECTION E: ACHIEVEMENTS, CHALLENGES AND RECOMMENDATIONS",
+            ],
+        )
         self.assertFalse(
             self.form.sections.filter(
                 is_active=True,
@@ -241,6 +255,32 @@ class WEUUTzEvaluationSetupTests(TestCase):
             response,
             f"?participant={registration.participant_token}",
             count=2,
+        )
+
+        language_response = self.client.post(
+            reverse("set_language"),
+            {
+                "language": "sw",
+                "next": (
+                    f"{evaluation_url}?participant="
+                    f"{registration.participant_token}"
+                ),
+            },
+            follow=True,
+        )
+        self.assertContains(
+            language_response,
+            "Tafadhali jaza dodoso hili kwa niaba ya taasisi yako.",
+        )
+        self.assertContains(
+            language_response,
+            "SEHEMU A: USHIRIKI NA MWITIKIO WA WATEMBELEAJI",
+        )
+        self.assertContains(language_response, "Inayofuata")
+        self.assertContains(language_response, "Wasilisha tathmini")
+        self.client.post(
+            reverse("set_language"),
+            {"language": "en", "next": evaluation_url},
         )
 
         public_event_response = self.client.get(
