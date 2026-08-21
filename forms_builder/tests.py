@@ -14,7 +14,13 @@ from django.utils import timezone
 from PIL import Image
 
 from events.models import Event, EventCategory
-from .models import EventForm, FormQuestion, FormSubmission
+from .models import (
+    EventForm,
+    FormAnswer,
+    FormQuestion,
+    FormSubmission,
+    QuestionOption,
+)
 from .admin import EventFormAdmin
 
 from .services import (
@@ -151,6 +157,111 @@ class WEUUTzEvaluationSetupTests(TestCase):
     def test_command_requires_confirmation(self):
         with self.assertRaises(CommandError):
             call_command("setup_weuutz_evaluation")
+
+    def test_registration_routing_is_removed_without_deleting_history(self):
+        registration_form = EventForm.objects.create(
+            event=self.event,
+            name_sw="Fomu ya Usajili wa Waoneshaji",
+            name_en="Exhibition Participant Registration Form",
+            slug="exhibition-participant-registration-form",
+            form_type=EventForm.FormType.EXHIBITOR,
+            is_published=True,
+        )
+        institution = registration_form.sections.create(
+            title_sw="Taarifa za Taasisi",
+            title_en="Institution Information",
+            display_order=1,
+        )
+        representative = registration_form.sections.create(
+            title_sw="Taarifa za Mwakilishi",
+            title_en="Representative Information",
+            display_order=2,
+        )
+        participation = registration_form.sections.create(
+            title_sw="Aina ya Ushiriki",
+            title_en="Participation Type",
+            display_order=3,
+        )
+        participation_question = participation.questions.create(
+            label_sw="Unakusudia kushiriki sehemu ipi?",
+            label_en="In which part(s) of the event do you intend to participate?",
+            question_type=FormQuestion.QuestionType.MULTIPLE_CHOICE,
+            is_required=True,
+        )
+        exhibition_option = QuestionOption.objects.create(
+            question=participation_question,
+            value="EXHIBITION",
+            label_sw="Maonesho",
+            label_en="Exhibition",
+        )
+        booth_section = registration_form.sections.create(
+            title_sw="Mabanda",
+            title_en="Booths",
+            display_order=4,
+            condition_question=participation_question,
+            condition_value="EXHIBITION",
+        )
+        conference_section = registration_form.sections.create(
+            title_sw="Maeneo ya Kongamano",
+            title_en="Conference Areas",
+            display_order=5,
+            condition_question=participation_question,
+            condition_value="CONFERENCE",
+        )
+        conference_section.questions.create(
+            label_sw="Chagua eneo la kongamano",
+            label_en="Choose a conference area",
+            is_required=True,
+        )
+        other_section = registration_form.sections.create(
+            title_sw="Ushiriki Mwingine",
+            title_en="Other Participation",
+            display_order=6,
+            condition_question=participation_question,
+            condition_value="OTHER",
+        )
+        other_section.questions.create(
+            label_sw="Taja ushiriki mwingine",
+            label_en="Specify other participation",
+            is_required=True,
+        )
+        submission = FormSubmission.objects.create(
+            event_form=registration_form,
+            is_complete=True,
+        )
+        historical_answer = FormAnswer.objects.create(
+            submission=submission,
+            question=participation_question,
+        )
+        historical_answer.selected_options.add(exhibition_option)
+
+        call_command("setup_weuutz_registration", "--confirm")
+        call_command("setup_weuutz_registration", "--confirm")
+
+        self.assertTrue(FormAnswer.objects.filter(pk=historical_answer.pk).exists())
+        participation.refresh_from_db()
+        conference_section.refresh_from_db()
+        other_section.refresh_from_db()
+        booth_section.refresh_from_db()
+        participation_question.refresh_from_db()
+        self.assertFalse(participation.is_active)
+        self.assertFalse(participation_question.is_active)
+        self.assertFalse(conference_section.is_active)
+        self.assertFalse(other_section.is_active)
+        self.assertIsNone(booth_section.condition_question_id)
+        self.assertEqual(booth_section.condition_value, "")
+        self.assertEqual(
+            list(
+                registration_form.sections.filter(is_active=True)
+                .order_by("display_order")
+                .values_list("title_en", "display_order")
+            ),
+            [
+                (institution.title_en, 1),
+                (representative.title_en, 2),
+                (booth_section.title_en, 3),
+            ],
+        )
 
     def test_command_improves_only_weuutz_form_and_is_idempotent(self):
         output = StringIO()
