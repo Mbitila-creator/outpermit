@@ -70,7 +70,7 @@
 
                 {% language "sw" %}
                     <a
-                        href="{% url 'forms_builder:public_event_form' event.slug event_form.slug %}"
+                        href="{% url 'forms_builder:public_event_form' event.slug event_form.slug %}{% if participant_registration %}?participant={{ participant_registration.participant_token }}{% elif staff_preview %}?preview=1{% endif %}"
                         class="language-link"
                         lang="sw"
                         {% if request.LANGUAGE_CODE == "sw" %}aria-current="page"{% endif %}
@@ -81,7 +81,7 @@
 
                 {% language "en" %}
                     <a
-                        href="{% url 'forms_builder:public_event_form' event.slug event_form.slug %}"
+                        href="{% url 'forms_builder:public_event_form' event.slug event_form.slug %}{% if participant_registration %}?participant={{ participant_registration.participant_token }}{% elif staff_preview %}?preview=1{% endif %}"
                         class="language-link"
                         lang="en"
                         {% if request.LANGUAGE_CODE == "en" %}aria-current="page"{% endif %}
@@ -287,6 +287,11 @@
                 </div>
 
             {% else %}
+                {% if staff_preview %}
+                    <div class="alert alert-warning" role="status">
+                        {% translate "Administrator preview: responses cannot be submitted from this page. Participants must use the evaluation link in their participant portal." %}
+                    </div>
+                {% endif %}
                 <form
                     method="post"
                     enctype="multipart/form-data"
@@ -507,12 +512,12 @@
                                 <span aria-hidden="true">→</span>
                             </button>
 
-                            <button
+                            {% if not staff_preview %}<button
                                 type="submit"
                                 class="submit-button wizard-submit"
                             >
                                 {% if is_evaluation %}{% translate "Submit evaluation" %}{% else %}{% translate "Submit form" %}{% endif %}
-                            </button>
+                            </button>{% endif %}
                         </div>
 
                         <p class="required-note">
