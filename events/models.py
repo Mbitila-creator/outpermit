@@ -255,7 +255,7 @@ class Event(BaseModel):
         max_length=50,
         unique=True,
         help_text=_(
-            "Use a short unique code, for example WEUUTZ-2026."
+            "Use a short unique code, for example WEUUTz-2026."
         ),
     )
 
@@ -489,7 +489,12 @@ class Event(BaseModel):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
-        self.code = self.code.strip().upper()
+        normalized_code = self.code.strip().upper()
+        self.code = (
+            "WEUUTz-2026"
+            if normalized_code == "WEUUTZ-2026"
+            else normalized_code
+        )
         self.payment_currency = self.payment_currency.strip().upper()
 
         if not self.slug:

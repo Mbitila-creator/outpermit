@@ -115,7 +115,7 @@ def department_certificate_preview(request, event_slug):
             "owning_department", "category", "venue"
         ),
         slug=event_slug,
-        code="WEUUTZ-2026",
+        code="WEUUTz-2026",
     )
     if not can_manage_department_event(request.user):
         raise PermissionDenied

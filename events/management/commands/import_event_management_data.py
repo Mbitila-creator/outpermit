@@ -23,7 +23,7 @@ CORE_LOCATION_TABLES = {
     "core_ward",
 }
 EXPECTED_EVENT_CODES = {"NESIF-2026", "ELIMU-2026", "TUZO-2026"}
-RENAMED_EVENT_CODES = {"ELIMU-2026": "WEUUTZ-2026"}
+RENAMED_EVENT_CODES = {"ELIMU-2026": "WEUUTz-2026"}
 
 
 def _tables(connection):
@@ -175,7 +175,7 @@ class Command(BaseCommand):
             destination.close()
 
         self.stdout.write(self.style.SUCCESS(
-            "Imported Event Management data for NESIF-2026, WEUUTZ-2026 and TUZO-2026."
+            "Imported Event Management data for NESIF-2026, WEUUTz-2026 and TUZO-2026."
         ))
         self.stdout.write(f"All three events are owned by DSTI (department id {dsti.pk}).")
         self.stdout.write(f"Safety backup: {backup_path}")
