@@ -167,6 +167,7 @@ class WEUUTzEvaluationSetupTests(TestCase):
         self.assertTrue(self.form.requires_participant_registration)
         self.assertFalse(self.form.show_event_summary)
         self.assertEqual(self.form.name_en, "Commemoration Evaluation Questionnaire")
+        self.assertEqual(self.form.name_sw, "Dodoso la Tathmini ya Maadhimisho")
         self.assertEqual(questions.filter(is_active=True).count(), 38)
         self.assertFalse(self.original_question.is_active)
         self.assertEqual(
@@ -366,6 +367,63 @@ class WEUUTzEvaluationSetupTests(TestCase):
         self.assertIn(f"{evaluation_url}?preview=1", admin_tools)
         self.assertIn("Preview form", admin_tools)
         self.assertNotIn("View QR", admin_tools)
+
+    def test_participant_evaluation_draft_is_saved_and_restored(self):
+        call_command("setup_weuutz_evaluation", "--confirm")
+        evaluation_form = self.event.forms.get(
+            form_type=EventForm.FormType.EVALUATION,
+        )
+        registration_form = EventForm.objects.create(
+            event=self.event,
+            name_sw="Usajili",
+            name_en="Registration",
+            form_type=EventForm.FormType.REGISTRATION,
+            is_published=True,
+        )
+        registration = FormSubmission.objects.create(
+            event_form=registration_form,
+            submitter_email="draft@example.com",
+            is_complete=True,
+        )
+        first_question = (
+            evaluation_form.sections.get(display_order=1)
+            .questions.get(display_order=1, is_active=True)
+        )
+        selected_option = first_question.options.filter(is_active=True).first()
+        evaluation_url = reverse(
+            "forms_builder:public_event_form",
+            kwargs={
+                "event_slug": self.event.slug,
+                "form_slug": evaluation_form.slug,
+            },
+        )
+        participant_url = (
+            f"{evaluation_url}?participant={registration.participant_token}"
+        )
+
+        save_response = self.client.post(
+            participant_url,
+            {
+                "_save_draft": "1",
+                f"question_{first_question.pk}": selected_option.value,
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(save_response.status_code, 200)
+        self.assertTrue(save_response.json()["draft_saved"])
+        draft = FormSubmission.objects.get(
+            event_form=evaluation_form,
+            registration_submission=registration,
+            is_complete=False,
+        )
+        self.assertEqual(draft.answers.count(), 1)
+        restored_response = self.client.get(participant_url)
+        self.assertEqual(
+            restored_response.context["draft_answer_values"],
+            {str(first_question.pk): [selected_option.value]},
+        )
+        self.assertContains(restored_response, 'data-draft-autosave="true"')
 
     def test_pending_registration_can_access_badge_but_not_certificate(self):
         self.event.badge_enabled = True

@@ -107,7 +107,7 @@ class Command(BaseCommand):
         ).order_by("pk").first()
         if form is None:
             form = EventForm(event=event, form_type=EventForm.FormType.EVALUATION)
-        form.name_sw = "Dodoso la Tathmini ya Maonesho ya Wiki ya Kitaifa ya Elimu, Ujuzi na Ubunifu"
+        form.name_sw = "Dodoso la Tathmini ya Maadhimisho"
         form.name_en = "Commemoration Evaluation Questionnaire"
         form.slug = "exhibition-evaluation"
         form.introduction_sw = (
