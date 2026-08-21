@@ -766,6 +766,12 @@ def public_event_form(request, event_slug, form_slug):
 
     language_code = request.LANGUAGE_CODE
     is_evaluation = event_form.form_type == EventForm.FormType.EVALUATION
+    staff_preview = bool(
+        request.method == "GET"
+        and request.GET.get("preview") == "1"
+        and can_view_evaluation_reports(request.user)
+        and events_visible_to(request.user).filter(pk=event_form.event_id).exists()
+    )
     participant_registration = None
     participant_token = request.GET.get("participant", "").strip()
     if participant_token:
@@ -784,8 +790,12 @@ def public_event_form(request, event_slug, form_slug):
             is_active=True,
             is_complete=True,
         ).first()
-    if event_form.requires_participant_registration and participant_registration is None:
-        raise Http404("Use your participant portal to access this evaluation.")
+    if (
+        event_form.requires_participant_registration
+        and participant_registration is None
+        and not staff_preview
+    ):
+        return redirect("forms_builder:registration_status")
 
     if request.method == "POST":
         if form_not_open:
@@ -1095,6 +1105,7 @@ def public_event_form(request, event_slug, form_slug):
         "form_closed": form_closed,
         "is_evaluation": is_evaluation,
         "participant_registration": participant_registration,
+        "staff_preview": staff_preview,
     }
 
     return render(

@@ -213,7 +213,11 @@ class WEUUTzEvaluationSetupTests(TestCase):
             },
         )
 
-        self.assertEqual(self.client.get(evaluation_url).status_code, 404)
+        direct_response = self.client.get(evaluation_url)
+        self.assertRedirects(
+            direct_response,
+            reverse("forms_builder:registration_status"),
+        )
         response = self.client.get(
             evaluation_url,
             {"participant": registration.participant_token},
@@ -229,6 +233,11 @@ class WEUUTzEvaluationSetupTests(TestCase):
         self.assertContains(
             portal_response,
             f"?participant={registration.participant_token}",
+        )
+        self.assertContains(
+            response,
+            f"?participant={registration.participant_token}",
+            count=2,
         )
 
     def test_pending_registration_can_access_badge_but_not_certificate(self):
