@@ -2,7 +2,7 @@
 {% load static %}
 {% load i18n %}
 
-{% block title %}{% translate "Certificate of Participation" %} — {{ submission.badge_display_name }}{% endblock %}
+{% block title %}{% translate "Certificate of Participation" %} — {{ certificate_recipient_name }}{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/participant-certificate.css' %}">
@@ -48,12 +48,14 @@
                 <div class="certificate-content">
                     <p class="certificate-kicker">{% translate "Certificate of Participation" %}</p>
                     <p>{% translate "This certificate is proudly presented to" %}</p>
-                    <h3>{{ submission.badge_display_name }}</h3>
-                    {% if submission.badge_organization %}
+                    <h3>{{ certificate_recipient_name }}</h3>
+                    {% if institution_certificate %}
+                        <p class="certificate-organization">{% blocktranslate with representative=submission.badge_display_name %}Represented by {{ representative }}{% endblocktranslate %}</p>
+                    {% elif submission.badge_organization %}
                         <p class="certificate-organization">{{ submission.badge_organization }}</p>
                     {% endif %}
                     <p class="certificate-statement">
-                        {% blocktranslate with event_name=event_display_name %}for participating in {{ event_name }} and completing verified attendance.{% endblocktranslate %}
+                        {% if institution_certificate %}{% blocktranslate with event_name=event_display_name %}for institutional participation in {{ event_name }} with verified attendance.{% endblocktranslate %}{% else %}{% blocktranslate with event_name=event_display_name %}for participating in {{ event_name }} and completing verified attendance.{% endblocktranslate %}{% endif %}
                     </p>
                 </div>
 
@@ -95,4 +97,3 @@
         });
     </script>
 {% endblock %}
-

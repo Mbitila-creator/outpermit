@@ -14,14 +14,19 @@
             <span class="certificate-verified-icon" aria-hidden="true">✓</span>
             <span class="section-kicker">{% translate "Authentic certificate" %}</span>
             <h1>{% translate "Certificate verified" %}</h1>
-            <p>{% translate "This certificate is valid and was issued to a participant with verified attendance." %}</p>
+            <p>{% if institution_certificate %}{% translate "This certificate is valid and was awarded to an institution with verified participation." %}{% else %}{% translate "This certificate is valid and was issued to a participant with verified attendance." %}{% endif %}</p>
 
             <dl class="certificate-verification-details">
                 <div>
-                    <dt>{% translate "Representative" %}</dt>
-                    <dd>{{ submission.badge_display_name }}</dd>
+                    <dt>{% if institution_certificate %}{% translate "Certificate recipient" %}{% else %}{% translate "Representative" %}{% endif %}</dt>
+                    <dd>{{ certificate_recipient_name }}</dd>
                 </div>
-                {% if submission.badge_organization %}
+                {% if institution_certificate %}
+                    <div>
+                        <dt>{% translate "Representative" %}</dt>
+                        <dd>{{ submission.badge_display_name }}</dd>
+                    </div>
+                {% elif submission.badge_organization %}
                     <div>
                         <dt>{% translate "Organization" %}</dt>
                         <dd>{{ submission.badge_organization }}</dd>
@@ -49,4 +54,3 @@
         </article>
     </section>
 {% endblock %}
-

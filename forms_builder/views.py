@@ -37,6 +37,9 @@ from .notifications import (
 from .services import (
     booth_detail_url,
     certificate_number,
+    certificate_is_for_institution,
+    certificate_qr_logo_path,
+    certificate_recipient_name,
     certificate_verification_url,
     event_date_range,
     generate_certificate_pdf,
@@ -1418,6 +1421,8 @@ def participant_certificate(request, participant_token):
                 else submission.event_form.event.title_sw
             ),
             "certificate_number": certificate_number(submission),
+            "certificate_recipient_name": certificate_recipient_name(submission),
+            "institution_certificate": certificate_is_for_institution(submission),
             "event_date_range": event_date_range(
                 submission.event_form.event,
                 language=request.LANGUAGE_CODE,
@@ -1464,7 +1469,10 @@ def participant_certificate_qr(request, participant_token):
         language=submission.language,
     )
     response = HttpResponse(
-        generate_qr_png(verification_url),
+        generate_qr_png(
+            verification_url,
+            logo_path=certificate_qr_logo_path(submission.event_form.event),
+        ),
         content_type="image/png",
     )
     response["X-Content-Type-Options"] = "nosniff"
@@ -1505,6 +1513,8 @@ def certificate_verification(request, participant_token):
             "submission": submission,
             "event": event,
             "certificate_number": certificate_number(submission),
+            "certificate_recipient_name": certificate_recipient_name(submission),
+            "institution_certificate": certificate_is_for_institution(submission),
             "event_date_range": event_date_range(
                 event,
                 language=request.LANGUAGE_CODE,
