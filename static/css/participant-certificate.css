@@ -83,6 +83,10 @@
     text-transform: uppercase;
 }
 
+.certificate-event-code {
+    text-transform: none;
+}
+
 .certificate-header h2 {
     margin: 5px 0;
     font-size: clamp(20px, 3vw, 36px);
@@ -249,4 +253,3 @@
         -webkit-print-color-adjust: exact;
     }
 }
-
