@@ -91,6 +91,10 @@ img {
     font-weight: 600;
 }
 
+.language-switch-form {
+    margin: 0;
+}
+
 .language-link {
     display: inline-flex;
     min-height: 38px;
@@ -246,7 +250,7 @@ img {
 }
 
 .form-official-heading {
-    max-width: 780px;
+    width: 100%;
     margin: 0 auto 24px;
     text-align: center;
 }
@@ -292,7 +296,7 @@ img {
 }
 
 .form-introduction-title {
-    max-width: 780px;
+    width: 100%;
     margin: 0 auto 12px;
     color: #111827;
     font-size: clamp(20px, 2.6vw, 26px);
@@ -310,7 +314,7 @@ img {
 }
 
 .form-introduction {
-    max-width: 780px;
+    width: 100%;
     margin: 0 auto;
     color: #4b5563;
     line-height: 1.65;
@@ -335,6 +339,28 @@ img {
 .form-section {
     padding: 22px 16px;
     border-bottom: 1px solid #e5e7eb;
+}
+
+.form-card {
+    --form-content-gutter: 16px;
+}
+
+.form-header,
+.form-section,
+.wizard-progress,
+.wizard-actions {
+    padding-left: var(--form-content-gutter);
+    padding-right: var(--form-content-gutter);
+}
+
+.alert {
+    margin-left: var(--form-content-gutter);
+    margin-right: var(--form-content-gutter);
+}
+
+.required-note {
+    margin-left: var(--form-content-gutter);
+    margin-right: var(--form-content-gutter);
 }
 
 .wizard-progress {
@@ -692,6 +718,10 @@ textarea:focus {
 
 /* Tablet */
 @media (min-width: 640px) {
+    .form-card {
+        --form-content-gutter: 28px;
+    }
+
     .page-wrapper {
         padding: 28px 20px 50px;
     }

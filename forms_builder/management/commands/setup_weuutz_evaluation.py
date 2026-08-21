@@ -131,11 +131,11 @@ class Command(BaseCommand):
         FormQuestion.objects.filter(section__event_form=form).update(is_active=False)
 
         sections = {
-            "B": configure_section(form, 1, "SEHEMU B: USHIRIKI NA MWITIKIO WA WATEMBELEAJI", "SECTION B: PARTICIPATION AND VISITOR RESPONSE"),
-            "C": configure_section(form, 2, "SEHEMU C: TATHMINI YA MAANDALIZI NA UENDESHAJI WA MAONESHO", "SECTION C: EXHIBITION ORGANIZATION AND OPERATIONS", "1 = Duni sana, 2 = Duni, 3 = Wastani, 4 = Nzuri, 5 = Nzuri sana.", "1 = Very poor, 2 = Poor, 3 = Fair, 4 = Good, 5 = Very good."),
-            "D": configure_section(form, 3, "SEHEMU D: MANUFAA NA MATOKEO YA USHIRIKI", "SECTION D: PARTICIPATION BENEFITS AND OUTCOMES", "1 = Haijafanikiwa kabisa, 2 = Kidogo, 3 = Wastani, 4 = Imefanikiwa, 5 = Imefanikiwa sana.", "1 = Not achieved, 2 = Slightly, 3 = Moderate, 4 = Achieved, 5 = Highly achieved."),
-            "E": configure_section(form, 4, "SEHEMU E: TATHMINI YA JUMLA", "SECTION E: OVERALL EVALUATION"),
-            "F": configure_section(form, 5, "SEHEMU F: MAFANIKIO, CHANGAMOTO NA MAPENDEKEZO", "SECTION F: ACHIEVEMENTS, CHALLENGES AND RECOMMENDATIONS"),
+            "A": configure_section(form, 1, "SEHEMU A: USHIRIKI NA MWITIKIO WA WATEMBELEAJI", "SECTION A: PARTICIPATION AND VISITOR RESPONSE"),
+            "B": configure_section(form, 2, "SEHEMU B: TATHMINI YA MAANDALIZI NA UENDESHAJI WA MAONESHO", "SECTION B: EXHIBITION ORGANIZATION AND OPERATIONS", "1 = Duni sana, 2 = Duni, 3 = Wastani, 4 = Nzuri, 5 = Nzuri sana.", "1 = Very poor, 2 = Poor, 3 = Fair, 4 = Good, 5 = Very good."),
+            "C": configure_section(form, 3, "SEHEMU C: MANUFAA NA MATOKEO YA USHIRIKI", "SECTION C: PARTICIPATION BENEFITS AND OUTCOMES", "1 = Haijafanikiwa kabisa, 2 = Kidogo, 3 = Wastani, 4 = Imefanikiwa, 5 = Imefanikiwa sana.", "1 = Not achieved, 2 = Slightly, 3 = Moderate, 4 = Achieved, 5 = Highly achieved."),
+            "D": configure_section(form, 4, "SEHEMU D: TATHMINI YA JUMLA", "SECTION D: OVERALL EVALUATION"),
+            "E": configure_section(form, 5, "SEHEMU E: MAFANIKIO, CHANGAMOTO NA MAPENDEKEZO", "SECTION E: ACHIEVEMENTS, CHALLENGES AND RECOMMENDATIONS"),
         }
         generic_rating = tuple((str(i), sw, en) for i, sw, en in (
             (1, "1 – Duni sana", "1 – Very poor"), (2, "2 – Duni", "2 – Poor"),
@@ -166,11 +166,11 @@ class Command(BaseCommand):
             ("PARENTS", "Wazazi/Walezi", "Parents/Guardians"), ("PUBLIC", "Wananchi kwa ujumla", "General public"),
             ("INTERNATIONAL", "Wageni wa kimataifa", "International visitors"), ("OTHER", "Wengine", "Other"),
         )
-        configure_question(form, sections["B"], label_en="Approximately how many people visited your booth during the exhibition?", label_sw="B1. Takribani watu wangapi walitembelea banda lako katika kipindi chote cha maonesho?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=1, required=True, options=visitor_ranges)
-        configure_question(form, sections["B"], label_en="How would you rate the public response in visiting your booth?", label_sw="B2. Kwa mtazamo wako, kiwango cha mwitikio wa wananchi katika kutembelea banda lako kilikuwaje?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=2, required=True, options=response_rating)
-        configure_question(form, sections["B"], label_en="How interested were visitors in the products, services, technologies or innovations displayed?", label_sw="B3. Wageni waliotembelea banda lako walionesha kiwango gani cha kuvutiwa na bidhaa, huduma, teknolojia au ubunifu mlioonesha?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=3, required=True, options=interest_rating)
-        visitor_group_question = configure_question(form, sections["B"], label_en="Which groups visited your booth most? (Select all that apply)", label_sw="B4. Ni makundi gani yalitembelea zaidi banda lako? (Unaweza kuchagua zaidi ya moja)", question_type=FormQuestion.QuestionType.MULTIPLE_CHOICE, order=4, required=True, options=visitor_groups)
-        configure_question(form, sections["B"], label_en="Other visitor group (specify)", label_sw="B4. Wengine, taja", question_type=FormQuestion.QuestionType.SHORT_TEXT, order=5, required=True, condition_question=visitor_group_question, condition_value="OTHER")
+        configure_question(form, sections["A"], label_en="Approximately how many people visited your booth during the exhibition?", label_sw="A1. Takribani watu wangapi walitembelea banda lako katika kipindi chote cha maonesho?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=1, required=True, options=visitor_ranges)
+        configure_question(form, sections["A"], label_en="How would you rate the public response in visiting your booth?", label_sw="A2. Kwa mtazamo wako, kiwango cha mwitikio wa wananchi katika kutembelea banda lako kilikuwaje?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=2, required=True, options=response_rating)
+        configure_question(form, sections["A"], label_en="How interested were visitors in the products, services, technologies or innovations displayed?", label_sw="A3. Wageni waliotembelea banda lako walionesha kiwango gani cha kuvutiwa na bidhaa, huduma, teknolojia au ubunifu mlioonesha?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=3, required=True, options=interest_rating)
+        visitor_group_question = configure_question(form, sections["A"], label_en="Which groups visited your booth most? (Select all that apply)", label_sw="A4. Ni makundi gani yalitembelea zaidi banda lako? (Unaweza kuchagua zaidi ya moja)", question_type=FormQuestion.QuestionType.MULTIPLE_CHOICE, order=4, required=True, options=visitor_groups)
+        configure_question(form, sections["A"], label_en="Other visitor group (specify)", label_sw="A4. Wengine, taja", question_type=FormQuestion.QuestionType.SHORT_TEXT, order=5, required=True, condition_question=visitor_group_question, condition_value="OTHER")
 
         c_items = (
             ("Taarifa na mawasiliano kabla ya maonesho", "Information and communication before the exhibition"),
@@ -182,7 +182,7 @@ class Command(BaseCommand):
             ("Eneo/mahali yalipofanyika maonesho", "Exhibition venue/location"),
         )
         for order, (sw, en) in enumerate(c_items, 1):
-            configure_question(form, sections["C"], label_en=f"C{order}. {en}", label_sw=f"C{order}. {sw}", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=order, required=True, options=generic_rating)
+            configure_question(form, sections["B"], label_en=f"B{order}. {en}", label_sw=f"B{order}. {sw}", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=order, required=True, options=generic_rating, existing_label_en=f"C{order}. {en}")
 
         achievement_rating = (
             ("1", "1 – Haijafanikiwa kabisa", "1 – Not achieved"), ("2", "2 – Kidogo", "2 – Slightly"),
@@ -200,10 +200,10 @@ class Command(BaseCommand):
             ("Kufikia walengwa wa taasisi", "Reaching the institution's target groups"),
         )
         for order, (sw, en) in enumerate(d_items, 1):
-            configure_question(form, sections["D"], label_en=f"D1.{order} {en}", label_sw=f"D1.{order} {sw}", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=order, required=True, options=achievement_rating)
-        partnership = configure_question(form, sections["D"], label_en="Were any important new collaborations, opportunities or contacts obtained?", label_sw="D2. Je, kuna ushirikiano, fursa au mawasiliano mapya muhimu yaliyopatikana kutokana na maonesho haya?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=9, required=True, options=(("YES", "Ndiyo", "Yes"), ("NO", "Hapana", "No")))
-        configure_question(form, sections["D"], label_en="If yes, briefly explain", label_sw="D2. Kama Ndiyo, eleza kwa kifupi", question_type=FormQuestion.QuestionType.LONG_TEXT, order=10, required=True, condition_question=partnership, condition_value="YES")
-        configure_question(form, sections["D"], label_en="To what extent did participation meet your institution's expectations?", label_sw="D3. Kwa ujumla, ushiriki katika maonesho haya umekidhi matarajio ya taasisi yako kwa kiwango gani?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=11, required=True, options=achievement_rating)
+            configure_question(form, sections["C"], label_en=f"C1.{order} {en}", label_sw=f"C1.{order} {sw}", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=order, required=True, options=achievement_rating, existing_label_en=f"D1.{order} {en}")
+        partnership = configure_question(form, sections["C"], label_en="Were any important new collaborations, opportunities or contacts obtained?", label_sw="C2. Je, kuna ushirikiano, fursa au mawasiliano mapya muhimu yaliyopatikana kutokana na maonesho haya?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=9, required=True, options=(("YES", "Ndiyo", "Yes"), ("NO", "Hapana", "No")))
+        configure_question(form, sections["C"], label_en="If yes, briefly explain", label_sw="C2. Kama Ndiyo, eleza kwa kifupi", question_type=FormQuestion.QuestionType.LONG_TEXT, order=10, required=True, condition_question=partnership, condition_value="YES")
+        configure_question(form, sections["C"], label_en="To what extent did participation meet your institution's expectations?", label_sw="C3. Kwa ujumla, ushiriki katika maonesho haya umekidhi matarajio ya taasisi yako kwa kiwango gani?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=11, required=True, options=achievement_rating)
 
         satisfaction = (
             ("1", "1 – Sijaridhika kabisa", "1 – Completely dissatisfied"), ("2", "2 – Sijaridhika", "2 – Dissatisfied"),
@@ -220,9 +220,9 @@ class Command(BaseCommand):
             ("3", "3 – Sina uhakika", "3 – Not sure"), ("4", "4 – Nitapendekeza", "4 – Would recommend"),
             ("5", "5 – Nitapendekeza sana", "5 – Strongly recommend"),
         )
-        configure_question(form, sections["E"], label_en="Overall satisfaction with exhibition organization and operations", label_sw="E1. Kwa ujumla, umeridhika kwa kiwango gani na maandalizi na uendeshaji wa maonesho?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=1, required=True, options=satisfaction)
-        configure_question(form, sections["E"], label_en="Would your institution participate again in future exhibitions?", label_sw="E2. Je, ungependa taasisi yako kushiriki tena katika maonesho yajayo?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=2, required=True, options=future_participation)
-        configure_question(form, sections["E"], label_en="Would you recommend that other institutions participate in future exhibitions?", label_sw="E3. Je, ungependekeza taasisi nyingine kushiriki katika maonesho yajayo?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=3, required=True, options=recommendation)
+        configure_question(form, sections["D"], label_en="Overall satisfaction with exhibition organization and operations", label_sw="D1. Kwa ujumla, umeridhika kwa kiwango gani na maandalizi na uendeshaji wa maonesho?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=1, required=True, options=satisfaction)
+        configure_question(form, sections["D"], label_en="Would your institution participate again in future exhibitions?", label_sw="D2. Je, ungependa taasisi yako kushiriki tena katika maonesho yajayo?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=2, required=True, options=future_participation)
+        configure_question(form, sections["D"], label_en="Would you recommend that other institutions participate in future exhibitions?", label_sw="D3. Je, ungependekeza taasisi nyingine kushiriki katika maonesho yajayo?", question_type=FormQuestion.QuestionType.SINGLE_CHOICE, order=3, required=True, options=recommendation)
 
         challenge_options = (
             ("COMMUNICATION", "Mawasiliano/taarifa kutofika kwa wakati", "Late communication/information"), ("REGISTRATION", "Changamoto za usajili", "Registration challenges"),
@@ -232,13 +232,13 @@ class Command(BaseCommand):
             ("LOW_VISITORS", "Idadi ndogo ya wageni", "Low visitor numbers"), ("COST", "Gharama za ushiriki", "Participation costs"),
             ("SCHEDULE", "Ratiba/uratibu wa shughuli", "Schedule/activity coordination"), ("OTHER", "Changamoto nyingine", "Other challenge"),
         )
-        configure_question(form, sections["F"], label_en="List the three main achievements gained from participating", label_sw="F1. Taja mafanikio makuu matatu ambayo taasisi yako imeyapata kutokana na kushiriki katika maonesho haya", question_type=FormQuestion.QuestionType.LONG_TEXT, order=1, required=True)
-        challenges = configure_question(form, sections["F"], label_en="Main challenges encountered (select all that apply)", label_sw="F2. Ni changamoto zipi kuu mlizokutana nazo wakati wa maandalizi na ushiriki katika maonesho? (Chagua zote zinazohusika)", question_type=FormQuestion.QuestionType.MULTIPLE_CHOICE, order=2, required=True, options=challenge_options)
-        configure_question(form, sections["F"], label_en="Other challenge (specify)", label_sw="F2. Changamoto nyingine, taja", question_type=FormQuestion.QuestionType.SHORT_TEXT, order=3, required=True, condition_question=challenges, condition_value="OTHER")
-        configure_question(form, sections["F"], label_en="Which was the greatest challenge?", label_sw="F3. Kati ya changamoto ulizotaja, ipi ilikuwa changamoto kubwa zaidi?", question_type=FormQuestion.QuestionType.LONG_TEXT, order=4, required=True)
-        configure_question(form, sections["F"], label_en="List three things done well that should continue", label_sw="F4. Taja mambo matatu yaliyofanyika vizuri zaidi katika maonesho haya ambayo ungependa yaendelezwe katika maonesho yajayo", question_type=FormQuestion.QuestionType.LONG_TEXT, order=5, required=True)
-        configure_question(form, sections["F"], label_en="List the three most important improvements for future exhibitions", label_sw="F5. Taja mambo matatu muhimu zaidi ambayo ungependa yaboreshwe katika maandalizi na uendeshaji wa maonesho yajayo", question_type=FormQuestion.QuestionType.LONG_TEXT, order=6, required=True, existing_label_en="What should we improve in future exhibitions?")
-        configure_question(form, sections["F"], label_en="Other comments or recommendations", label_sw="F6. Maoni au mapendekezo mengine ya kuboresha maonesho yajayo", question_type=FormQuestion.QuestionType.LONG_TEXT, order=7)
+        configure_question(form, sections["E"], label_en="List the three main achievements gained from participating", label_sw="E1. Taja mafanikio makuu matatu ambayo taasisi yako imeyapata kutokana na kushiriki katika maonesho haya", question_type=FormQuestion.QuestionType.LONG_TEXT, order=1, required=True)
+        challenges = configure_question(form, sections["E"], label_en="Main challenges encountered (select all that apply)", label_sw="E2. Ni changamoto zipi kuu mlizokutana nazo wakati wa maandalizi na ushiriki katika maonesho? (Chagua zote zinazohusika)", question_type=FormQuestion.QuestionType.MULTIPLE_CHOICE, order=2, required=True, options=challenge_options)
+        configure_question(form, sections["E"], label_en="Other challenge (specify)", label_sw="E2. Changamoto nyingine, taja", question_type=FormQuestion.QuestionType.SHORT_TEXT, order=3, required=True, condition_question=challenges, condition_value="OTHER")
+        configure_question(form, sections["E"], label_en="Which was the greatest challenge?", label_sw="E3. Kati ya changamoto ulizotaja, ipi ilikuwa changamoto kubwa zaidi?", question_type=FormQuestion.QuestionType.LONG_TEXT, order=4, required=True)
+        configure_question(form, sections["E"], label_en="List three things done well that should continue", label_sw="E4. Taja mambo matatu yaliyofanyika vizuri zaidi katika maonesho haya ambayo ungependa yaendelezwe katika maonesho yajayo", question_type=FormQuestion.QuestionType.LONG_TEXT, order=5, required=True)
+        configure_question(form, sections["E"], label_en="List the three most important improvements for future exhibitions", label_sw="E5. Taja mambo matatu muhimu zaidi ambayo ungependa yaboreshwe katika maandalizi na uendeshaji wa maonesho yajayo", question_type=FormQuestion.QuestionType.LONG_TEXT, order=6, required=True, existing_label_en="What should we improve in future exhibitions?")
+        configure_question(form, sections["E"], label_en="Other comments or recommendations", label_sw="E6. Maoni au mapendekezo mengine ya kuboresha maonesho yajayo", question_type=FormQuestion.QuestionType.LONG_TEXT, order=7)
 
         self.stdout.write(self.style.SUCCESS(
             f"Configured {form.name_en}: "

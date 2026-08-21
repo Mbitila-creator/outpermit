@@ -27,7 +27,7 @@
 
     <link
         rel="stylesheet"
-        href="{% static 'css/public-event-form.css' %}?v=20260821-conditional2"
+        href="{% static 'css/public-event-form.css' %}?v=20260822-layout-language"
     >
 
     <link
@@ -68,27 +68,29 @@
                     {% translate "Language" %}:
                 </span>
 
-                {% language "sw" %}
-                    <a
-                        href="{% url 'forms_builder:public_event_form' event.slug event_form.slug %}{% if participant_registration %}?participant={{ participant_registration.participant_token }}{% elif staff_preview %}?preview=1{% endif %}"
+                <form action="{% url 'set_language' %}" method="post" class="language-switch-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="language" value="sw">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button
+                        type="submit"
                         class="language-link"
                         lang="sw"
                         {% if request.LANGUAGE_CODE == "sw" %}aria-current="page"{% endif %}
-                    >
-                        Kiswahili
-                    </a>
-                {% endlanguage %}
+                    >Kiswahili</button>
+                </form>
 
-                {% language "en" %}
-                    <a
-                        href="{% url 'forms_builder:public_event_form' event.slug event_form.slug %}{% if participant_registration %}?participant={{ participant_registration.participant_token }}{% elif staff_preview %}?preview=1{% endif %}"
+                <form action="{% url 'set_language' %}" method="post" class="language-switch-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="language" value="en">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button
+                        type="submit"
                         class="language-link"
                         lang="en"
                         {% if request.LANGUAGE_CODE == "en" %}aria-current="page"{% endif %}
-                    >
-                        English
-                    </a>
-                {% endlanguage %}
+                    >English</button>
+                </form>
             </nav>
         </div>
     </header>

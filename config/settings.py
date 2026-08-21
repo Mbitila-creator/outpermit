@@ -198,6 +198,8 @@ LANGUAGES = [
     ("en", "English"),
 ]
 
+LOCALE_PATHS = [BASE_DIR / "locale"]
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
