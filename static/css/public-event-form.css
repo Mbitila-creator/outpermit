@@ -417,9 +417,10 @@ img {
 }
 
 .wizard-step[hidden],
+.form-field[hidden],
 .wizard-ready .wizard-submit[hidden],
 .wizard-ready .wizard-button[hidden] {
-    display: none;
+    display: none !important;
 }
 
 .wizard-actions {
@@ -918,4 +919,3 @@ textarea:focus {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
-

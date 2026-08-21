@@ -27,7 +27,7 @@
 
     <link
         rel="stylesheet"
-        href="{% static 'css/public-event-form.css' %}"
+        href="{% static 'css/public-event-form.css' %}?v=20260821-conditional2"
     >
 
     <link
@@ -376,6 +376,7 @@
                                             {% if question.condition_question_id and question.condition_value %}
                                                 data-condition-question-id="{{ question.condition_question_id }}"
                                                 data-condition-value="{{ question.condition_value }}"
+                                                hidden
                                             {% endif %}
                                         >
                                             {% if question.question_type == "SINGLE_CHOICE" or question.question_type == "MULTIPLE_CHOICE" or question.question_type == "YES_NO" %}
@@ -524,7 +525,7 @@
         </section>
     </main>
 
-    <script src="{% static 'js/public-event-form.js' %}"></script>
+    <script src="{% static 'js/public-event-form.js' %}?v=20260821-conditional2"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -551,4 +552,3 @@
     </script>
 </body>
 </html>
-
