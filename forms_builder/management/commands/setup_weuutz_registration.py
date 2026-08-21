@@ -12,6 +12,32 @@ ROUTING_SECTION_TITLES = {
     "Conference Areas",
     "Other Participation",
 }
+QUESTION_PLACEHOLDERS = {
+    "Institution Name": (
+        "mf., Chuo Kikuu cha Dar es Salaam (UDSM)",
+        "e.g., University of Dar es Salaam (UDSM)",
+    ),
+    "Institution Email Address": (
+        "mf., info@udsm.ac.tz",
+        "e.g., info@udsm.ac.tz",
+    ),
+    "Institution Phone Number": (
+        "mf., 0712 345 678",
+        "e.g., 0712 345 678",
+    ),
+    "Representative Name": (
+        "mf., Dkt. Paulina Msuva",
+        "e.g., Dr. Paulina Msuva",
+    ),
+    "Representative Email Address": (
+        "mf., paulina.msuva@udsm.ac.tz",
+        "e.g., paulina.msuva@udsm.ac.tz",
+    ),
+    "Representative Phone Number": (
+        "mf., 0765 423 189",
+        "e.g., 0765 423 189",
+    ),
+}
 
 
 class Command(BaseCommand):
@@ -40,6 +66,17 @@ class Command(BaseCommand):
         if event_form is None:
             raise CommandError(
                 f"The {EVENT_CODE} exhibition registration form was not found."
+            )
+
+        for label_en, (placeholder_sw, placeholder_en) in (
+            QUESTION_PLACEHOLDERS.items()
+        ):
+            FormQuestion.objects.filter(
+                section__event_form=event_form,
+                label_en=label_en,
+            ).update(
+                placeholder_sw=placeholder_sw,
+                placeholder_en=placeholder_en,
             )
 
         routing_sections = event_form.sections.filter(

@@ -19,9 +19,23 @@ document.addEventListener("DOMContentLoaded", () => {
         document.documentElement.lang === "en" ? "en" : "sw";
     const draftAutosaveEnabled = form.dataset.draftAutosave === "true";
     const draftDataElement = document.getElementById("draft-answer-values");
+    const pageUrl = new URL(window.location.href);
+    const registrationDraft =
+        draftAutosaveEnabled && !pageUrl.searchParams.has("participant");
+    const draftStorageKey = `event-form-draft:${pageUrl.pathname}`;
+    let draftToken = form.dataset.draftToken || "";
     let currentStep = 0;
     let draftSaveTimer = null;
     let submissionInProgress = false;
+
+    if (registrationDraft && !draftToken) {
+        const savedDraftToken = window.localStorage.getItem(draftStorageKey);
+        if (savedDraftToken) {
+            pageUrl.searchParams.set("draft", savedDraftToken);
+            window.location.replace(pageUrl.toString());
+            return;
+        }
+    }
 
     const restoreDraftAnswers = () => {
         if (!draftDataElement) {
@@ -439,6 +453,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         const formData = new FormData(form);
         formData.append("_save_draft", "1");
+        if (draftToken) {
+            formData.append("_draft_token", draftToken);
+        }
         try {
             const response = await fetch(window.location.href, {
                 method: "POST",
@@ -446,10 +463,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: {"X-Requested-With": "XMLHttpRequest"},
             });
             if (!response.ok) {
-                console.error("Evaluation draft autosave failed.");
+                console.error("Form draft autosave failed.");
+                return;
+            }
+            const data = await response.json();
+            if (registrationDraft && data.draft_token) {
+                draftToken = data.draft_token;
+                window.localStorage.setItem(draftStorageKey, draftToken);
+                const draftUrl = new URL(window.location.href);
+                draftUrl.searchParams.set("draft", draftToken);
+                window.history.replaceState({}, "", draftUrl.toString());
             }
         } catch (error) {
-            console.error("Evaluation draft autosave failed.", error);
+            console.error("Form draft autosave failed.", error);
         }
     };
 
@@ -547,6 +573,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             const formData = new FormData(form);
+            if (draftToken) {
+                formData.append("_draft_token", draftToken);
+            }
 
             const response = await fetch(
                 window.location.href,
@@ -604,6 +633,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     ),
                 "success"
             );
+
+            if (registrationDraft) {
+                window.localStorage.removeItem(draftStorageKey);
+            }
 
             window.location.assign(data.redirect_url);
         } catch (error) {
