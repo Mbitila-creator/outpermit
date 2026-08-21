@@ -7,6 +7,7 @@ from datetime import timedelta
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.contrib import admin
+from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -261,6 +262,24 @@ class WEUUTzEvaluationSetupTests(TestCase):
             "Open participant portal",
         )
         self.assertNotContains(public_event_response, f'href="{evaluation_url}"')
+
+        administrator = get_user_model().objects.create_superuser(
+            username="evaluation-admin",
+            email="evaluation-admin@example.com",
+            password="safe-test-password",
+        )
+        self.client.force_login(administrator)
+        administrator_response = self.client.get(
+            reverse(
+                "events:event_detail",
+                kwargs={"event_slug": self.event.slug},
+            )
+        )
+        self.assertContains(administrator_response, "Preview questions")
+        self.assertContains(
+            administrator_response,
+            f'{evaluation_url}?preview=1',
+        )
 
         admin_tools = str(
             EventFormAdmin(EventForm, admin.site).registration_tools(

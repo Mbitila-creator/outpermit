@@ -118,12 +118,21 @@
                                 </div>
 
                                 {% if event_form.requires_participant_registration %}
-                                    <a
-                                        href="{% url 'forms_builder:registration_status' %}"
-                                        class="secondary-button"
-                                    >
-                                        {% translate "Open participant portal" %}
-                                    </a>
+                                    {% if can_preview_evaluation %}
+                                        <a
+                                            href="{% url 'forms_builder:public_event_form' event.slug event_form.slug %}?preview=1"
+                                            class="secondary-button"
+                                        >
+                                            {% translate "Preview questions" %}
+                                        </a>
+                                    {% else %}
+                                        <a
+                                            href="{% url 'forms_builder:registration_status' %}"
+                                            class="secondary-button"
+                                        >
+                                            {% translate "Open participant portal" %}
+                                        </a>
+                                    {% endif %}
                                 {% else %}
                                     <a
                                         href="{% url 'forms_builder:public_event_form' event.slug event_form.slug %}"
