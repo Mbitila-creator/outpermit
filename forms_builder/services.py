@@ -1,11 +1,13 @@
 import csv
 from io import BytesIO
 from io import StringIO
+from pathlib import Path
 from urllib.parse import urljoin
 
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
 from django.conf import settings
+from django.contrib.staticfiles import finders
 from django.urls import reverse
 from django.utils import timezone, translation
 from django.utils.formats import date_format
@@ -265,9 +267,42 @@ def sync_badge_identity_from_answers(submission):
     )
 
 
-def generate_qr_png(value):
+INSTITUTION_CERTIFICATE_EVENT_CODES = {"ELIMU-2026"}
+
+
+def certificate_is_for_institution(submission):
+    """Return whether the event awards its certificate to the institution."""
+    return (
+        submission.event_form.event.code.strip().upper()
+        in INSTITUTION_CERTIFICATE_EVENT_CODES
+        and bool(submission.badge_organization.strip())
+    )
+
+
+def certificate_recipient_name(submission):
+    if certificate_is_for_institution(submission):
+        return submission.badge_organization.strip()
+    return submission.badge_display_name
+
+
+def certificate_qr_logo_path(event):
+    if event.logo:
+        try:
+            logo_path = Path(event.logo.path)
+            if logo_path.is_file():
+                return str(logo_path)
+        except (NotImplementedError, OSError, ValueError):
+            pass
+    return finders.find("logo/moest_logo.png")
+
+
+def generate_qr_png(value, logo_path=None):
     qr_code = qrcode.QRCode(
-        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        error_correction=(
+            qrcode.constants.ERROR_CORRECT_H
+            if logo_path
+            else qrcode.constants.ERROR_CORRECT_M
+        ),
         box_size=10,
         border=4,
     )
@@ -277,10 +312,28 @@ def generate_qr_png(value):
     image = qr_code.make_image(
         fill_color="#000000",
         back_color="#ffffff",
-    )
+    ).convert("RGBA")
+
+    if logo_path:
+        try:
+            logo = Image.open(logo_path).convert("RGBA")
+            logo_limit = max(24, int(image.width * 0.16))
+            logo.thumbnail((logo_limit, logo_limit), Image.Resampling.LANCZOS)
+            padding = max(5, int(image.width * 0.018))
+            panel_width = logo.width + (padding * 2)
+            panel_height = logo.height + (padding * 2)
+            panel = Image.new("RGBA", (panel_width, panel_height), "#ffffff")
+            panel.paste(logo, (padding, padding), logo)
+            position = (
+                (image.width - panel_width) // 2,
+                (image.height - panel_height) // 2,
+            )
+            image.alpha_composite(panel, position)
+        except (OSError, ValueError):
+            pass
 
     output = BytesIO()
-    image.save(output, format="PNG")
+    image.convert("RGB").save(output, format="PNG")
     return output.getvalue()
 
 
@@ -303,14 +356,22 @@ def generate_certificate_pdf(submission, verification_url, language="sw"):
     short_certificate_number = certificate_number(submission)
     formatted_event_dates = event_date_range(event, language=language)
     event_name = event.title_en if language == "en" else event.title_sw
+    recipient_name = certificate_recipient_name(submission)
+    institution_certificate = certificate_is_for_institution(submission)
 
     with translation.override(language):
         labels = {
             "title": _("Certificate of Participation"),
             "presented": _("This certificate is proudly presented to"),
-            "statement": _(
-                "for participating in %(event_name)s and completing "
-                "verified attendance."
+            "represented": _("Represented by %(representative)s") % {
+                "representative": submission.badge_display_name,
+            },
+            "statement": (
+                _("for institutional participation in %(event_name)s with verified attendance.")
+                if institution_certificate
+                else _(
+                    "for participating in %(event_name)s and completing verified attendance."
+                )
             ) % {"event_name": event_name},
             "verified": _("Attendance verified"),
             "event_date": _("Event date"),
@@ -337,14 +398,32 @@ def generate_certificate_pdf(submission, verification_url, language="sw"):
         x = (width - (box[2] - box[0])) / 2
         draw.text((x, y), text, font=font, fill=fill)
 
+    def centered_fitted(text, y, size, max_width, fill=navy, min_size=28):
+        font = _certificate_font(size, bold=True)
+        while size > min_size:
+            box = draw.textbbox((0, 0), text, font=font)
+            if box[2] - box[0] <= max_width:
+                break
+            size -= 2
+            font = _certificate_font(size, bold=True)
+        centered(text, y, font, fill)
+
     centered(event.code, 105, _certificate_font(28, bold=True), gold)
     centered(event_name, 155, _certificate_font(42, bold=True))
     centered(labels["title"], 265, _certificate_font(56, bold=True), gold)
     centered(labels["presented"], 370, _certificate_font(28), navy)
-    centered(submission.badge_display_name, 430, _certificate_font(68, bold=True), navy)
+    recipient_font_size = 58 if institution_certificate else 68
+    centered_fitted(recipient_name, 430, recipient_font_size, width - 300, navy)
     draw.line((350, 525, width - 350, 525), fill=gold, width=3)
 
-    if submission.badge_organization:
+    if institution_certificate:
+        centered(
+            labels["represented"],
+            550,
+            _certificate_font(27, bold=True),
+            teal,
+        )
+    elif submission.badge_organization:
         centered(
             submission.badge_organization,
             550,
@@ -380,7 +459,10 @@ def generate_certificate_pdf(submission, verification_url, language="sw"):
         fill=navy,
     )
 
-    qr_image = Image.open(BytesIO(generate_qr_png(verification_url))).convert("RGB")
+    qr_image = Image.open(BytesIO(generate_qr_png(
+        verification_url,
+        logo_path=certificate_qr_logo_path(event),
+    ))).convert("RGB")
     qr_image = qr_image.resize((210, 210))
     image.paste(qr_image, (width - 355, 830))
     qr_label = labels["scan"]
@@ -519,4 +601,3 @@ def submissions_csv(submissions):
         )
 
     return output.getvalue()
-
