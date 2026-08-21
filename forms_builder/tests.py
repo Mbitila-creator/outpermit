@@ -241,6 +241,13 @@ class WEUUTzEvaluationSetupTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["participant_registration"], registration)
+        self.assertContains(response, 'class="likert-table"', count=2)
+        self.assertContains(response, 'class="likert-choice"', count=100)
+        self.assertContains(response, 'class="questions-container likert-follow-up"')
+        self.assertContains(
+            response,
+            "Were any important new collaborations, opportunities or contacts obtained?",
+        )
 
         portal_url = reverse(
             "forms_builder:participant_portal",

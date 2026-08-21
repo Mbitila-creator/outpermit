@@ -755,7 +755,7 @@ def public_event_form(request, event_slug, form_slug):
 
     form_not_open, form_closed = form_availability(event_form)
 
-    sections = (
+    sections = list(
         event_form.sections
         .filter(is_active=True)
         .prefetch_related(
@@ -763,6 +763,36 @@ def public_event_form(request, event_slug, form_slug):
         )
         .order_by("display_order", "id")
     )
+    for section in sections:
+        active_questions = [
+            question for question in section.questions.all()
+            if question.is_active
+        ]
+        section.active_questions = active_questions
+        section.likert_questions = [
+            question for question in active_questions
+            if section.display_order in {2, 3}
+            and (section.display_order == 2 or question.display_order <= 8)
+            and question.question_type
+            == FormQuestion.QuestionType.SINGLE_CHOICE
+            and len([
+                option for option in question.options.all()
+                if option.is_active
+            ]) == 5
+        ]
+        section.regular_questions = [
+            question for question in active_questions
+            if question not in section.likert_questions
+        ]
+        section.use_likert_matrix = bool(section.likert_questions)
+        section.likert_options = (
+            [
+                option for option in section.likert_questions[0].options.all()
+                if option.is_active
+            ]
+            if section.use_likert_matrix
+            else []
+        )
 
     language_code = request.LANGUAGE_CODE
     is_evaluation = event_form.form_type == EventForm.FormType.EVALUATION

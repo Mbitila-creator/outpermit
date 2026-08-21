@@ -1,0 +1,33 @@
+{% load i18n %}
+<div
+    class="form-field"
+    data-question-id="{{ question.id }}"
+    data-question-type="{{ question.question_type }}"
+    data-required="{% if question.is_required %}true{% else %}false{% endif %}"
+    data-question-label="{% if language_code == 'en' %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}"
+    {% if question.condition_question_id and question.condition_value %}
+        data-condition-question-id="{{ question.condition_question_id }}"
+        data-condition-value="{{ question.condition_value }}"
+        hidden
+    {% endif %}
+>
+    {% if question.question_type == "SINGLE_CHOICE" or question.question_type == "MULTIPLE_CHOICE" or question.question_type == "YES_NO" %}
+        <div class="field-label" id="question-label-{{ question.id }}">
+            {% if language_code == "en" %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}
+            {% if question.is_required %}<span class="required-mark" aria-label="{% translate 'Required' %}" title="{% translate 'Required' %}">*</span>{% endif %}
+        </div>
+    {% else %}
+        <label for="question-{{ question.id }}" class="field-label">
+            {% if language_code == "en" %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}
+            {% if question.is_required %}<span class="required-mark" aria-label="{% translate 'Required' %}" title="{% translate 'Required' %}">*</span>{% endif %}
+        </label>
+    {% endif %}
+
+    {% if language_code == "en" %}
+        {% with help_text=question.help_text_en placeholder=question.placeholder_en %}{% include "forms_builder/partials/question_input.html" %}{% endwith %}
+    {% else %}
+        {% with help_text=question.help_text_sw placeholder=question.placeholder_sw %}{% include "forms_builder/partials/question_input.html" %}{% endwith %}
+    {% endif %}
+
+    <div class="field-error" id="error-question-{{ question.id }}" aria-live="polite"></div>
+</div>
