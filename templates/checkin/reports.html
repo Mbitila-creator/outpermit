@@ -13,9 +13,19 @@
         <div class="report-container">
             <div class="report-heading">
                 <div>
-                    <span class="section-kicker">{% translate "Registration management" %}</span>
-                    <h1>{% translate "Registered participants" %}</h1>
-                    <p>{% translate "View participants, print or export the list, and authorize certificates after check-in." %}</p>
+                    {% if certificate_review_mode %}
+                        <span class="section-kicker">{% translate "Certificate approval" %}</span>
+                        <h1>{% translate "Certificate approval and revocation" %}</h1>
+                        <p>{% translate "Review checked-in participants and approve eligible certificates. Open Details to review or revoke a certificate." %}</p>
+                    {% elif certificate_list_mode %}
+                        <span class="section-kicker">{% translate "Certificate register" %}</span>
+                        <h1>{% translate "Authorized certificates" %}</h1>
+                        <p>{% translate "View and export certificates that have already been authorized for this event." %}</p>
+                    {% else %}
+                        <span class="section-kicker">{% translate "Registration management" %}</span>
+                        <h1>{% translate "Registered participants" %}</h1>
+                        <p>{% translate "View participants, print or export the list, and monitor attendance." %}</p>
+                    {% endif %}
                 </div>
                 <a href="{% url 'system_home' %}" class="secondary-button">
                     {% translate "Return to workspace" %}
@@ -23,6 +33,8 @@
             </div>
 
             <form method="get" class="report-filter-card">
+                {% if certificate_review_mode %}<input type="hidden" name="filter" value="certificate_review">{% endif %}
+                {% if certificate_list_mode %}<input type="hidden" name="filter" value="certificate_list">{% endif %}
                 <label for="report-event">{% translate "Select event" %}</label>
                 <select id="report-event" name="event">
                     {% for event in events %}
@@ -40,7 +52,7 @@
                     <span>{{ selected_event.code }}</span>
                 </div>
 
-                <div class="report-summary-grid">
+                {% if not certificate_review_mode and not certificate_list_mode %}<div class="report-summary-grid">
                     <a href="?event={{ selected_event.pk }}&amp;filter=all" class="report-summary-card {% if selected_filter == 'all' %}is-selected{% endif %}" {% if selected_filter == 'all' %}aria-current="true"{% endif %}><span>{% translate "Registrations" %}</span><strong>{{ summary.registered }}</strong></a>
                     <a href="?event={{ selected_event.pk }}&amp;filter=checked_in" class="report-summary-card {% if selected_filter == 'checked_in' %}is-selected{% endif %}" {% if selected_filter == 'checked_in' %}aria-current="true"{% endif %}><span>{% translate "Checked in" %}</span><strong>{{ summary.checked_in }}</strong></a>
                     <a href="?event={{ selected_event.pk }}&amp;filter=not_checked_in" class="report-summary-card {% if selected_filter == 'not_checked_in' %}is-selected{% endif %}" {% if selected_filter == 'not_checked_in' %}aria-current="true"{% endif %}><span>{% translate "Not checked in" %}</span><strong>{{ summary.not_checked_in }}</strong></a>
@@ -49,23 +61,23 @@
                         <a href="?event={{ selected_event.pk }}&amp;filter=certificate_review" class="report-summary-card {% if selected_filter == 'certificate_review' %}is-selected{% endif %}" {% if selected_filter == 'certificate_review' %}aria-current="true"{% endif %}><span>{% translate "Awaiting certificate authorization" %}</span><strong>{{ summary.certificate_review }}</strong></a>
                         <a href="?event={{ selected_event.pk }}&amp;filter=certificate_eligible" class="report-summary-card {% if selected_filter == 'certificate_eligible' %}is-selected{% endif %}" {% if selected_filter == 'certificate_eligible' %}aria-current="true"{% endif %}><span>{% translate "Certificates authorized" %}</span><strong>{{ summary.certificate_eligible }}</strong></a>
                     {% endif %}
-                </div>
+                </div>{% endif %}
 
                 <div class="report-downloads">
-                    <a class="secondary-button" href="{% url 'checkin:participant_list_print' %}?event={{ selected_event.pk }}" target="_blank" rel="noopener">
+                    {% if not certificate_review_mode and not certificate_list_mode %}<a class="secondary-button" href="{% url 'checkin:participant_list_print' %}?event={{ selected_event.pk }}" target="_blank" rel="noopener">
                         {% translate "Print A4 list" %}
-                    </a>
-                    <a class="primary-button" href="{% url 'checkin:participant_list_excel' %}?event={{ selected_event.pk }}">
+                    </a>{% endif %}
+                    {% if not certificate_review_mode and not certificate_list_mode %}<a class="primary-button" href="{% url 'checkin:participant_list_excel' %}?event={{ selected_event.pk }}">
                         {% translate "Download Excel" %}
-                    </a>
-                    {% if selected_event.certificate_enabled %}
+                    </a>{% endif %}
+                    {% if selected_event.certificate_enabled and certificate_list_mode %}
                         <a class="secondary-button" href="{% url 'checkin:reports_csv' %}?event={{ selected_event.pk }}&amp;report=certificates">
                             {% translate "Download certificate CSV" %}
                         </a>
                     {% endif %}
                 </div>
 
-                {% if selected_event.certificate_enabled and can_authorize_certificates %}
+                {% if certificate_review_mode and can_authorize_certificates %}
                     <div class="checkin-alert checkin-alert-warning">
                         {% translate "Certificate authorization becomes available after the participant has checked in. Open Details to authorize or revoke an individual certificate." %}
                     </div>
@@ -85,7 +97,7 @@
                         <table>
                             <thead>
                                 <tr>
-                                    {% if can_authorize_certificates and selected_event.certificate_enabled %}<th>{% translate "Select" %}</th>{% endif %}
+                                    {% if certificate_review_mode and can_authorize_certificates %}<th>{% translate "Select" %}</th>{% endif %}
                                     <th>{% translate "Reference number" %}</th>
                                     <th>{% translate "Representative" %}</th>
                                     <th>{% translate "Organization" %}</th>
@@ -99,7 +111,7 @@
                             <tbody>
                                 {% for submission in rows %}
                                     <tr>
-                                        {% if can_authorize_certificates and selected_event.certificate_enabled %}
+                                        {% if certificate_review_mode and can_authorize_certificates %}
                                             <td>{% if submission.check_in and submission.certificate_record.status != "AUTHORIZED" %}<input type="checkbox" name="submission" value="{{ submission.pk }}" aria-label="{% translate 'Select participant' %} {{ submission.reference_number }}">{% else %}—{% endif %}</td>
                                         {% endif %}
                                         <td>{{ submission.reference_number }}</td>
@@ -129,7 +141,7 @@
                             </tbody>
                         </table>
                     </div>
-                    {% if can_authorize_certificates and selected_event.certificate_enabled %}
+                    {% if certificate_review_mode and can_authorize_certificates %}
                         <div class="report-downloads">
                             <button type="submit" class="primary-button">{% translate "Approve selected certificates" %}</button>
                         </div>
