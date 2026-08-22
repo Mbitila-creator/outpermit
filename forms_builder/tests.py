@@ -244,6 +244,11 @@ class WEUUTzEvaluationSetupTests(TestCase):
         call_command("setup_weuutz_registration", "--confirm")
 
         self.assertTrue(FormAnswer.objects.filter(pk=historical_answer.pk).exists())
+        submission.refresh_from_db()
+        self.assertEqual(
+            submission.review_status,
+            FormSubmission.ReviewStatus.APPROVED,
+        )
         participation.refresh_from_db()
         conference_section.refresh_from_db()
         other_section.refresh_from_db()
@@ -335,6 +340,23 @@ class WEUUTzEvaluationSetupTests(TestCase):
         self.assertContains(
             restored_response,
             f'data-draft-token="{draft_token}"',
+        )
+
+        complete_response = self.client.post(
+            f"{registration_url}?draft={draft_token}",
+            {
+                "_draft_token": draft_token,
+                f"question_{question.pk}": "University of Dodoma",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(complete_response.status_code, 200)
+        self.assertTrue(complete_response.json()["success"])
+        draft.refresh_from_db()
+        self.assertTrue(draft.is_complete)
+        self.assertEqual(
+            draft.review_status,
+            FormSubmission.ReviewStatus.APPROVED,
         )
 
     def test_command_improves_only_weuutz_form_and_is_idempotent(self):

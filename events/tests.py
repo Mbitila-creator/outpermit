@@ -16,7 +16,8 @@ from permits.models import Department
 from .access import events_visible_to
 from .auth import EventRole
 from .models import Event, EventCategory, Venue
-from forms_builder.models import EventForm, FormSubmission
+from forms_builder.models import CertificateRecord, EventForm, FormSubmission
+from checkin.models import ParticipantCheckIn
 from conferences.views import _conference_registration_forms
 from permits.views import system_home
 
@@ -488,6 +489,88 @@ class DepartmentEventAccessTests(TestCase):
         self.assertContains(preview_response, "Sample Representative")
         self.assertContains(preview_response, "data:image/png;base64,")
         self.assertNotContains(preview_response, "Download PDF certificate")
+
+    def test_exhibition_workspace_links_participants_and_certificate_review(self):
+        self.category.code = "EXHIBITION"
+        self.category.name_en = "Exhibition"
+        self.category.name_sw = "Maonesho"
+        self.category.slug = "exhibition"
+        self.category.save(update_fields=[
+            "code", "name_en", "name_sw", "slug", "updated_at",
+        ])
+        self.dsti_event.certificate_enabled = True
+        self.dsti_event.save(update_fields=["certificate_enabled", "updated_at"])
+        EventForm.objects.create(
+            event=self.dsti_event,
+            name_sw="Usajili wa Waoneshaji",
+            name_en="Exhibitor registration",
+            form_type=EventForm.FormType.EXHIBITOR,
+            is_active=True,
+        )
+        user = self._staff("exhibition-event-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+
+        response = self.client.get(reverse(
+            "events:department_event_detail",
+            kwargs={"event_slug": self.dsti_event.slug},
+        ))
+
+        reports_url = reverse("checkin:reports")
+        self.assertContains(response, "Registered participants")
+        self.assertContains(
+            response,
+            f"{reports_url}?event={self.dsti_event.pk}&amp;filter=all",
+        )
+        self.assertContains(response, "Certificate review and authorization")
+        self.assertContains(
+            response,
+            f"{reports_url}?event={self.dsti_event.pk}&amp;filter=certificate_review",
+        )
+
+    def test_event_administrator_can_authorize_checked_in_certificate(self):
+        self.dsti_event.certificate_enabled = True
+        self.dsti_event.save(update_fields=["certificate_enabled", "updated_at"])
+        registration_form = EventForm.objects.create(
+            event=self.dsti_event,
+            name_sw="Usajili",
+            name_en="Registration",
+            form_type=EventForm.FormType.EXHIBITOR,
+            is_active=True,
+        )
+        submission = FormSubmission.objects.create(
+            event_form=registration_form,
+            is_complete=True,
+            review_status=FormSubmission.ReviewStatus.APPROVED,
+        )
+        user = self._staff("certificate-event-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        ParticipantCheckIn.objects.create(
+            submission=submission,
+            checked_in_by=user,
+            method=ParticipantCheckIn.Method.MANUAL,
+        )
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("checkin:reports"),
+            {
+                "event": self.dsti_event.pk,
+                "filter": "certificate_review",
+                "submission": [submission.pk],
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('checkin:reports')}?event={self.dsti_event.pk}"
+            "&filter=certificate_review",
+        )
+        record = CertificateRecord.objects.get(submission=submission)
+        self.assertEqual(record.status, CertificateRecord.Status.AUTHORIZED)
+        self.assertEqual(record.authorized_by, user)
 
     def test_registration_officer_cannot_open_certificate_preview(self):
         self.dsti_event.code = "WEUUTz-2026"

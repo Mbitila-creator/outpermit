@@ -1,9 +1,13 @@
 import csv
 
 from django.contrib.auth.decorators import user_passes_test
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import HttpResponse
+from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
@@ -73,6 +77,19 @@ report_required = user_passes_test(
 )
 
 
+def can_authorize_certificates(user):
+    return bool(
+        user.is_authenticated
+        and (
+            user.is_superuser
+            or has_event_role(user, {
+                User.Role.SYSTEM_ADMIN,
+                User.Role.EVENT_ADMIN,
+            })
+        )
+    )
+
+
 def approved_submission_queryset():
     return FormSubmission.objects.select_related(
         "event_form",
@@ -109,7 +126,7 @@ def report_submissions(event):
 
 
 @report_required
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 def attendance_reports(request):
     events = events_visible_to(request.user).annotate(
         registration_total=Count(
@@ -122,8 +139,9 @@ def attendance_reports(request):
         )
     ).order_by("-starts_at")
     selected_event = None
-    selected_event_id = request.GET.get("event", "").strip()
-    selected_filter = request.GET.get("filter", "all").strip()
+    request_data = request.POST if request.method == "POST" else request.GET
+    selected_event_id = request_data.get("event", "").strip()
+    selected_filter = request_data.get("filter", "all").strip()
     available_filters = {
         "all",
         "approved",
@@ -131,6 +149,7 @@ def attendance_reports(request):
         "not_checked_in",
         "attendance_rate",
         "certificate_eligible",
+        "certificate_review",
         "pending",
         "rejected",
     }
@@ -141,6 +160,57 @@ def attendance_reports(request):
         selected_event = get_object_or_404(events, pk=selected_event_id)
     else:
         selected_event = events.first()
+
+    if request.method == "POST":
+        if not selected_event or not can_authorize_certificates(request.user):
+            raise PermissionDenied
+        if not selected_event.certificate_enabled:
+            messages.error(request, _("Certificates are not enabled for this event."))
+        else:
+            selected_ids = request.POST.getlist("submission")
+            eligible = report_submissions(selected_event).filter(
+                pk__in=selected_ids,
+                review_status=FormSubmission.ReviewStatus.APPROVED,
+                check_in__isnull=False,
+            ).exclude(
+                certificate_record__status=CertificateRecord.Status.AUTHORIZED,
+            )
+            authorized = 0
+            with transaction.atomic():
+                for submission in eligible:
+                    _record, _record_created = CertificateRecord.objects.update_or_create(
+                        submission=submission,
+                        defaults={
+                            "certificate_number": certificate_number(submission),
+                            "status": CertificateRecord.Status.AUTHORIZED,
+                            "authorized_by": request.user,
+                            "authorized_at": timezone.now(),
+                            "denied_by": None,
+                            "denied_at": None,
+                            "denial_reason": "",
+                            "revoked_by": None,
+                            "revoked_at": None,
+                            "revocation_reason": "",
+                        },
+                    )
+                    send_submission_notification(
+                        submission,
+                        NotificationLog.NotificationType.CERTIFICATE_AUTHORIZED,
+                        request=request,
+                    )
+                    authorized += 1
+            if authorized:
+                messages.success(
+                    request,
+                    _("%(count)s certificate(s) authorized successfully.")
+                    % {"count": authorized},
+                )
+            else:
+                messages.info(request, _("No eligible participants were selected."))
+        return redirect(
+            f"{reverse('checkin:reports')}?event={selected_event.pk}"
+            "&filter=certificate_review"
+        )
 
     summary = None
     rows = FormSubmission.objects.none()
@@ -160,6 +230,12 @@ def attendance_reports(request):
             check_in__isnull=False,
             certificate_record__status=CertificateRecord.Status.AUTHORIZED,
         ).count()
+        certificate_review = rows.filter(
+            review_status=FormSubmission.ReviewStatus.APPROVED,
+            check_in__isnull=False,
+        ).exclude(
+            certificate_record__status=CertificateRecord.Status.AUTHORIZED,
+        ).count()
         approved_not_checked_in = rows.filter(
             review_status=FormSubmission.ReviewStatus.APPROVED,
             check_in__isnull=True,
@@ -177,6 +253,11 @@ def attendance_reports(request):
             "not_checked_in": approved_not_checked_in,
             "certificate_eligible": (
                 certificate_authorized
+                if selected_event.certificate_enabled
+                else 0
+            ),
+            "certificate_review": (
+                certificate_review
                 if selected_event.certificate_enabled
                 else 0
             ),
@@ -216,6 +297,17 @@ def attendance_reports(request):
                 if selected_event.certificate_enabled
                 else rows.none()
             )
+        elif selected_filter == "certificate_review":
+            rows = (
+                rows.filter(
+                    review_status=FormSubmission.ReviewStatus.APPROVED,
+                    check_in__isnull=False,
+                ).exclude(
+                    certificate_record__status=CertificateRecord.Status.AUTHORIZED,
+                )
+                if selected_event.certificate_enabled
+                else rows.none()
+            )
         elif selected_filter in row_filters:
             rows = rows.filter(row_filters[selected_filter])
 
@@ -231,6 +323,7 @@ def attendance_reports(request):
             "rows": rows,
             "selected_filter": selected_filter,
             "filtered_total": rows.count() if selected_event else 0,
+            "can_authorize_certificates": can_authorize_certificates(request.user),
         },
     )
 

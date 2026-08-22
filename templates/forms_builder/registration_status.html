@@ -81,7 +81,7 @@
                         </div>
 
                         <span class="status-badge status-{{ submission.review_status|lower }}">
-                            {{ submission.get_review_status_display }}
+                            {% if submission.review_status == "REJECTED" %}{% translate "Not accepted" %}{% else %}{% translate "Registered" %}{% endif %}
                         </span>
                     </div>
 
@@ -109,9 +109,9 @@
                             <a href="{% url 'forms_builder:participant_payment' submission.participant_token %}" class="primary-button status-badge-link">{% translate "View payment status" %}</a>
                         {% endif %}
                         {% if submission.review_status == "APPROVED" %}
-                            <h2>{% translate "Registration approved" %}</h2>
+                            <h2>{% translate "Registration complete" %}</h2>
                             <p>
-                                {% translate "Your registration has been approved. Keep your reference number for future event services." %}
+                                {% translate "Your registration is complete. Keep your reference number and badge ready for event check-in." %}
                             </p>
 
                             {% if submission.event_form.event.badge_enabled %}
@@ -147,4 +147,3 @@
         </div>
     </section>
 {% endblock %}
-
