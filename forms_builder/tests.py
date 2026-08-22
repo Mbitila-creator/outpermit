@@ -3,6 +3,7 @@ from io import BytesIO
 from io import StringIO
 from tempfile import NamedTemporaryFile
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -114,6 +115,25 @@ class InstitutionCertificateTests(SimpleTestCase):
                 "https://example.test/certificate/verify/",
                 logo_path=logo_file.name,
             )
+
+        qr_image = Image.open(BytesIO(qr_png)).convert("RGB")
+        center = qr_image.getpixel((qr_image.width // 2, qr_image.height // 2))
+        self.assertGreater(center[0], 180)
+        self.assertLess(center[1], 80)
+        self.assertLess(center[2], 80)
+
+    def test_qr_code_places_default_system_logo_at_center(self):
+        with NamedTemporaryFile(suffix=".png") as logo_file:
+            Image.new("RGB", (80, 80), "#d71920").save(
+                logo_file,
+                format="PNG",
+            )
+            logo_file.flush()
+            with patch(
+                "forms_builder.services.finders.find",
+                return_value=logo_file.name,
+            ):
+                qr_png = generate_qr_png("https://example.test/existing-link/")
 
         qr_image = Image.open(BytesIO(qr_png)).convert("RGB")
         center = qr_image.getpixel((qr_image.width // 2, qr_image.height // 2))
