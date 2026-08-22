@@ -1,7 +1,8 @@
 from io import BytesIO
 
-import qrcode
 from PIL import Image, ImageDraw, ImageFont
+
+from forms_builder.services import generate_qr_png
 
 
 CARD_WIDTH = 1600
@@ -62,15 +63,7 @@ def _draw_lines(draw, lines, position, font, fill, spacing):
 
 
 def _qr_image(verification_url, size):
-    qr = qrcode.QRCode(
-        version=None,
-        error_correction=qrcode.constants.ERROR_CORRECT_M,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(verification_url)
-    qr.make(fit=True)
-    image = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+    image = Image.open(BytesIO(generate_qr_png(verification_url))).convert("RGB")
     return image.resize((size, size), Image.Resampling.NEAREST)
 
 
@@ -190,4 +183,3 @@ def render_participant_qr_card(participant, verification_url):
         text_width=text_width,
     )
     return _save_png(card)
-

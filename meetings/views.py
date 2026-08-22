@@ -6,7 +6,6 @@ from datetime import date, timedelta
 from io import BytesIO
 from pathlib import Path
 
-import qrcode
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -23,6 +22,7 @@ from django.views.decorators.http import require_GET, require_POST, require_http
 from events.auth import User, has_event_role
 from events.models import Event
 from events.access import events_visible_to
+from forms_builder.services import generate_qr_png
 
 from .forms import (
     ActionCompletionReviewForm,
@@ -157,13 +157,10 @@ def _meeting_checkin_state(meeting, moment=None):
 
 
 def _qr_data_uri(value):
-    qr = qrcode.QRCode(version=4, box_size=8, border=3)
-    qr.add_data(value)
-    qr.make(fit=True)
-    image = qr.make_image(fill_color="#17365d", back_color="white")
-    buffer = BytesIO()
-    image.save(buffer, format="PNG")
-    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    encoded = base64.b64encode(generate_qr_png(
+        value,
+        fill_color="#17365d",
+    )).decode("ascii")
     return f"data:image/png;base64,{encoded}"
 
 

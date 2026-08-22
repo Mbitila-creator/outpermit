@@ -296,7 +296,9 @@ def certificate_qr_logo_path(event):
     return finders.find("logo/moest_logo.png")
 
 
-def generate_qr_png(value, logo_path=None):
+def generate_qr_png(value, logo_path=None, fill_color="#000000"):
+    if logo_path is None:
+        logo_path = finders.find("logo/moest_logo.png")
     qr_code = qrcode.QRCode(
         error_correction=(
             qrcode.constants.ERROR_CORRECT_H
@@ -310,7 +312,7 @@ def generate_qr_png(value, logo_path=None):
     qr_code.make(fit=True)
 
     image = qr_code.make_image(
-        fill_color="#000000",
+        fill_color=fill_color,
         back_color="#ffffff",
     ).convert("RGBA")
 

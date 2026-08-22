@@ -1,6 +1,5 @@
 import io
 import os
-import qrcode
 import openpyxl
 from functools import wraps
 from xml.sax.saxutils import escape
@@ -39,6 +38,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from core.workflow import get_first_approver_for_requester, get_director_for_department
 from core.notifications import notify_user
 from core.audit import log_action
+from forms_builder.services import generate_qr_png
 
 from .models import ExternalWorkRequest, UserProfile, GroupMember, ModuleRoleAssignment
 from .module_roles import set_module_roles
@@ -3046,25 +3046,7 @@ def export_permit_pdf(request, pk):
 
     # Keep the QR payload deliberately small. The verification page is
     # the authoritative, current source for all permit and audit data.
-    qr = qrcode.QRCode(
-        version=None,
-        error_correction=(
-            qrcode.constants.ERROR_CORRECT_M
-        ),
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(verify_url)
-    qr.make(fit=True)
-
-    qr_image_data = qr.make_image(
-        fill_color="black",
-        back_color="white",
-    )
-    qr_buffer = io.BytesIO()
-    qr_image_data.save(qr_buffer, format="PNG")
-    qr_buffer.seek(0)
-    qr_image = ImageReader(qr_buffer)
+    qr_image = ImageReader(io.BytesIO(generate_qr_png(verify_url)))
 
     qr_size = 34
     qr_x = (width - qr_size) / 2
