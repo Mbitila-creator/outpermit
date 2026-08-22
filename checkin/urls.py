@@ -17,6 +17,16 @@ urlpatterns = [
         name="reports_csv",
     ),
     path(
+        "reports/participants/print/",
+        views.participant_list_print,
+        name="participant_list_print",
+    ),
+    path(
+        "reports/participants/excel/",
+        views.participant_list_excel,
+        name="participant_list_excel",
+    ),
+    path(
         "check-in/",
         views.check_in_lookup,
         name="lookup",
@@ -27,4 +37,3 @@ urlpatterns = [
         name="participant",
     ),
 ]
-
