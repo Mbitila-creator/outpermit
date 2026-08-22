@@ -65,6 +65,12 @@
                     {% endif %}
                 </div>
 
+                {% if selected_event.certificate_enabled and can_authorize_certificates %}
+                    <div class="checkin-alert checkin-alert-warning">
+                        {% translate "Certificate authorization becomes available after the participant has checked in. Open Details to authorize or revoke an individual certificate." %}
+                    </div>
+                {% endif %}
+
                 <form method="post" class="report-table-card">
                     {% csrf_token %}
                     <input type="hidden" name="event" value="{{ selected_event.pk }}">
@@ -115,7 +121,7 @@
                                             {% endif %}
                                         </td>
                                         <td>{% if submission.check_in %}{{ submission.check_in.checked_in_at|date:"d M Y, H:i" }}{% else %}—{% endif %}</td>
-                                        <td><div class="report-row-actions"><a href="{% url 'forms_builder:participant_portal' submission.participant_token %}" target="_blank" rel="noopener">{% translate "Details" %}</a>{% if selected_event.badge_enabled %}<a href="{% url 'forms_builder:participant_badge' submission.participant_token %}" target="_blank" rel="noopener">{% translate "Badge / QR" %}</a>{% endif %}</div></td>
+                                        <td><div class="report-row-actions"><a href="{% url 'checkin:participant_staff_detail' submission.pk %}">{% translate "Details" %}</a>{% if selected_event.badge_enabled %}<a href="{% url 'forms_builder:participant_badge' submission.participant_token %}" target="_blank" rel="noopener">{% translate "Badge / QR" %}</a>{% endif %}</div></td>
                                     </tr>
                                 {% empty %}
                                     <tr><td colspan="9">{% translate "No registrations are available for this event." %}</td></tr>

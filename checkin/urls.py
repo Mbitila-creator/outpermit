@@ -27,6 +27,11 @@ urlpatterns = [
         name="participant_list_excel",
     ),
     path(
+        "reports/participants/<int:submission_id>/",
+        views.participant_staff_detail,
+        name="participant_staff_detail",
+    ),
+    path(
         "check-in/",
         views.check_in_lookup,
         name="lookup",
