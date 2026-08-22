@@ -12,6 +12,9 @@ from .email_backends import BrevoEmailBackend
     BREVO_API_KEY="test-api-key",
     BREVO_API_URL="https://api.brevo.test/v3/smtp/email",
     BREVO_TIMEOUT=10,
+    EVENT_EMAIL_SENDER_NAME="MoEST-Event Management System",
+    EVENT_EMAIL_REPLY_TO="noreply@example.org",
+    EVENT_EMAIL_NO_REPLY_NOTICE="Please do not reply to this email.",
 )
 class BrevoEmailBackendTests(SimpleTestCase):
     @patch("config.email_backends.urlopen")
@@ -32,6 +35,15 @@ class BrevoEmailBackendTests(SimpleTestCase):
         request = mocked_urlopen.call_args.args[0]
         payload = json.loads(request.data.decode("utf-8"))
         self.assertEqual(payload["sender"]["email"], "events@example.org")
+        self.assertEqual(
+            payload["sender"]["name"],
+            "MoEST-Event Management System",
+        )
+        self.assertEqual(payload["replyTo"]["email"], "noreply@example.org")
+        self.assertIn(
+            "Please do not reply to this email.",
+            payload["textContent"],
+        )
         self.assertEqual(payload["to"][0]["email"], "participant@example.org")
         self.assertEqual(request.headers["Api-key"], "test-api-key")
 
