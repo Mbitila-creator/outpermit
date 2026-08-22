@@ -499,7 +499,10 @@ class DepartmentEventAccessTests(TestCase):
             "code", "name_en", "name_sw", "slug", "updated_at",
         ])
         self.dsti_event.certificate_enabled = True
-        self.dsti_event.save(update_fields=["certificate_enabled", "updated_at"])
+        self.dsti_event.badge_enabled = True
+        self.dsti_event.save(update_fields=[
+            "certificate_enabled", "badge_enabled", "updated_at",
+        ])
         EventForm.objects.create(
             event=self.dsti_event,
             name_sw="Usajili wa Waoneshaji",
@@ -518,7 +521,7 @@ class DepartmentEventAccessTests(TestCase):
         ))
 
         reports_url = reverse("checkin:reports")
-        self.assertContains(response, "Registered participants")
+        self.assertContains(response, "Registrations and certificates")
         self.assertContains(
             response,
             f"{reports_url}?event={self.dsti_event.pk}&amp;filter=all",
@@ -531,7 +534,10 @@ class DepartmentEventAccessTests(TestCase):
 
     def test_event_administrator_can_authorize_checked_in_certificate(self):
         self.dsti_event.certificate_enabled = True
-        self.dsti_event.save(update_fields=["certificate_enabled", "updated_at"])
+        self.dsti_event.badge_enabled = True
+        self.dsti_event.save(update_fields=[
+            "certificate_enabled", "badge_enabled", "updated_at",
+        ])
         registration_form = EventForm.objects.create(
             event=self.dsti_event,
             name_sw="Usajili",
@@ -571,6 +577,33 @@ class DepartmentEventAccessTests(TestCase):
         record = CertificateRecord.objects.get(submission=submission)
         self.assertEqual(record.status, CertificateRecord.Status.AUTHORIZED)
         self.assertEqual(record.authorized_by, user)
+
+        list_response = self.client.get(
+            reverse("checkin:reports"),
+            {"event": self.dsti_event.pk, "filter": "all"},
+        )
+        self.assertContains(list_response, "Registered participants")
+        self.assertContains(list_response, "Details")
+        self.assertContains(list_response, "Badge / QR")
+        self.assertContains(list_response, "Print A4 list")
+        self.assertContains(list_response, "Download Excel")
+
+        print_response = self.client.get(
+            reverse("checkin:participant_list_print"),
+            {"event": self.dsti_event.pk},
+        )
+        self.assertEqual(print_response.status_code, 200)
+        self.assertContains(print_response, submission.reference_number)
+
+        excel_response = self.client.get(
+            reverse("checkin:participant_list_excel"),
+            {"event": self.dsti_event.pk},
+        )
+        self.assertEqual(excel_response.status_code, 200)
+        self.assertEqual(
+            excel_response["Content-Type"],
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
     def test_registration_officer_cannot_open_certificate_preview(self):
         self.dsti_event.code = "WEUUTz-2026"

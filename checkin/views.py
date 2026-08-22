@@ -1,4 +1,5 @@
 import csv
+from io import BytesIO
 
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
@@ -11,6 +12,8 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
 
 from events.auth import User, has_event_role
 from events.models import Event
@@ -123,6 +126,10 @@ def report_submissions(event):
         "check_in",
         "certificate_record",
     )
+
+
+def participant_report_rows(event):
+    return report_submissions(event).order_by("badge_name", "reference_number")
 
 
 @report_required
@@ -381,6 +388,88 @@ def attendance_report_csv(request):
             values.append(certificate_number(submission))
         writer.writerow([safe_spreadsheet_value(value) for value in values])
 
+    return response
+
+
+@report_required
+@require_http_methods(["GET"])
+def participant_list_print(request):
+    event = get_object_or_404(
+        events_visible_to(request.user).select_related("venue"),
+        pk=request.GET.get("event"),
+    )
+    rows = participant_report_rows(event)
+    return render(request, "checkin/participant_list_print.html", {
+        "event": event,
+        "rows": rows,
+        "generated_at": timezone.localtime(),
+    })
+
+
+@report_required
+@require_http_methods(["GET"])
+def participant_list_excel(request):
+    event = get_object_or_404(
+        events_visible_to(request.user).select_related("venue"),
+        pk=request.GET.get("event"),
+    )
+    rows = participant_report_rows(event)
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Registered participants"
+    navy = "173B67"
+    teal = "087F73"
+    white = "FFFFFF"
+
+    sheet.merge_cells("A1:H1")
+    sheet["A1"] = event.title_en
+    sheet["A1"].font = Font(size=16, bold=True, color=white)
+    sheet["A1"].fill = PatternFill("solid", fgColor=navy)
+    sheet["A1"].alignment = Alignment(horizontal="center")
+    sheet.merge_cells("A2:H2")
+    sheet["A2"] = f"{event.code} — REGISTERED PARTICIPANTS"
+    sheet["A2"].font = Font(size=12, bold=True, color=teal)
+    sheet["A2"].alignment = Alignment(horizontal="center")
+    sheet.append([])
+    headers = [
+        "#", "Reference", "Representative", "Institution", "Email", "Phone",
+        "Attendance", "Certificate",
+    ]
+    sheet.append(headers)
+    for cell in sheet[4]:
+        cell.font = Font(bold=True, color=white)
+        cell.fill = PatternFill("solid", fgColor=teal)
+    for number, submission in enumerate(rows, start=1):
+        check_in = getattr(submission, "check_in", None)
+        certificate = getattr(submission, "certificate_record", None)
+        sheet.append([
+            number,
+            safe_spreadsheet_value(submission.reference_number),
+            safe_spreadsheet_value(submission.badge_display_name),
+            safe_spreadsheet_value(submission.badge_organization),
+            safe_spreadsheet_value(submission.submitter_email),
+            safe_spreadsheet_value(submission.submitter_phone),
+            "Checked in" if check_in else "Not checked in",
+            (
+                certificate.get_status_display()
+                if certificate
+                else "Awaiting check-in/authorization"
+            ),
+        ])
+    widths = [7, 25, 28, 32, 32, 20, 18, 28]
+    for index, width in enumerate(widths, start=1):
+        sheet.column_dimensions[chr(64 + index)].width = width
+    output = BytesIO()
+    workbook.save(output)
+    response = HttpResponse(
+        output.getvalue(),
+        content_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+    )
+    response["Content-Disposition"] = (
+        f'attachment; filename="{event.code}-registered-participants.xlsx"'
+    )
     return response
 
 

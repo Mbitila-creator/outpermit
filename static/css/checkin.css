@@ -163,6 +163,41 @@
     background: #e9eef3;
 }
 
+.report-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.report-row-actions a {
+    display: inline-flex;
+    padding: 7px 10px;
+    border: 1px solid #9fb7cf;
+    border-radius: 8px;
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.report-row-actions a:hover,
+.report-row-actions a:focus-visible {
+    border-color: #087f73;
+    color: #087f73;
+}
+
+@media print {
+    .report-page .report-heading,
+    .report-page .report-filter-card,
+    .report-page .report-summary-grid,
+    .report-page .report-downloads,
+    .report-page .report-row-actions,
+    .report-page input[type="checkbox"] {
+        display: none !important;
+    }
+}
+
 @media (max-width: 820px) {
     .report-summary-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -408,4 +443,3 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
-

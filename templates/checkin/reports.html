@@ -2,7 +2,7 @@
 {% load static %}
 {% load i18n %}
 
-{% block title %}{% translate "Attendance and certificate reports" %}{% endblock %}
+{% block title %}{% translate "Registered participants" %}{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/checkin.css' %}">
@@ -13,9 +13,9 @@
         <div class="report-container">
             <div class="report-heading">
                 <div>
-                    <span class="section-kicker">{% translate "Event reporting" %}</span>
-                    <h1>{% translate "Attendance and certificate reports" %}</h1>
-                    <p>{% translate "Review event participation and download spreadsheet-ready reports." %}</p>
+                    <span class="section-kicker">{% translate "Registration management" %}</span>
+                    <h1>{% translate "Registered participants" %}</h1>
+                    <p>{% translate "View participants, print or export the list, and authorize certificates after check-in." %}</p>
                 </div>
                 <a href="{% url 'system_home' %}" class="secondary-button">
                     {% translate "Return to workspace" %}
@@ -52,8 +52,11 @@
                 </div>
 
                 <div class="report-downloads">
-                    <a class="primary-button" href="{% url 'checkin:reports_csv' %}?event={{ selected_event.pk }}&amp;report=attendance">
-                        {% translate "Download attendance CSV" %}
+                    <a class="secondary-button" href="{% url 'checkin:participant_list_print' %}?event={{ selected_event.pk }}" target="_blank" rel="noopener">
+                        {% translate "Print A4 list" %}
+                    </a>
+                    <a class="primary-button" href="{% url 'checkin:participant_list_excel' %}?event={{ selected_event.pk }}">
+                        {% translate "Download Excel" %}
                     </a>
                     {% if selected_event.certificate_enabled %}
                         <a class="secondary-button" href="{% url 'checkin:reports_csv' %}?event={{ selected_event.pk }}&amp;report=certificates">
@@ -84,6 +87,7 @@
                                     <th>{% translate "Attendance" %}</th>
                                     <th>{% translate "Certificate authorized" %}</th>
                                     <th>{% translate "Checked in at" %}</th>
+                                    <th>{% translate "Actions" %}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -111,16 +115,17 @@
                                             {% endif %}
                                         </td>
                                         <td>{% if submission.check_in %}{{ submission.check_in.checked_in_at|date:"d M Y, H:i" }}{% else %}—{% endif %}</td>
+                                        <td><div class="report-row-actions"><a href="{% url 'forms_builder:participant_portal' submission.participant_token %}" target="_blank" rel="noopener">{% translate "Details" %}</a>{% if selected_event.badge_enabled %}<a href="{% url 'forms_builder:participant_badge' submission.participant_token %}" target="_blank" rel="noopener">{% translate "Badge / QR" %}</a>{% endif %}</div></td>
                                     </tr>
                                 {% empty %}
-                                    <tr><td colspan="8">{% translate "No registrations are available for this event." %}</td></tr>
+                                    <tr><td colspan="9">{% translate "No registrations are available for this event." %}</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                     {% if can_authorize_certificates and selected_event.certificate_enabled %}
                         <div class="report-downloads">
-                            <button type="submit" class="primary-button">{% translate "Authorize selected certificates" %}</button>
+                            <button type="submit" class="primary-button">{% translate "Approve selected certificates" %}</button>
                         </div>
                     {% endif %}
                 </form>
