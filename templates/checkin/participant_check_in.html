@@ -59,7 +59,7 @@
                     <span class="checkin-result-icon" aria-hidden="true">×</span>
                     <h2>{% translate "Check-in not allowed" %}</h2>
                     <p>
-                        {% translate "This registration is not approved or is not eligible for check-in." %}
+                        {% translate "This registration is incomplete or is not eligible for check-in." %}
                     </p>
                 </div>
             {% endif %}
@@ -68,7 +68,7 @@
                 <div class="verification-status">
                     <span aria-hidden="true">✓</span>
                     <div>
-                        <strong>{% translate "Approved participant" %}</strong>
+                        <strong>{% translate "Registered participant" %}</strong>
                         <small>{% translate "Identity token verified" %}</small>
                     </div>
                 </div>
@@ -133,4 +133,3 @@
         </div>
     </section>
 {% endblock %}
-

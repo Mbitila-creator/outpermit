@@ -42,13 +42,13 @@
 
                 <div class="report-summary-grid">
                     <a href="?event={{ selected_event.pk }}&amp;filter=all" class="report-summary-card {% if selected_filter == 'all' %}is-selected{% endif %}" {% if selected_filter == 'all' %}aria-current="true"{% endif %}><span>{% translate "Registrations" %}</span><strong>{{ summary.registered }}</strong></a>
-                    <a href="?event={{ selected_event.pk }}&amp;filter=approved" class="report-summary-card {% if selected_filter == 'approved' %}is-selected{% endif %}" {% if selected_filter == 'approved' %}aria-current="true"{% endif %}><span>{% translate "Approved" %}</span><strong>{{ summary.approved }}</strong></a>
                     <a href="?event={{ selected_event.pk }}&amp;filter=checked_in" class="report-summary-card {% if selected_filter == 'checked_in' %}is-selected{% endif %}" {% if selected_filter == 'checked_in' %}aria-current="true"{% endif %}><span>{% translate "Checked in" %}</span><strong>{{ summary.checked_in }}</strong></a>
                     <a href="?event={{ selected_event.pk }}&amp;filter=not_checked_in" class="report-summary-card {% if selected_filter == 'not_checked_in' %}is-selected{% endif %}" {% if selected_filter == 'not_checked_in' %}aria-current="true"{% endif %}><span>{% translate "Not checked in" %}</span><strong>{{ summary.not_checked_in }}</strong></a>
                     <a href="?event={{ selected_event.pk }}&amp;filter=attendance_rate" class="report-summary-card {% if selected_filter == 'attendance_rate' %}is-selected{% endif %}" {% if selected_filter == 'attendance_rate' %}aria-current="true"{% endif %}><span>{% translate "Attendance rate" %}</span><strong>{{ summary.attendance_rate }}%</strong></a>
-                    <a href="?event={{ selected_event.pk }}&amp;filter=certificate_eligible" class="report-summary-card {% if selected_filter == 'certificate_eligible' %}is-selected{% endif %}" {% if selected_filter == 'certificate_eligible' %}aria-current="true"{% endif %}><span>{% translate "Certificate eligible" %}</span><strong>{{ summary.certificate_eligible }}</strong></a>
-                    <a href="?event={{ selected_event.pk }}&amp;filter=pending" class="report-summary-card {% if selected_filter == 'pending' %}is-selected{% endif %}" {% if selected_filter == 'pending' %}aria-current="true"{% endif %}><span>{% translate "Pending" %}</span><strong>{{ summary.pending }}</strong></a>
-                    <a href="?event={{ selected_event.pk }}&amp;filter=rejected" class="report-summary-card {% if selected_filter == 'rejected' %}is-selected{% endif %}" {% if selected_filter == 'rejected' %}aria-current="true"{% endif %}><span>{% translate "Rejected" %}</span><strong>{{ summary.rejected }}</strong></a>
+                    {% if selected_event.certificate_enabled %}
+                        <a href="?event={{ selected_event.pk }}&amp;filter=certificate_review" class="report-summary-card {% if selected_filter == 'certificate_review' %}is-selected{% endif %}" {% if selected_filter == 'certificate_review' %}aria-current="true"{% endif %}><span>{% translate "Awaiting certificate authorization" %}</span><strong>{{ summary.certificate_review }}</strong></a>
+                        <a href="?event={{ selected_event.pk }}&amp;filter=certificate_eligible" class="report-summary-card {% if selected_filter == 'certificate_eligible' %}is-selected{% endif %}" {% if selected_filter == 'certificate_eligible' %}aria-current="true"{% endif %}><span>{% translate "Certificates authorized" %}</span><strong>{{ summary.certificate_eligible }}</strong></a>
+                    {% endif %}
                 </div>
 
                 <div class="report-downloads">
@@ -62,7 +62,10 @@
                     {% endif %}
                 </div>
 
-                <div class="report-table-card">
+                <form method="post" class="report-table-card">
+                    {% csrf_token %}
+                    <input type="hidden" name="event" value="{{ selected_event.pk }}">
+                    <input type="hidden" name="filter" value="{{ selected_filter }}">
                     <div class="report-table-heading">
                         <strong>{% translate "Filtered participants" %}: {{ filtered_total }}</strong>
                         {% if selected_filter != "all" %}
@@ -73,6 +76,7 @@
                         <table>
                             <thead>
                                 <tr>
+                                    {% if can_authorize_certificates and selected_event.certificate_enabled %}<th>{% translate "Select" %}</th>{% endif %}
                                     <th>{% translate "Reference number" %}</th>
                                     <th>{% translate "Representative" %}</th>
                                     <th>{% translate "Organization" %}</th>
@@ -85,10 +89,13 @@
                             <tbody>
                                 {% for submission in rows %}
                                     <tr>
+                                        {% if can_authorize_certificates and selected_event.certificate_enabled %}
+                                            <td>{% if submission.check_in and submission.certificate_record.status != "AUTHORIZED" %}<input type="checkbox" name="submission" value="{{ submission.pk }}" aria-label="{% translate 'Select participant' %} {{ submission.reference_number }}">{% else %}—{% endif %}</td>
+                                        {% endif %}
                                         <td>{{ submission.reference_number }}</td>
                                         <td>{{ submission.badge_display_name }}</td>
                                         <td>{{ submission.badge_organization|default:"—" }}</td>
-                                        <td>{{ submission.get_review_status_display }}</td>
+                                        <td>{% if submission.review_status == "REJECTED" %}{% translate "Not accepted" %}{% else %}{% translate "Registered" %}{% endif %}</td>
                                         <td>
                                             {% if submission.check_in %}
                                                 <span class="report-status report-status-success">{% translate "Checked in" %}</span>
@@ -106,12 +113,17 @@
                                         <td>{% if submission.check_in %}{{ submission.check_in.checked_in_at|date:"d M Y, H:i" }}{% else %}—{% endif %}</td>
                                     </tr>
                                 {% empty %}
-                                    <tr><td colspan="7">{% translate "No registrations are available for this event." %}</td></tr>
+                                    <tr><td colspan="8">{% translate "No registrations are available for this event." %}</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
-                </div>
+                    {% if can_authorize_certificates and selected_event.certificate_enabled %}
+                        <div class="report-downloads">
+                            <button type="submit" class="primary-button">{% translate "Authorize selected certificates" %}</button>
+                        </div>
+                    {% endif %}
+                </form>
             {% else %}
                 <div class="checkin-alert checkin-alert-warning">{% translate "No events are available for reporting." %}</div>
             {% endif %}

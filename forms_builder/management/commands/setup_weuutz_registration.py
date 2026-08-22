@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from events.models import Event
-from forms_builder.models import EventForm, FormQuestion
+from forms_builder.models import EventForm, FormQuestion, FormSubmission
 
 
 EVENT_CODE = "WEUUTz-2026"
@@ -135,7 +135,20 @@ class Command(BaseCommand):
                 update_fields.append("updated_at")
                 section.save(update_fields=update_fields)
 
+        auto_registered = FormSubmission.objects.filter(
+            event_form__event=event,
+            event_form__form_type__in=[
+                EventForm.FormType.REGISTRATION,
+                EventForm.FormType.EXHIBITOR,
+                EventForm.FormType.SPEAKER,
+            ],
+            is_active=True,
+            is_complete=True,
+            review_status=FormSubmission.ReviewStatus.PENDING,
+        ).update(review_status=FormSubmission.ReviewStatus.APPROVED)
+
         self.stdout.write(self.style.SUCCESS(
             f"Configured {event_form.name_en}: {len(active_sections)} continuous "
-            "exhibition registration sections; participation routing disabled."
+            "exhibition registration sections; participation routing disabled; "
+            f"{auto_registered} existing registration(s) made check-in ready."
         ))

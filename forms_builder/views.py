@@ -1199,6 +1199,12 @@ def public_event_form(request, event_slug, form_slug):
             submission.ip_address = get_client_ip(request)
             submission.user_agent = request.META.get("HTTP_USER_AGENT", "")
             submission.is_complete = True
+            if event_form.form_type in {
+                EventForm.FormType.REGISTRATION,
+                EventForm.FormType.EXHIBITOR,
+                EventForm.FormType.SPEAKER,
+            }:
+                submission.review_status = FormSubmission.ReviewStatus.APPROVED
             submission.created_by = (
                 request.user if request.user.is_authenticated else None
             )

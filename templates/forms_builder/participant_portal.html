@@ -12,7 +12,7 @@
     </header>
 
     <section class="portal-summary">
-        <article><span>{% translate "Registration" %}</span><strong class="state state-{{ submission.review_status|lower }}">{{ submission.get_review_status_display }}</strong></article>
+        <article><span>{% translate "Registration" %}</span><strong class="state state-{{ submission.review_status|lower }}">{% if submission.review_status == 'REJECTED' %}{% translate "Not accepted" %}{% else %}{% translate "Registered" %}{% endif %}</strong></article>
         <article><span>{% translate "Payment" %}</span><strong>{% if event.payment_enabled %}{% if latest_payment %}{{ latest_payment.get_status_display }}{% else %}{% translate "Not submitted" %}{% endif %}{% else %}{% translate "Not required" %}{% endif %}</strong></article>
         <article><span>{% translate "Attendance" %}</span><strong>{% if checked_in %}{% translate "Checked in" %}{% else %}{% translate "Not checked in" %}{% endif %}</strong></article>
         <article><span>{% translate "Certificate" %}</span><strong>{% if event.certificate_enabled and checked_in and certificate_authorized and submission.review_status == 'APPROVED' %}{% translate "Available" %}{% elif certificate_record.status == 'DENIED' %}<span class="state-certificate-denied">{% translate "Not authorized" %}</span>{% elif certificate_record.status == 'REVOKED' %}<span class="state-certificate-denied">{% translate "Revoked" %}</span>{% elif event.certificate_enabled and checked_in %}{% translate "Awaiting authorization" %}{% else %}{% translate "Not available" %}{% endif %}</strong></article>
