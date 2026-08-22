@@ -521,15 +521,15 @@ class DepartmentEventAccessTests(TestCase):
         ))
 
         reports_url = reverse("checkin:reports")
+        self.assertContains(response, "Registration and Certificate approval")
+        self.assertContains(
+            response,
+            f"{reports_url}?event={self.dsti_event.pk}&amp;filter=registration_certificates",
+        )
         self.assertContains(response, "Certificate list")
         self.assertContains(
             response,
             f"{reports_url}?event={self.dsti_event.pk}&amp;filter=certificate_list",
-        )
-        self.assertContains(response, "Certificate approval")
-        self.assertContains(
-            response,
-            f"{reports_url}?event={self.dsti_event.pk}&amp;filter=certificate_review",
         )
 
     def test_event_administrator_can_authorize_checked_in_certificate(self):

@@ -159,6 +159,7 @@ def attendance_reports(request):
         "certificate_eligible",
         "certificate_list",
         "certificate_review",
+        "registration_certificates",
         "pending",
         "rejected",
     }
@@ -218,7 +219,7 @@ def attendance_reports(request):
                 messages.info(request, _("No eligible participants were selected."))
         return redirect(
             f"{reverse('checkin:reports')}?event={selected_event.pk}"
-            "&filter=certificate_review"
+            f"&filter={selected_filter}"
         )
 
     summary = None
@@ -315,6 +316,8 @@ def attendance_reports(request):
                 if selected_event.certificate_enabled
                 else rows.none()
             )
+        elif selected_filter == "registration_certificates":
+            rows = rows
         elif selected_filter in row_filters:
             rows = rows.filter(row_filters[selected_filter])
 
@@ -331,6 +334,9 @@ def attendance_reports(request):
             "selected_filter": selected_filter,
             "certificate_list_mode": selected_filter == "certificate_list",
             "certificate_review_mode": selected_filter == "certificate_review",
+            "registration_certificate_mode": (
+                selected_filter == "registration_certificates"
+            ),
             "filtered_total": rows.count() if selected_event else 0,
             "can_authorize_certificates": can_authorize_certificates(request.user),
         },
