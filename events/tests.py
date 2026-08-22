@@ -584,6 +584,13 @@ class DepartmentEventAccessTests(TestCase):
         )
         self.assertContains(list_response, "Registered participants")
         self.assertContains(list_response, "Details")
+        self.assertContains(
+            list_response,
+            reverse(
+                "checkin:participant_staff_detail",
+                kwargs={"submission_id": submission.pk},
+            ),
+        )
         self.assertContains(list_response, "Badge / QR")
         self.assertContains(list_response, "Print A4 list")
         self.assertContains(list_response, "Download Excel")
@@ -603,6 +610,59 @@ class DepartmentEventAccessTests(TestCase):
         self.assertEqual(
             excel_response["Content-Type"],
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+        detail_url = reverse(
+            "checkin:participant_staff_detail",
+            kwargs={"submission_id": submission.pk},
+        )
+        detail_response = self.client.get(detail_url)
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, "Participant details")
+        self.assertContains(detail_response, "Revoke certificate")
+
+        revoke_response = self.client.post(detail_url, {
+            "action": "revoke",
+            "reason": "Certificate issued in error",
+        })
+        self.assertRedirects(revoke_response, detail_url)
+        record.refresh_from_db()
+        self.assertEqual(record.status, CertificateRecord.Status.REVOKED)
+        self.assertEqual(record.revocation_reason, "Certificate issued in error")
+
+    def test_certificate_authorization_waits_for_check_in(self):
+        self.dsti_event.certificate_enabled = True
+        self.dsti_event.save(update_fields=["certificate_enabled", "updated_at"])
+        registration_form = EventForm.objects.create(
+            event=self.dsti_event,
+            name_sw="Usajili",
+            name_en="Registration",
+            form_type=EventForm.FormType.EXHIBITOR,
+            is_active=True,
+        )
+        submission = FormSubmission.objects.create(
+            event_form=registration_form,
+            is_complete=True,
+            review_status=FormSubmission.ReviewStatus.APPROVED,
+        )
+        user = self._staff("pre-checkin-certificate-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+        detail_url = reverse(
+            "checkin:participant_staff_detail",
+            kwargs={"submission_id": submission.pk},
+        )
+
+        detail_response = self.client.get(detail_url)
+        self.assertContains(
+            detail_response,
+            "Certificate approval will become available after this participant checks in.",
+        )
+        authorize_response = self.client.post(detail_url, {"action": "authorize"})
+        self.assertRedirects(authorize_response, detail_url)
+        self.assertFalse(
+            CertificateRecord.objects.filter(submission=submission).exists()
         )
 
     def test_registration_officer_cannot_open_certificate_preview(self):

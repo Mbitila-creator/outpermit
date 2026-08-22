@@ -1,0 +1,39 @@
+{% extends "events/base_public.html" %}
+{% load static i18n %}
+
+{% block title %}{% translate "Participant details" %} — {{ submission.reference_number }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/checkin.css' %}">{% endblock %}
+
+{% block content %}
+<section class="report-page"><div class="report-container">
+    <div class="report-heading">
+        <div><span class="section-kicker">{{ event.code }}</span><h1>{% translate "Participant details" %}</h1><p>{{ submission.reference_number }}</p></div>
+        <div class="report-row-actions"><a href="{% url 'checkin:reports' %}?event={{ event.pk }}&amp;filter=all">← {% translate "Registered participants" %}</a>{% if event.badge_enabled %}<a href="{% url 'forms_builder:participant_badge' submission.participant_token %}" target="_blank" rel="noopener">{% translate "Badge / QR" %}</a>{% endif %}<a href="{% url 'forms_builder:participant_portal' submission.participant_token %}" target="_blank" rel="noopener">{% translate "Open participant portal" %}</a></div>
+    </div>
+
+    {% if messages %}{% for message in messages %}<div class="checkin-alert {% if message.tags == 'success' %}checkin-alert-success{% elif message.tags == 'error' %}checkin-alert-error{% else %}checkin-alert-warning{% endif %}">{{ message }}</div>{% endfor %}{% endif %}
+
+    <div class="participant-admin-grid">
+        <section class="report-table-card participant-admin-summary">
+            <h2>{% translate "Registration information" %}</h2>
+            <dl><div><dt>{% translate "Representative" %}</dt><dd>{{ submission.badge_display_name }}</dd></div><div><dt>{% translate "Institution" %}</dt><dd>{{ submission.badge_organization|default:"—" }}</dd></div><div><dt>{% translate "Email" %}</dt><dd>{{ submission.submitter_email|default:"—" }}</dd></div><div><dt>{% translate "Phone" %}</dt><dd>{{ submission.submitter_phone|default:"—" }}</dd></div><div><dt>{% translate "Registration" %}</dt><dd>{% translate "Registered" %}</dd></div><div><dt>{% translate "Attendance" %}</dt><dd>{% if check_in %}{% translate "Checked in" %} — {{ check_in.checked_in_at|date:"d M Y, H:i" }}{% else %}{% translate "Not checked in" %}{% endif %}</dd></div></dl>
+        </section>
+
+        <section class="report-table-card participant-certificate-panel">
+            <span class="section-kicker">{% translate "Certificate decision" %}</span><h2>{% if certificate_record %}{{ certificate_record.get_status_display }}{% else %}{% translate "Not authorized" %}{% endif %}</h2>
+            {% if not event.certificate_enabled %}<p>{% translate "Certificates are not enabled for this event." %}</p>
+            {% elif not check_in %}<div class="checkin-alert checkin-alert-warning">{% translate "Certificate approval will become available after this participant checks in." %}</div>
+            {% elif not can_authorize_certificates %}<p>{% translate "Your assigned role can view this decision but cannot change it." %}</p>
+            {% elif certificate_record.status == "AUTHORIZED" %}
+                <p><strong>{% translate "Certificate number" %}:</strong> {{ certificate_record.certificate_number }}</p>
+                <form method="post" class="certificate-decision-form">{% csrf_token %}<input type="hidden" name="action" value="revoke"><label for="revoke-reason">{% translate "Reason for revocation" %}</label><textarea id="revoke-reason" name="reason" rows="3" required></textarea><button type="submit" class="danger-button">{% translate "Revoke certificate" %}</button></form>
+            {% else %}
+                {% if certificate_record.status == "REVOKED" %}<div class="checkin-alert checkin-alert-error"><strong>{% translate "Previous revocation reason" %}:</strong> {{ certificate_record.revocation_reason }}</div>{% endif %}
+                <form method="post">{% csrf_token %}<input type="hidden" name="action" value="authorize"><button type="submit" class="primary-button">{% translate "Authorize certificate" %}</button></form>
+            {% endif %}
+        </section>
+    </div>
+
+    <section class="report-table-card"><div class="report-table-heading"><strong>{% translate "Submitted answers" %}</strong></div><div class="participant-answer-list">{% for answer in answers %}<article><small>{{ answer.section }}</small><strong>{{ answer.question }}</strong><p>{{ answer.value }}</p></article>{% empty %}<p>{% translate "No submitted answers are available." %}</p>{% endfor %}</div></section>
+</div></section>
+{% endblock %}

@@ -22,6 +22,7 @@ from forms_builder.models import CertificateRecord, EventForm, FormSubmission
 from forms_builder.models import NotificationLog
 from forms_builder.notifications import send_submission_notification
 from forms_builder.services import (
+    answer_export_value,
     certificate_number,
     participant_certificate_path,
     public_form_path,
@@ -471,6 +472,116 @@ def participant_list_excel(request):
         f'attachment; filename="{event.code}-registered-participants.xlsx"'
     )
     return response
+
+
+@report_required
+@require_http_methods(["GET", "POST"])
+def participant_staff_detail(request, submission_id):
+    submission = get_object_or_404(
+        FormSubmission.objects.select_related(
+            "event_form__event",
+            "event_form__event__venue",
+            "check_in",
+            "certificate_record",
+        ).prefetch_related(
+            "answers__question__section",
+            "answers__selected_options",
+        ),
+        pk=submission_id,
+        event_form__event__in=events_visible_to(request.user),
+        is_active=True,
+        is_complete=True,
+        event_form__form_type__in=[
+            EventForm.FormType.REGISTRATION,
+            EventForm.FormType.EXHIBITOR,
+            EventForm.FormType.SPEAKER,
+        ],
+    )
+    event = submission.event_form.event
+    certificate_record = getattr(submission, "certificate_record", None)
+
+    if request.method == "POST":
+        if not can_authorize_certificates(request.user):
+            raise PermissionDenied
+        action = request.POST.get("action", "").strip()
+        if action == "authorize":
+            if not event.certificate_enabled:
+                messages.error(request, _("Certificates are not enabled for this event."))
+            elif not getattr(submission, "check_in", None):
+                messages.error(
+                    request,
+                    _("The participant must check in before certificate authorization."),
+                )
+            else:
+                _record, _created = CertificateRecord.objects.update_or_create(
+                    submission=submission,
+                    defaults={
+                        "certificate_number": certificate_number(submission),
+                        "status": CertificateRecord.Status.AUTHORIZED,
+                        "authorized_by": request.user,
+                        "authorized_at": timezone.now(),
+                        "denied_by": None,
+                        "denied_at": None,
+                        "denial_reason": "",
+                        "revoked_by": None,
+                        "revoked_at": None,
+                        "revocation_reason": "",
+                    },
+                )
+                send_submission_notification(
+                    submission,
+                    NotificationLog.NotificationType.CERTIFICATE_AUTHORIZED,
+                    request=request,
+                )
+                messages.success(request, _("Certificate authorized successfully."))
+        elif action == "revoke":
+            reason = request.POST.get("reason", "").strip()
+            if not certificate_record or certificate_record.status != CertificateRecord.Status.AUTHORIZED:
+                messages.error(request, _("Only an authorized certificate can be revoked."))
+            elif not reason:
+                messages.error(request, _("Enter a reason before revoking the certificate."))
+            else:
+                certificate_record.status = CertificateRecord.Status.REVOKED
+                certificate_record.revoked_by = request.user
+                certificate_record.revoked_at = timezone.now()
+                certificate_record.revocation_reason = reason
+                certificate_record.denied_by = None
+                certificate_record.denied_at = None
+                certificate_record.denial_reason = ""
+                certificate_record.save()
+                messages.success(request, _("Certificate revoked successfully."))
+        else:
+            messages.error(request, _("Select a valid certificate action."))
+        return redirect(
+            "checkin:participant_staff_detail",
+            submission_id=submission.pk,
+        )
+
+    answers = []
+    for answer in submission.answers.all():
+        value = answer_export_value(answer)
+        if value not in (None, ""):
+            answers.append({
+                "section": (
+                    answer.question.section.title_en
+                    if submission.language == "en"
+                    else answer.question.section.title_sw
+                ),
+                "question": (
+                    answer.question.label_en
+                    if submission.language == "en"
+                    else answer.question.label_sw
+                ),
+                "value": value,
+            })
+    return render(request, "checkin/participant_staff_detail.html", {
+        "submission": submission,
+        "event": event,
+        "check_in": getattr(submission, "check_in", None),
+        "certificate_record": certificate_record,
+        "answers": answers,
+        "can_authorize_certificates": can_authorize_certificates(request.user),
+    })
 
 
 @check_in_required
