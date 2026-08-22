@@ -26,6 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let draftToken = form.dataset.draftToken || "";
     let currentStep = 0;
     let draftSaveTimer = null;
+    let draftSavePromise = null;
     let submissionInProgress = false;
 
     if (registrationDraft && !draftToken) {
@@ -447,7 +448,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showStep(0, false);
     }
 
-    const saveDraft = async () => {
+    const performDraftSave = async () => {
         if (!draftAutosaveEnabled || submissionInProgress) {
             return;
         }
@@ -477,6 +478,19 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             console.error("Form draft autosave failed.", error);
         }
+    };
+
+    const saveDraft = () => {
+        if (draftSavePromise) {
+            return draftSavePromise;
+        }
+        const operation = performDraftSave();
+        draftSavePromise = operation.finally(() => {
+            if (draftSavePromise) {
+                draftSavePromise = null;
+            }
+        });
+        return draftSavePromise;
     };
 
     const scheduleDraftSave = () => {
@@ -572,6 +586,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         try {
+            // Finish an autosave that started before Submit was clicked. This
+            // ensures the final request receives its token and completes the
+            // same record instead of leaving an orphan draft behind.
+            if (draftSavePromise) {
+                await draftSavePromise;
+            }
             const formData = new FormData(form);
             if (draftToken) {
                 formData.append("_draft_token", draftToken);
