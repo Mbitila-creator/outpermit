@@ -794,6 +794,8 @@ class FormSubmissionAdmin(admin.ModelAdmin):
 
     @admin.display(description="Review status", ordering="review_status")
     def review_status_badge(self, obj):
+        if not obj.is_complete:
+            return "Draft — not submitted"
         if obj.event_form.form_type == EventForm.FormType.EVALUATION:
             return "Not applicable"
         colors = {
@@ -825,6 +827,8 @@ class FormSubmissionAdmin(admin.ModelAdmin):
 
     @admin.display(description="Participant badge")
     def badge_tools(self, obj):
+        if not obj.is_complete:
+            return "Available after the form is submitted."
         if obj.event_form.form_type == EventForm.FormType.EVALUATION:
             return "Not applicable"
         if obj.review_status != FormSubmission.ReviewStatus.APPROVED:
@@ -848,6 +852,8 @@ class FormSubmissionAdmin(admin.ModelAdmin):
 
     @admin.display(description="Certificate")
     def certificate_tools(self, obj):
+        if not obj.is_complete:
+            return "Available after the form is submitted and participant check-in."
         if obj.event_form.form_type == EventForm.FormType.EVALUATION:
             return "Not applicable"
         if not obj.event_form.event.certificate_enabled:
@@ -973,6 +979,14 @@ class FormSubmissionAdmin(admin.ModelAdmin):
                 .first()
             )
 
+        if not obj.is_complete and obj.review_status != FormSubmission.ReviewStatus.PENDING:
+            obj.review_status = FormSubmission.ReviewStatus.PENDING
+            self.message_user(
+                request,
+                _("An unfinished draft cannot be reviewed. Its status remains pending."),
+                messages.WARNING,
+            )
+
         if obj.review_status != old_status:
             if obj.review_status == FormSubmission.ReviewStatus.PENDING:
                 obj.reviewed_by = None
@@ -1002,7 +1016,8 @@ class FormSubmissionAdmin(admin.ModelAdmin):
                 )
 
     def _set_review_status(self, request, queryset, status):
-        queryset = queryset.exclude(
+        selected_count = queryset.count()
+        queryset = queryset.filter(is_complete=True).exclude(
             event_form__form_type=EventForm.FormType.EVALUATION
         ).exclude(review_status=status)
         submissions = list(
@@ -1031,6 +1046,16 @@ class FormSubmissionAdmin(admin.ModelAdmin):
             f"{updated} submission(s) updated.",
             messages.SUCCESS,
         )
+        skipped = selected_count - len(submissions)
+        if skipped:
+            self.message_user(
+                request,
+                _(
+                    "%(count)s draft, evaluation, or already-matching "
+                    "submission(s) were not changed."
+                ) % {"count": skipped},
+                messages.WARNING,
+            )
         notification_types = {
             FormSubmission.ReviewStatus.APPROVED: (
                 NotificationLog.NotificationType.REGISTRATION_APPROVED
