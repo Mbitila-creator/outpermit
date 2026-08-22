@@ -157,6 +157,7 @@ def attendance_reports(request):
         "not_checked_in",
         "attendance_rate",
         "certificate_eligible",
+        "certificate_list",
         "certificate_review",
         "pending",
         "rejected",
@@ -295,7 +296,7 @@ def attendance_reports(request):
                 review_status=FormSubmission.ReviewStatus.REJECTED
             ),
         }
-        if selected_filter == "certificate_eligible":
+        if selected_filter in {"certificate_eligible", "certificate_list"}:
             rows = (
                 rows.filter(
                     review_status=FormSubmission.ReviewStatus.APPROVED,
@@ -310,8 +311,6 @@ def attendance_reports(request):
                 rows.filter(
                     review_status=FormSubmission.ReviewStatus.APPROVED,
                     check_in__isnull=False,
-                ).exclude(
-                    certificate_record__status=CertificateRecord.Status.AUTHORIZED,
                 )
                 if selected_event.certificate_enabled
                 else rows.none()
@@ -330,6 +329,8 @@ def attendance_reports(request):
             "summary": summary,
             "rows": rows,
             "selected_filter": selected_filter,
+            "certificate_list_mode": selected_filter == "certificate_list",
+            "certificate_review_mode": selected_filter == "certificate_review",
             "filtered_total": rows.count() if selected_event else 0,
             "can_authorize_certificates": can_authorize_certificates(request.user),
         },
