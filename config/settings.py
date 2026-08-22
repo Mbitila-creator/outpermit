@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 import os
+from email.utils import formataddr, parseaddr
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -154,10 +155,30 @@ EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
     "django.core.mail.backends.console.EmailBackend",
 )
-DEFAULT_FROM_EMAIL = os.getenv(
+EVENT_EMAIL_SENDER_NAME = os.getenv(
+    "EVENT_EMAIL_SENDER_NAME",
+    "MoEST-Event Management System",
+).strip()
+_configured_from_email = os.getenv(
     "DEFAULT_FROM_EMAIL",
     "OutPermit Event Management <noreply@localhost>",
 )
+_configured_from_address = parseaddr(_configured_from_email)[1]
+DEFAULT_FROM_EMAIL = formataddr((
+    EVENT_EMAIL_SENDER_NAME,
+    _configured_from_address or _configured_from_email,
+))
+EVENT_EMAIL_REPLY_TO = os.getenv(
+    "EVENT_EMAIL_REPLY_TO",
+    _configured_from_address,
+).strip()
+EVENT_EMAIL_NO_REPLY_NOTICE = os.getenv(
+    "EVENT_EMAIL_NO_REPLY_NOTICE",
+    (
+        "This is an automated email from MoEST-Event Management System. "
+        "Please do not reply to this email."
+    ),
+).strip()
 EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")

@@ -34,6 +34,7 @@ class BrevoEmailBackend(BaseEmailBackend):
         sender_name, sender_email = parseaddr(message.from_email)
         if not sender_email:
             raise ValueError("The email message does not have a valid sender.")
+        sender_name = settings.EVENT_EMAIL_SENDER_NAME or sender_name
         recipients = [
             self._address_payload(address)
             for address in message.to
@@ -48,13 +49,17 @@ class BrevoEmailBackend(BaseEmailBackend):
             },
             "to": recipients,
             "subject": message.subject,
-            "textContent": message.body,
+            "textContent": self._text_content(message),
         }
         html_content = self._html_content(message)
         if html_content:
             payload["htmlContent"] = html_content
-        if message.reply_to:
-            reply_name, reply_email = parseaddr(message.reply_to[0])
+        reply_address = (
+            settings.EVENT_EMAIL_REPLY_TO
+            or (message.reply_to[0] if message.reply_to else sender_email)
+        )
+        if reply_address:
+            reply_name, reply_email = parseaddr(reply_address)
             if reply_email:
                 payload["replyTo"] = {
                     "email": reply_email,
@@ -90,6 +95,14 @@ class BrevoEmailBackend(BaseEmailBackend):
     def _address_payload(address):
         name, email = parseaddr(sanitize_address(address, "utf-8"))
         return {"email": email, **({"name": name} if name else {})}
+
+    @staticmethod
+    def _text_content(message):
+        body = str(message.body or "").rstrip()
+        notice = settings.EVENT_EMAIL_NO_REPLY_NOTICE
+        if notice and notice not in body:
+            return f"{body}\n\n---\n{notice}" if body else notice
+        return body
 
     @staticmethod
     def _html_content(message):
