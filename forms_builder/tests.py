@@ -16,6 +16,7 @@ from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
+from core.models import Country, Region
 from events.models import Event, EventCategory
 from .models import (
     EventForm,
@@ -434,6 +435,23 @@ class WEUUTzEvaluationSetupTests(TestCase):
         self.assertTrue(any("were not changed" in message for message in warning_messages))
 
     def test_command_improves_only_weuutz_form_and_is_idempotent(self):
+        country = Country.objects.create(
+            name_sw="Tanzania",
+            name_en="Tanzania",
+            code="TZ",
+        )
+        Region.objects.create(
+            country=country,
+            name_sw="Dodoma",
+            name_en="Dodoma",
+            code="01",
+        )
+        Region.objects.create(
+            country=country,
+            name_sw="Tanga",
+            name_en="Tanga",
+            code="02",
+        )
         output = StringIO()
         call_command("setup_weuutz_evaluation", "--confirm", stdout=output)
         call_command("setup_weuutz_evaluation", "--confirm", stdout=output)
@@ -449,7 +467,7 @@ class WEUUTzEvaluationSetupTests(TestCase):
         self.assertFalse(self.form.show_event_summary)
         self.assertEqual(self.form.name_en, "Commemoration Evaluation Questionnaire")
         self.assertEqual(self.form.name_sw, "Dodoso la Tathmini ya Maadhimisho")
-        self.assertEqual(questions.filter(is_active=True).count(), 38)
+        self.assertEqual(questions.filter(is_active=True).count(), 39)
         self.assertFalse(self.original_question.is_active)
         self.assertEqual(
             self.form.sections.filter(is_active=True).count(),
@@ -482,7 +500,7 @@ class WEUUTzEvaluationSetupTests(TestCase):
             "following outcomes? Where 1 = Not achieved, 2 = Slightly, "
             "3 = Moderate, 4 = Achieved, 5 = Highly achieved.",
         )
-        expected_question_counts = {"A": 5, "B": 12, "C": 11, "D": 3, "E": 7}
+        expected_question_counts = {"A": 5, "B": 12, "C": 11, "D": 3, "E": 8}
         for section_letter, question_count in expected_question_counts.items():
             section = self.form.sections.get(
                 display_order=ord(section_letter) - ord("A") + 1,
@@ -514,6 +532,27 @@ class WEUUTzEvaluationSetupTests(TestCase):
         self.assertEqual(other_fields.count(), 2)
         self.assertTrue(all(question.is_required for question in other_fields))
         self.assertTrue(all(question.condition_question_id for question in other_fields))
+        region_question = questions.get(
+            is_active=True,
+            label_en__startswith="E8. Which region",
+        )
+        self.assertEqual(
+            region_question.question_type,
+            FormQuestion.QuestionType.DROPDOWN,
+        )
+        self.assertTrue(region_question.is_required)
+        self.assertEqual(
+            region_question.help_text_sw,
+            "Tafadhali chagua mkoa MMOJA tu.",
+        )
+        self.assertEqual(
+            list(
+                region_question.options.filter(is_active=True)
+                .order_by("display_order")
+                .values_list("label_sw", flat=True)
+            ),
+            ["Dodoma", "Tanga"],
+        )
 
     def test_evaluation_is_available_only_through_linked_participant_portal(self):
         call_command("setup_weuutz_evaluation", "--confirm")

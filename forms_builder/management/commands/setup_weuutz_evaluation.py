@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from core.models import Region
 from events.models import Event
 from forms_builder.models import (
     EventForm,
@@ -239,6 +240,38 @@ class Command(BaseCommand):
         configure_question(form, sections["E"], label_en="E5. List three things done well that should continue", label_sw="E5. Taja mambo matatu yaliyofanyika vizuri zaidi katika maonesho haya ambayo ungependa yaendelezwe katika maonesho yajayo", question_type=FormQuestion.QuestionType.LONG_TEXT, order=5, required=True, existing_label_en="List three things done well that should continue")
         configure_question(form, sections["E"], label_en="E6. List the three most important improvements for future exhibitions", label_sw="E6. Taja mambo matatu muhimu zaidi ambayo ungependa yaboreshwe katika maandalizi na uendeshaji wa maonesho yajayo", question_type=FormQuestion.QuestionType.LONG_TEXT, order=6, required=True, existing_label_en="List the three most important improvements for future exhibitions")
         configure_question(form, sections["E"], label_en="E7. Other comments or recommendations", label_sw="E7. Maoni au mapendekezo mengine ya kuboresha maonesho yajayo", question_type=FormQuestion.QuestionType.LONG_TEXT, order=7, existing_label_en="Other comments or recommendations")
+        region_options = tuple(
+            (
+                str(region.pk),
+                region.name_sw,
+                region.name_en,
+            )
+            for region in Region.objects.select_related("country").filter(
+                is_active=True,
+            ).order_by("name_sw", "name_en", "pk")
+        )
+        configure_question(
+            form,
+            sections["E"],
+            label_en=(
+                "E8. Which region do you recommend to host the National "
+                "Education, Skills and Innovation Week 2027?"
+            ),
+            label_sw=(
+                "E8. Ni mkoa gani unapendekeza kuwa mwenyeji wa Wiki ya "
+                "Kitaifa ya Elimu, Ujuzi na Ubunifu 2027?"
+            ),
+            question_type=FormQuestion.QuestionType.DROPDOWN,
+            order=8,
+            required=True,
+            options=region_options,
+            help_en="Please select ONE region only.",
+            help_sw="Tafadhali chagua mkoa MMOJA tu.",
+            existing_label_en=(
+                "Which region do you recommend to host the National "
+                "Education, Skills and Innovation Week 2027?"
+            ),
+        )
 
         self.stdout.write(self.style.SUCCESS(
             f"Configured {form.name_en}: "
