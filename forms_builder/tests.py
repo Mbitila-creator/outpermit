@@ -6,9 +6,11 @@ from datetime import timedelta
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
-from django.test import SimpleTestCase, TestCase
+from django.contrib.messages.middleware import MessageMiddleware
+from django.contrib.sessions.middleware import SessionMiddleware
+from django.test import RequestFactory, SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
@@ -21,7 +23,7 @@ from .models import (
     FormSubmission,
     QuestionOption,
 )
-from .admin import EventFormAdmin
+from .admin import EventFormAdmin, FormSubmissionAdmin
 
 from .services import (
     certificate_is_for_institution,
@@ -358,6 +360,58 @@ class WEUUTzEvaluationSetupTests(TestCase):
             draft.review_status,
             FormSubmission.ReviewStatus.APPROVED,
         )
+
+    def test_admin_approval_skips_incomplete_drafts(self):
+        registration_form = EventForm.objects.create(
+            event=self.event,
+            name_sw="Usajili wa Waoneshaji",
+            name_en="Exhibitor Registration",
+            form_type=EventForm.FormType.EXHIBITOR,
+            is_published=True,
+        )
+        draft = FormSubmission.objects.create(
+            event_form=registration_form,
+            is_complete=False,
+            review_status=FormSubmission.ReviewStatus.PENDING,
+        )
+        completed = FormSubmission.objects.create(
+            event_form=registration_form,
+            is_complete=True,
+            review_status=FormSubmission.ReviewStatus.PENDING,
+        )
+        administrator = get_user_model().objects.create_superuser(
+            username="draft-review-admin",
+            email="draft-review@example.com",
+            password="safe-test-password",
+        )
+        request = RequestFactory().post("/admin/forms-builder/")
+        request.user = administrator
+        SessionMiddleware(lambda response: response).process_request(request)
+        request.session.save()
+        MessageMiddleware(lambda response: response).process_request(request)
+        model_admin = FormSubmissionAdmin(FormSubmission, admin.site)
+
+        model_admin.approve_submissions(
+            request,
+            FormSubmission.objects.filter(pk__in=[draft.pk, completed.pk]),
+        )
+
+        draft.refresh_from_db()
+        completed.refresh_from_db()
+        self.assertEqual(
+            draft.review_status,
+            FormSubmission.ReviewStatus.PENDING,
+        )
+        self.assertEqual(
+            completed.review_status,
+            FormSubmission.ReviewStatus.APPROVED,
+        )
+        self.assertEqual(
+            model_admin.review_status_badge(draft),
+            "Draft — not submitted",
+        )
+        warning_messages = [str(message) for message in messages.get_messages(request)]
+        self.assertTrue(any("were not changed" in message for message in warning_messages))
 
     def test_command_improves_only_weuutz_form_and_is_idempotent(self):
         output = StringIO()
