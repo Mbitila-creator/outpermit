@@ -10,7 +10,7 @@ from forms_builder.services import (
     certificate_qr_logo_path,
     event_date_range,
     generate_qr_png,
-    weuutz_event_sentence,
+    weuutz_event_sentence_html,
 )
 
 from .access import events_visible_to, is_system_event_administrator, user_department
@@ -128,7 +128,7 @@ def department_certificate_preview(request, event_slug):
         "event": event,
         "event_display_name": event.title_en,
         "event_date_range": event_date_range(event, language="en"),
-        "weuutz_event_sentence": weuutz_event_sentence(event),
+        "weuutz_event_sentence_html": weuutz_event_sentence_html(event),
         "preview_qr_data": base64.b64encode(preview_qr).decode("ascii"),
         "sample_institution": "Sample Participating Institution",
     })

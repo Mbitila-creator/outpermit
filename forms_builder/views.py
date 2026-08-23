@@ -49,7 +49,7 @@ from .services import (
     sync_badge_identity_from_answers,
     safe_spreadsheet_value,
     payment_amount_for_submission,
-    weuutz_event_sentence,
+    weuutz_event_sentence_html,
 )
 
 
@@ -1661,7 +1661,7 @@ def participant_certificate(request, participant_token):
             "certificate_number": certificate_number(submission),
             "certificate_recipient_name": certificate_recipient_name(submission),
             "institution_certificate": certificate_is_for_institution(submission),
-            "weuutz_event_sentence": weuutz_event_sentence(
+            "weuutz_event_sentence_html": weuutz_event_sentence_html(
                 submission.event_form.event
             ),
             "event_date_range": event_date_range(

@@ -32,6 +32,7 @@ from .services import (
     certificate_recipient_name,
     generate_qr_png,
     weuutz_event_sentence,
+    weuutz_event_sentence_html,
 )
 from .views import registration_identity_conflicts
 
@@ -125,6 +126,14 @@ class InstitutionCertificateTests(SimpleTestCase):
             "Participated in the National Education, Skills and Innovation "
             "Week 2026 Exhibitions which was held from 15th to 24th August, "
             "2026 in Tanga.",
+        )
+        self.assertIn(
+            "15<sup>th</sup> to 24<sup>th</sup> August, 2026",
+            str(weuutz_event_sentence_html(event)),
+        )
+        self.assertIn(
+            "15ᵗʰ to 24ᵗʰ August, 2026",
+            weuutz_event_sentence(event, superscript=True),
         )
 
     def test_qr_code_places_supplied_logo_at_center(self):
