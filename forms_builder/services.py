@@ -488,25 +488,25 @@ def _generate_weuutz_certificate_pdf(submission, verification_url):
         green, bold=True, serif=True,
     )
     _draw_centered_fitted(
-        draw, "THIS IS TO CERTIFY THAT", 530, width, 38, width - 500,
+        draw, "THIS IS TO CERTIFY THAT", 555, width, 38, width - 500,
         black, serif=True,
     )
     _draw_centered_fitted(
-        draw, recipient_name.upper(), 605, width, 54, width - 230,
+        draw, recipient_name.upper(), 635, width, 54, width - 230,
         blue, serif=True,
     )
-    draw.line((245, 675, width - 245, 675), fill="#8d8d8d", width=2)
+    draw.line((245, 710, width - 245, 710), fill="#8d8d8d", width=2)
 
     statement = weuutz_event_sentence(event)
     _draw_centered_wrapped(
         draw,
         statement,
-        710,
+        750,
         width,
         _certificate_font(30, serif=True),
         width - 330,
         black,
-        spacing=10,
+        spacing=16,
     )
 
     # Permanent Secretary signature block.
