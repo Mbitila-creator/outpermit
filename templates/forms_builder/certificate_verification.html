@@ -1,15 +1,14 @@
-{% extends "events/base_public.html" %}
-{% load static %}
-{% load i18n %}
-
-{% block title %}{% translate "Certificate verification" %}{% endblock %}
-
-{% block extra_css %}
+{% load static i18n %}
+<!doctype html>
+<html lang="{{ request.LANGUAGE_CODE|default:'en' }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% translate "Certificate verification" %}</title>
     <link rel="stylesheet" href="{% static 'css/participant-certificate.css' %}">
-{% endblock %}
-
-{% block content %}
-    <section class="certificate-verification-page">
+</head>
+<body class="certificate-verification-body">
+    <main class="certificate-verification-page">
         <article class="certificate-verification-card" role="status">
             <span class="certificate-verified-icon" aria-hidden="true">✓</span>
             <span class="section-kicker">{% translate "Authentic certificate" %}</span>
@@ -34,9 +33,7 @@
                 {% endif %}
                 <div>
                     <dt>{% translate "Event" %}</dt>
-                    <dd>
-                        {% if request.LANGUAGE_CODE == "en" %}{{ event.title_en }}{% else %}{{ event.title_sw }}{% endif %}
-                    </dd>
+                    <dd>{% if request.LANGUAGE_CODE == "en" %}{{ event.title_en }}{% else %}{{ event.title_sw }}{% endif %}</dd>
                 </div>
                 <div>
                     <dt>{% translate "Event date" %}</dt>
@@ -52,5 +49,6 @@
                 </div>
             </dl>
         </article>
-    </section>
-{% endblock %}
+    </main>
+</body>
+</html>
