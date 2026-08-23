@@ -486,7 +486,9 @@ class DepartmentEventAccessTests(TestCase):
         self.assertEqual(preview_response.status_code, 200)
         self.assertContains(preview_response, "SAMPLE · NOT VALID")
         self.assertContains(preview_response, "Sample Participating Institution")
-        self.assertContains(preview_response, "Sample Representative")
+        self.assertContains(preview_response, "Prof. Carolyne I. Nombo")
+        self.assertContains(preview_response, "CERTIFICATION OF PARTICIPATION")
+        self.assertContains(preview_response, "SAMPLE QR - NOT VALID")
         self.assertContains(preview_response, "data:image/png;base64,")
         self.assertNotContains(preview_response, "Download PDF certificate")
 

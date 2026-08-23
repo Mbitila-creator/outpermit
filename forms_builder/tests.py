@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from io import BytesIO
 from io import StringIO
 from tempfile import NamedTemporaryFile
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from django.core.management import call_command
@@ -31,6 +31,7 @@ from .services import (
     certificate_is_for_institution,
     certificate_recipient_name,
     generate_qr_png,
+    weuutz_event_sentence,
 )
 from .views import registration_identity_conflicts
 
@@ -106,6 +107,24 @@ class InstitutionCertificateTests(SimpleTestCase):
         self.assertEqual(
             certificate_recipient_name(submission),
             "Asha Representative",
+        )
+
+    def test_weuutz_certificate_uses_approved_event_wording(self):
+        event = SimpleNamespace(
+            starts_at=timezone.make_aware(
+                datetime(2026, 8, 15, 8, 0)
+            ),
+            ends_at=timezone.make_aware(
+                datetime(2026, 8, 24, 17, 0)
+            ),
+            venue=None,
+        )
+
+        self.assertEqual(
+            weuutz_event_sentence(event),
+            "Participated in the National Education, Skills and Innovation "
+            "Week 2026 Exhibitions which was held from 15th to 24th August, "
+            "2026 in Tanga.",
         )
 
     def test_qr_code_places_supplied_logo_at_center(self):
