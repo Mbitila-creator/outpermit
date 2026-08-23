@@ -595,14 +595,15 @@ def _generate_weuutz_certificate_pdf(submission, verification_url):
     qr_image = qr_image.resize((180, 180), Image.Resampling.LANCZOS)
     qr_x, qr_y = width - 330, 855
     image.paste(qr_image, (qr_x, qr_y))
-    qr_font = _certificate_font(16, bold=True)
-    qr_label = "SCAN TO VERIFY"
-    box = draw.textbbox((0, 0), qr_label, font=qr_font)
-    draw.text((qr_x + (180 - (box[2] - box[0])) / 2, 1042), qr_label, font=qr_font, fill=black)
-    number_font = _certificate_font(14)
+    number_font_size = 14
+    number_font = _certificate_font(number_font_size, bold=True)
     box = draw.textbbox((0, 0), short_certificate_number, font=number_font)
+    while box[2] - box[0] > 280 and number_font_size > 9:
+        number_font_size -= 1
+        number_font = _certificate_font(number_font_size, bold=True)
+        box = draw.textbbox((0, 0), short_certificate_number, font=number_font)
     draw.text(
-        (qr_x + (180 - (box[2] - box[0])) / 2, 1070),
+        (qr_x + (180 - (box[2] - box[0])) / 2, 1044),
         short_certificate_number,
         font=number_font,
         fill=black,
