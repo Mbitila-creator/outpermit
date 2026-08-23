@@ -20,6 +20,7 @@ from .auth import User, has_event_role
 from .models import (
     Event,
     EventCategory,
+    EventTimetable,
     SpecialEventParticipant,
     SpecialEventPublication,
 )
@@ -144,6 +145,9 @@ def home(request):
         "search_query": search_query,
         "selected_category": category_slug,
         "current_time": current_time,
+        "timetable": EventTimetable.objects.filter(
+            event=event, is_active=True, is_published=True
+        ).first(),
     }
 
     return render(

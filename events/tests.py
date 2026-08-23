@@ -1,11 +1,14 @@
 from datetime import timedelta
+import shutil
+import tempfile
 from uuid import uuid4
 
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.messages.middleware import MessageMiddleware
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
@@ -15,7 +18,7 @@ from permits.models import Department
 
 from .access import events_visible_to
 from .auth import EventRole
-from .models import Event, EventCategory, Venue
+from .models import Event, EventCategory, EventTimetable, Venue
 from forms_builder.models import CertificateRecord, EventForm, FormSubmission
 from checkin.models import ParticipantCheckIn
 from conferences.views import _conference_registration_forms
@@ -448,6 +451,58 @@ class DepartmentEventAccessTests(TestCase):
             f"{reverse('forms_builder:evaluation_reports')}?form={evaluation_form.pk}",
         )
         self.assertNotContains(response, reverse("meetings:meeting_list"))
+
+    def test_event_admin_uploads_and_shares_stable_public_timetable(self):
+        user = self._staff("timetable-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.dsti_event.is_public = True
+        self.dsti_event.save(update_fields=["is_public", "updated_at"])
+        self.client.force_login(user)
+        media_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, media_root, True)
+
+        with override_settings(MEDIA_ROOT=media_root, PUBLIC_BASE_URL="https://events.test"):
+            upload_response = self.client.post(
+                reverse("events:department_event_timetable", kwargs={
+                    "event_slug": self.dsti_event.slug,
+                }),
+                {
+                    "title_sw": "Ratiba ya kilele",
+                    "title_en": "Climax timetable",
+                    "pdf_file": SimpleUploadedFile(
+                        "ratiba.pdf", b"%PDF-1.4\n%%EOF", "application/pdf"
+                    ),
+                    "is_published": "on",
+                },
+            )
+            timetable = EventTimetable.objects.get(event=self.dsti_event)
+            public_url = reverse("events:public_event_timetable", kwargs={
+                "event_slug": self.dsti_event.slug,
+                "public_token": timetable.public_token,
+            })
+            download_url = reverse("events:public_event_timetable_download", kwargs={
+                "event_slug": self.dsti_event.slug,
+                "public_token": timetable.public_token,
+            })
+
+            self.assertRedirects(
+                upload_response,
+                reverse("events:department_event_timetable", kwargs={
+                    "event_slug": self.dsti_event.slug,
+                }),
+            )
+            self.assertContains(self.client.get(public_url), "Climax timetable")
+            self.assertEqual(self.client.get(download_url).status_code, 200)
+            qr_response = self.client.get(reverse(
+                "events:public_event_timetable_qr",
+                kwargs={
+                    "event_slug": self.dsti_event.slug,
+                    "public_token": timetable.public_token,
+                },
+            ))
+            self.assertEqual(qr_response.status_code, 200)
+            self.assertEqual(qr_response["Content-Type"], "image/png")
 
     def test_event_workspace_cannot_bypass_department_ownership(self):
         user = self._staff("dsti-workspace-user", self.dsti)

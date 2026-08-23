@@ -3,6 +3,7 @@ import unicodedata
 import uuid
 
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
@@ -506,6 +507,46 @@ class Event(BaseModel):
 
     def __str__(self):
         return f"{self.code} - {self.title_sw}"
+
+
+class EventTimetable(BaseModel):
+    """One replaceable, publicly shareable PDF timetable for an event."""
+
+    event = models.OneToOneField(
+        Event,
+        verbose_name=_("event"),
+        related_name="timetable",
+        on_delete=models.CASCADE,
+    )
+    title_sw = models.CharField(
+        _("timetable title in Kiswahili"),
+        max_length=250,
+        default="Ratiba ya tukio",
+    )
+    title_en = models.CharField(
+        _("timetable title in English"),
+        max_length=250,
+        default="Event timetable",
+    )
+    pdf_file = models.FileField(
+        _("PDF timetable"),
+        upload_to="events/timetables/",
+        validators=[FileExtensionValidator(["pdf"])],
+    )
+    public_token = models.UUIDField(
+        _("public token"),
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+    )
+    is_published = models.BooleanField(_("published"), default=True)
+
+    class Meta:
+        verbose_name = _("event timetable")
+        verbose_name_plural = _("event timetables")
+
+    def __str__(self):
+        return f"{self.event.code} - {self.title_en}"
 
 
 class SpecialEventParticipant(BaseModel):

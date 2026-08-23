@@ -6,6 +6,10 @@ from .department_views import (
     department_certificate_preview,
     department_event_detail,
     department_event_list,
+    department_event_timetable,
+    public_event_timetable,
+    public_event_timetable_download,
+    public_event_timetable_qr,
 )
 
 
@@ -32,6 +36,26 @@ urlpatterns = [
         "manage/<slug:event_slug>/certificate-preview/",
         department_certificate_preview,
         name="department_certificate_preview",
+    ),
+    path(
+        "manage/<slug:event_slug>/timetable/",
+        department_event_timetable,
+        name="department_event_timetable",
+    ),
+    path(
+        "events/<slug:event_slug>/timetable/<uuid:public_token>/",
+        public_event_timetable,
+        name="public_event_timetable",
+    ),
+    path(
+        "events/<slug:event_slug>/timetable/<uuid:public_token>/download/",
+        public_event_timetable_download,
+        name="public_event_timetable_download",
+    ),
+    path(
+        "events/<slug:event_slug>/timetable/<uuid:public_token>/qr.png",
+        public_event_timetable_qr,
+        name="public_event_timetable_qr",
     ),
     path(
         "events/<slug:event_slug>/",

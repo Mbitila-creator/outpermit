@@ -18,7 +18,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 
 from events.auth import User, has_event_role
-from events.models import Event
+from events.models import Event, EventTimetable
 from events.access import events_visible_to
 from .models import (
     Booth,
@@ -1342,6 +1342,9 @@ def participant_portal(request, participant_token):
         ],
     )
     event = submission.event_form.event
+    timetable = EventTimetable.objects.filter(
+        event=event, is_active=True, is_published=True
+    ).first()
     certificate_record = getattr(submission, "certificate_record", None)
     latest_payment = submission.payments.order_by("-created_at").first()
     evaluation_form = None
@@ -1378,6 +1381,7 @@ def participant_portal(request, participant_token):
             "evaluation_form": evaluation_form,
             "conference_feedback_available": event.category.is_conference,
             "selected_conference_sessions": selected_conference_sessions,
+            "timetable": timetable,
         },
     )
 

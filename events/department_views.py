@@ -3,7 +3,10 @@ import base64
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.conf import settings
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from forms_builder.models import EventForm
 from forms_builder.services import (
@@ -15,7 +18,8 @@ from forms_builder.services import (
 
 from .access import events_visible_to, is_system_event_administrator, user_department
 from .auth import EventRole, has_event_role
-from .management_forms import DepartmentEventForm
+from .management_forms import DepartmentEventForm, EventTimetableForm
+from .models import EventTimetable
 
 
 EVENT_CREATOR_ROLES = {
@@ -106,7 +110,78 @@ def department_event_detail(request, event_slug):
             EventRole.ATTENDANCE_OFFICER,
             EventRole.REPORT_OFFICER,
         }),
+        "timetable": EventTimetable.objects.filter(event=event).first(),
     })
+
+
+def _public_timetable(event_slug, public_token):
+    return get_object_or_404(
+        EventTimetable.objects.select_related("event"),
+        event__slug=event_slug,
+        event__is_active=True,
+        event__is_public=True,
+        public_token=public_token,
+        is_active=True,
+        is_published=True,
+    )
+
+
+@login_required
+def department_event_timetable(request, event_slug):
+    event = get_object_or_404(events_visible_to(request.user), slug=event_slug)
+    if not can_manage_department_event(request.user):
+        raise PermissionDenied
+    timetable = EventTimetable.objects.filter(event=event).first()
+    form = EventTimetableForm(
+        request.POST or None,
+        request.FILES or None,
+        instance=timetable,
+    )
+    if request.method == "POST" and form.is_valid():
+        timetable = form.save(commit=False)
+        timetable.event = event
+        timetable.created_by = timetable.created_by or request.user
+        timetable.updated_by = request.user
+        timetable.save()
+        messages.success(request, "The event timetable was saved successfully.")
+        return redirect("events:department_event_timetable", event_slug=event.slug)
+    return render(request, "events/department_event_timetable.html", {
+        "event": event,
+        "form": form,
+        "timetable": timetable,
+    })
+
+
+def public_event_timetable(request, event_slug, public_token):
+    timetable = _public_timetable(event_slug, public_token)
+    return render(request, "events/public_event_timetable.html", {
+        "event": timetable.event,
+        "timetable": timetable,
+    })
+
+
+def public_event_timetable_download(request, event_slug, public_token):
+    timetable = _public_timetable(event_slug, public_token)
+    filename = timetable.pdf_file.name.rsplit("/", 1)[-1]
+    return FileResponse(
+        timetable.pdf_file.open("rb"),
+        as_attachment=True,
+        filename=filename,
+        content_type="application/pdf",
+    )
+
+
+def public_event_timetable_qr(request, event_slug, public_token):
+    timetable = _public_timetable(event_slug, public_token)
+    path = reverse("events:public_event_timetable", kwargs={
+        "event_slug": timetable.event.slug,
+        "public_token": timetable.public_token,
+    })
+    url = f"{settings.PUBLIC_BASE_URL}{path}" if settings.PUBLIC_BASE_URL else request.build_absolute_uri(path)
+    return HttpResponse(
+        generate_qr_png(url, logo_path=certificate_qr_logo_path(timetable.event)),
+        content_type="image/png",
+    )
 
 
 @login_required

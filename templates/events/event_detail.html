@@ -146,6 +146,17 @@
                     </div>
                 </article>
             {% endif %}
+
+            {% if timetable %}
+                <article class="content-card">
+                    <h2>{% translate "Event timetable" %}</h2>
+                    <p>{% if request.LANGUAGE_CODE == "en" %}{{ timetable.title_en }}{% else %}{{ timetable.title_sw }}{% endif %}</p>
+                    <div class="detail-actions">
+                        <a class="primary-button" href="{% url 'events:public_event_timetable' event.slug timetable.public_token %}">{% translate "View timetable" %}</a>
+                        <a class="secondary-button" href="{% url 'events:public_event_timetable_download' event.slug timetable.public_token %}">{% translate "Download PDF" %}</a>
+                    </div>
+                </article>
+            {% endif %}
         </div>
 
         <aside class="detail-sidebar">

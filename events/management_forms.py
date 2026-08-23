@@ -4,7 +4,22 @@ from core.models import Council, Country, Region
 from permits.models import Department
 
 from .access import is_system_event_administrator, user_department
-from .models import Event, Venue
+from .models import Event, EventTimetable, Venue
+
+
+class EventTimetableForm(forms.ModelForm):
+    class Meta:
+        model = EventTimetable
+        fields = ("title_sw", "title_en", "pdf_file", "is_published")
+        widgets = {
+            "pdf_file": forms.ClearableFileInput(attrs={"accept": "application/pdf"}),
+        }
+
+    def clean_pdf_file(self):
+        uploaded_file = self.cleaned_data.get("pdf_file")
+        if uploaded_file and uploaded_file.size > 25 * 1024 * 1024:
+            raise forms.ValidationError("The timetable PDF must not exceed 25 MB.")
+        return uploaded_file
 
 
 class LocationSelect(forms.Select):
