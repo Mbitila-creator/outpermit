@@ -502,27 +502,33 @@ def _generate_weuutz_certificate_pdf(submission, verification_url):
     image = Image.new("RGB", (width, height), "#00a651")
     draw = ImageDraw.Draw(image)
 
-    # Tanzanian flag-inspired presentation frame.
-    draw.polygon(((1120, 0), (width, 0), (width, 430), (1510, 520)), fill="#00a6dd")
-    draw.polygon(((1260, 0), (width, 0), (width, 285), (1510, 470)), fill="#f9d616")
-    draw.polygon(((1370, 0), (width, 0), (width, 205), (1510, 405)), fill="#050505")
-    draw.polygon(((0, 760), (175, 665), (550, height), (0, height)), fill="#00a6dd")
-    draw.polygon(((0, 875), (175, 735), (470, height), (300, height)), fill="#f9d616")
-    draw.polygon(((0, 955), (175, 800), (390, height), (0, height)), fill="#050505")
+    # Mirrored Tanzanian flag-inspired corners: left/right and top/bottom match.
+    corner_polygons = (
+        (((1120, 0), (width, 0), (width, 430), (1510, 520)), "#00a6dd"),
+        (((1260, 0), (width, 0), (width, 285), (1510, 470)), "#f9d616"),
+        (((1370, 0), (width, 0), (width, 205), (1510, 405)), "#050505"),
+    )
+    for polygon, fill in corner_polygons:
+        for flip_x, flip_y in ((False, False), (True, False), (False, True), (True, True)):
+            mirrored = tuple((
+                width - x if flip_x else x,
+                height - y if flip_y else y,
+            ) for x, y in polygon)
+            draw.polygon(mirrored, fill=fill)
 
     panel = (82, 72, width - 82, height - 72)
     draw.rounded_rectangle((62, 52, width - 62, height - 52), radius=18, fill="#073b22")
     draw.rounded_rectangle(panel, radius=8, fill="#fffefb", outline="#d6d6d6", width=3)
 
     black = "#080808"
-    green = "#5cab28"
-    blue = "#163fd5"
+    green = "#438f24"
+    blue = "#1747c9"
     _draw_centered_fitted(
         draw, "THE UNITED REPUBLIC OF TANZANIA", 105, width, 43, width - 260,
         black, bold=True, serif=True,
     )
     _draw_centered_fitted(
-        draw, "MINISTRY OF EDUCATION, SCIENCE AND TECHNOLOGY", 170, width,
+        draw, "MINISTRY OF EDUCATION, SCIENCE AND TECHNOLOGY", 188, width,
         40, width - 250, black, bold=True, serif=True,
     )
 
@@ -532,29 +538,29 @@ def _generate_weuutz_certificate_pdf(submission, verification_url):
         emblem.thumbnail((205, 205), Image.Resampling.LANCZOS)
         image.paste(
             emblem,
-            ((width - emblem.width) // 2, 235),
+            ((width - emblem.width) // 2, 250),
             emblem,
         )
 
     _draw_centered_fitted(
-        draw, "CERTIFICATION OF PARTICIPATION", 455, width, 48, width - 400,
+        draw, "CERTIFICATION OF PARTICIPATION", 475, width, 48, width - 400,
         green, bold=True, serif=True,
     )
     _draw_centered_fitted(
-        draw, "THIS IS TO CERTIFY THAT", 555, width, 38, width - 500,
+        draw, "THIS IS TO CERTIFY THAT", 570, width, 38, width - 500,
         black, serif=True,
     )
     _draw_centered_fitted(
-        draw, recipient_name.upper(), 635, width, 54, width - 230,
-        blue, serif=True,
+        draw, recipient_name.upper(), 650, width, 54, width - 230,
+        blue, bold=True, serif=True,
     )
-    draw.line((245, 710, width - 245, 710), fill="#8d8d8d", width=2)
+    draw.line((245, 725, width - 245, 725), fill="#8d8d8d", width=2)
 
     statement = weuutz_event_sentence(event, superscript=True)
     _draw_centered_wrapped(
         draw,
         statement,
-        750,
+        765,
         width,
         _certificate_font(30, serif=True),
         width - 330,
