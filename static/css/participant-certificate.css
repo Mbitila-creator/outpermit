@@ -283,6 +283,14 @@
     line-height: 1.55;
 }
 
+.weuutz-certificate-statement sup {
+    position: relative;
+    top: -.12em;
+    font-size: .62em;
+    line-height: 0;
+    vertical-align: super;
+}
+
 .weuutz-certificate-footer {
     position: relative;
     min-height: clamp(100px, 10vw, 128px);

@@ -11,6 +11,7 @@ from django.contrib.staticfiles import finders
 from django.urls import reverse
 from django.utils import timezone, translation
 from django.utils.formats import date_format
+from django.utils.html import format_html
 from django.utils.translation import gettext as _
 
 from .models import FormQuestion, QuantityPricingRule
@@ -360,29 +361,25 @@ def _certificate_font(size, bold=False, serif=False):
     return ImageFont.load_default()
 
 
-def _ordinal_day(day):
+def _ordinal_suffix(day):
     if 10 <= day % 100 <= 20:
-        suffix = "th"
-    else:
-        suffix = {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+        return "th"
+    return {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+
+
+def _ordinal_day(day, superscript=False):
+    suffix = _ordinal_suffix(day)
+    if superscript:
+        suffix = {
+            "st": "ˢᵗ",
+            "nd": "ⁿᵈ",
+            "rd": "ʳᵈ",
+            "th": "ᵗʰ",
+        }[suffix]
     return f"{day}{suffix}"
 
 
-def weuutz_event_sentence(event):
-    starts_at = timezone.localtime(event.starts_at)
-    ends_at = timezone.localtime(event.ends_at)
-    if starts_at.month == ends_at.month and starts_at.year == ends_at.year:
-        date_range = (
-            f"{_ordinal_day(starts_at.day)} to {_ordinal_day(ends_at.day)} "
-            f"{ends_at.strftime('%B')}, {ends_at.year}"
-        )
-    else:
-        date_range = (
-            f"{_ordinal_day(starts_at.day)} {starts_at.strftime('%B')}, "
-            f"{starts_at.year} to {_ordinal_day(ends_at.day)} "
-            f"{ends_at.strftime('%B')}, {ends_at.year}"
-        )
-
+def _weuutz_event_location(event):
     location = "Tanga"
     venue = getattr(event, "venue", None)
     council = getattr(venue, "council", None) if venue else None
@@ -393,11 +390,67 @@ def weuutz_event_sentence(event):
             or getattr(region, "name_sw", "")
             or location
         )
+    return location
+
+
+def weuutz_event_sentence(event, superscript=False):
+    starts_at = timezone.localtime(event.starts_at)
+    ends_at = timezone.localtime(event.ends_at)
+    if starts_at.month == ends_at.month and starts_at.year == ends_at.year:
+        date_range = (
+            f"{_ordinal_day(starts_at.day, superscript)} to "
+            f"{_ordinal_day(ends_at.day, superscript)} "
+            f"{ends_at.strftime('%B')}, {ends_at.year}"
+        )
+    else:
+        date_range = (
+            f"{_ordinal_day(starts_at.day, superscript)} "
+            f"{starts_at.strftime('%B')}, {starts_at.year} to "
+            f"{_ordinal_day(ends_at.day, superscript)} "
+            f"{ends_at.strftime('%B')}, {ends_at.year}"
+        )
 
     return (
         "Participated in the National Education, Skills and Innovation Week "
         f"{starts_at.year} Exhibitions which was held from {date_range} "
-        f"in {location}."
+        f"in {_weuutz_event_location(event)}."
+    )
+
+
+def weuutz_event_sentence_html(event):
+    starts_at = timezone.localtime(event.starts_at)
+    ends_at = timezone.localtime(event.ends_at)
+    start_suffix = _ordinal_suffix(starts_at.day)
+    end_suffix = _ordinal_suffix(ends_at.day)
+    location = _weuutz_event_location(event)
+    if starts_at.month == ends_at.month and starts_at.year == ends_at.year:
+        return format_html(
+            "Participated in the National Education, Skills and Innovation "
+            "Week {} Exhibitions which was held from {}<sup>{}</sup> to "
+            "{}<sup>{}</sup> {}, {} in {}.",
+            starts_at.year,
+            starts_at.day,
+            start_suffix,
+            ends_at.day,
+            end_suffix,
+            ends_at.strftime("%B"),
+            ends_at.year,
+            location,
+        )
+    return format_html(
+        "Participated in the National Education, Skills and Innovation Week "
+        "{} Exhibitions which was held from {}<sup>{}</sup> {}, {} to "
+        "{}<sup>{}</sup> {}, {} in {}.",
+        starts_at.year,
+        starts_at.day,
+        start_suffix,
+        starts_at.strftime("%B"),
+        starts_at.year,
+        ends_at.day,
+        end_suffix,
+        ends_at.strftime("%B"),
+        ends_at.year,
+        location,
     )
 
 
@@ -497,7 +550,7 @@ def _generate_weuutz_certificate_pdf(submission, verification_url):
     )
     draw.line((245, 710, width - 245, 710), fill="#8d8d8d", width=2)
 
-    statement = weuutz_event_sentence(event)
+    statement = weuutz_event_sentence(event, superscript=True)
     _draw_centered_wrapped(
         draw,
         statement,
