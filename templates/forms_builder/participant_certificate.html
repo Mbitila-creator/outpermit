@@ -5,7 +5,7 @@
 {% block title %}{% translate "Certificate of Participation" %} — {{ certificate_recipient_name }}{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/participant-certificate.css' %}?v=20260821-2">
+    <link rel="stylesheet" href="{% static 'css/participant-certificate.css' %}?v=20260823-1">
 {% endblock %}
 
 {% block content %}
@@ -29,8 +29,33 @@
             </div>
         </div>
 
-        <article class="participant-certificate" aria-label="{% translate 'Certificate of Participation' %}">
+        <article class="participant-certificate{% if institution_certificate %} weuutz-certificate{% endif %}" aria-label="{% translate 'Certificate of Participation' %}">
             <div class="certificate-border">
+                {% if institution_certificate %}
+                <header class="weuutz-certificate-header">
+                    <h2>THE UNITED REPUBLIC OF TANZANIA</h2>
+                    <h2>MINISTRY OF EDUCATION, SCIENCE AND TECHNOLOGY</h2>
+                    <img src="{% static 'logo/moest_logo.png' %}" alt="National coat of arms">
+                </header>
+                <div class="weuutz-certificate-content">
+                    <p class="certificate-kicker">CERTIFICATION OF PARTICIPATION</p>
+                    <p class="certify-text">THIS IS TO CERTIFY THAT</p>
+                    <h3>{{ certificate_recipient_name }}</h3>
+                    <p class="weuutz-certificate-statement">{{ weuutz_event_sentence }}</p>
+                </div>
+                <footer class="weuutz-certificate-footer">
+                    <div class="certificate-signature">
+                        <span class="signature-line"></span>
+                        <strong>Prof. Carolyne I. Nombo</strong>
+                        <b>PERMANENT SECRETARY</b>
+                    </div>
+                    <div class="certificate-verification-qr">
+                        <img src="{% url 'forms_builder:participant_certificate_qr' submission.participant_token %}" alt="{% translate 'Certificate verification QR code' %}">
+                        <span>SCAN TO VERIFY</span>
+                        <small>{{ certificate_number }}</small>
+                    </div>
+                </footer>
+                {% else %}
                 <header class="certificate-header">
                     {% if event.logo %}
                         <img src="{{ event.logo.url }}" alt="{{ event.code }}">
@@ -80,6 +105,7 @@
                         <span>{% translate "Scan to verify this certificate" %}</span>
                     </div>
                 </footer>
+                {% endif %}
             </div>
         </article>
     </section>

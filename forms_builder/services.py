@@ -339,12 +339,19 @@ def generate_qr_png(value, logo_path=None, fill_color="#000000"):
     return output.getvalue()
 
 
-def _certificate_font(size, bold=False):
-    font_names = (
-        ("DejaVuSans-Bold.ttf", "Arial Bold.ttf")
-        if bold
-        else ("DejaVuSans.ttf", "Arial.ttf")
-    )
+def _certificate_font(size, bold=False, serif=False):
+    if serif:
+        font_names = (
+            ("DejaVuSerif-Bold.ttf", "Times New Roman Bold.ttf")
+            if bold
+            else ("DejaVuSerif.ttf", "Times New Roman.ttf")
+        )
+    else:
+        font_names = (
+            ("DejaVuSans-Bold.ttf", "Arial Bold.ttf")
+            if bold
+            else ("DejaVuSans.ttf", "Arial.ttf")
+        )
     for font_name in font_names:
         try:
             return ImageFont.truetype(font_name, size=size)
@@ -353,8 +360,196 @@ def _certificate_font(size, bold=False):
     return ImageFont.load_default()
 
 
+def _ordinal_day(day):
+    if 10 <= day % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    return f"{day}{suffix}"
+
+
+def weuutz_event_sentence(event):
+    starts_at = timezone.localtime(event.starts_at)
+    ends_at = timezone.localtime(event.ends_at)
+    if starts_at.month == ends_at.month and starts_at.year == ends_at.year:
+        date_range = (
+            f"{_ordinal_day(starts_at.day)} to {_ordinal_day(ends_at.day)} "
+            f"{ends_at.strftime('%B')}, {ends_at.year}"
+        )
+    else:
+        date_range = (
+            f"{_ordinal_day(starts_at.day)} {starts_at.strftime('%B')}, "
+            f"{starts_at.year} to {_ordinal_day(ends_at.day)} "
+            f"{ends_at.strftime('%B')}, {ends_at.year}"
+        )
+
+    location = "Tanga"
+    venue = getattr(event, "venue", None)
+    council = getattr(venue, "council", None) if venue else None
+    region = getattr(council, "region", None) if council else None
+    if region:
+        location = (
+            getattr(region, "name_en", "")
+            or getattr(region, "name_sw", "")
+            or location
+        )
+
+    return (
+        "Participated in the National Education, Skills and Innovation Week "
+        f"{starts_at.year} Exhibitions which was held from {date_range} "
+        f"in {location}."
+    )
+
+
+def _draw_centered_fitted(draw, text, y, width, size, max_width, fill, **font_kwargs):
+    font = _certificate_font(size, **font_kwargs)
+    while size > 22:
+        box = draw.textbbox((0, 0), text, font=font)
+        if box[2] - box[0] <= max_width:
+            break
+        size -= 2
+        font = _certificate_font(size, **font_kwargs)
+    box = draw.textbbox((0, 0), text, font=font)
+    draw.text(((width - (box[2] - box[0])) / 2, y), text, font=font, fill=fill)
+    return font
+
+
+def _draw_centered_wrapped(draw, text, y, width, font, max_width, fill, spacing=12):
+    words = text.split()
+    lines = []
+    current = []
+    for word in words:
+        candidate = " ".join((*current, word))
+        box = draw.textbbox((0, 0), candidate, font=font)
+        if current and box[2] - box[0] > max_width:
+            lines.append(" ".join(current))
+            current = [word]
+        else:
+            current.append(word)
+    if current:
+        lines.append(" ".join(current))
+
+    line_height = draw.textbbox((0, 0), "Ag", font=font)[3]
+    for index, line in enumerate(lines):
+        box = draw.textbbox((0, 0), line, font=font)
+        draw.text(
+            ((width - (box[2] - box[0])) / 2, y + index * (line_height + spacing)),
+            line,
+            font=font,
+            fill=fill,
+        )
+    return len(lines) * line_height + max(0, len(lines) - 1) * spacing
+
+
+def _generate_weuutz_certificate_pdf(submission, verification_url):
+    event = submission.event_form.event
+    recipient_name = certificate_recipient_name(submission)
+    short_certificate_number = certificate_number(submission)
+    width, height = 1684, 1191
+    image = Image.new("RGB", (width, height), "#00a651")
+    draw = ImageDraw.Draw(image)
+
+    # Tanzanian flag-inspired presentation frame.
+    draw.polygon(((1120, 0), (width, 0), (width, 430), (1510, 520)), fill="#00a6dd")
+    draw.polygon(((1260, 0), (width, 0), (width, 285), (1510, 470)), fill="#f9d616")
+    draw.polygon(((1370, 0), (width, 0), (width, 205), (1510, 405)), fill="#050505")
+    draw.polygon(((0, 760), (175, 665), (550, height), (0, height)), fill="#00a6dd")
+    draw.polygon(((0, 875), (175, 735), (470, height), (300, height)), fill="#f9d616")
+    draw.polygon(((0, 955), (175, 800), (390, height), (0, height)), fill="#050505")
+
+    panel = (82, 72, width - 82, height - 72)
+    draw.rounded_rectangle((62, 52, width - 62, height - 52), radius=18, fill="#073b22")
+    draw.rounded_rectangle(panel, radius=8, fill="#fffefb", outline="#d6d6d6", width=3)
+
+    black = "#080808"
+    green = "#5cab28"
+    blue = "#163fd5"
+    _draw_centered_fitted(
+        draw, "THE UNITED REPUBLIC OF TANZANIA", 105, width, 43, width - 260,
+        black, bold=True, serif=True,
+    )
+    _draw_centered_fitted(
+        draw, "MINISTRY OF EDUCATION, SCIENCE AND TECHNOLOGY", 170, width,
+        40, width - 250, black, bold=True, serif=True,
+    )
+
+    logo_path = finders.find("logo/moest_logo.png")
+    if logo_path:
+        emblem = Image.open(logo_path).convert("RGBA")
+        emblem.thumbnail((205, 205), Image.Resampling.LANCZOS)
+        image.paste(
+            emblem,
+            ((width - emblem.width) // 2, 235),
+            emblem,
+        )
+
+    _draw_centered_fitted(
+        draw, "CERTIFICATION OF PARTICIPATION", 455, width, 48, width - 400,
+        green, bold=True, serif=True,
+    )
+    _draw_centered_fitted(
+        draw, "THIS IS TO CERTIFY THAT", 530, width, 38, width - 500,
+        black, serif=True,
+    )
+    _draw_centered_fitted(
+        draw, recipient_name.upper(), 605, width, 54, width - 230,
+        blue, serif=True,
+    )
+    draw.line((245, 675, width - 245, 675), fill="#8d8d8d", width=2)
+
+    statement = weuutz_event_sentence(event)
+    _draw_centered_wrapped(
+        draw,
+        statement,
+        710,
+        width,
+        _certificate_font(30, serif=True),
+        width - 330,
+        black,
+        spacing=10,
+    )
+
+    # Permanent Secretary signature block.
+    draw.line((520, 940, 1060, 940), fill="#777777", width=2)
+    _draw_centered_fitted(
+        draw, "Prof. Carolyne I. Nombo", 955, width, 30, 520,
+        black, serif=True,
+    )
+    _draw_centered_fitted(
+        draw, "PERMANENT SECRETARY", 1005, width, 30, 520,
+        black, bold=True, serif=True,
+    )
+
+    qr_image = Image.open(BytesIO(generate_qr_png(
+        verification_url,
+        logo_path=certificate_qr_logo_path(event),
+    ))).convert("RGB")
+    qr_image = qr_image.resize((180, 180), Image.Resampling.LANCZOS)
+    qr_x, qr_y = width - 330, 855
+    image.paste(qr_image, (qr_x, qr_y))
+    qr_font = _certificate_font(16, bold=True)
+    qr_label = "SCAN TO VERIFY"
+    box = draw.textbbox((0, 0), qr_label, font=qr_font)
+    draw.text((qr_x + (180 - (box[2] - box[0])) / 2, 1042), qr_label, font=qr_font, fill=black)
+    number_font = _certificate_font(14)
+    box = draw.textbbox((0, 0), short_certificate_number, font=number_font)
+    draw.text(
+        (qr_x + (180 - (box[2] - box[0])) / 2, 1070),
+        short_certificate_number,
+        font=number_font,
+        fill=black,
+    )
+
+    output = BytesIO()
+    image.save(output, format="PDF", resolution=150)
+    return output.getvalue()
+
+
 def generate_certificate_pdf(submission, verification_url, language="sw"):
     event = submission.event_form.event
+    if certificate_is_for_institution(submission):
+        return _generate_weuutz_certificate_pdf(submission, verification_url)
+
     short_certificate_number = certificate_number(submission)
     formatted_event_dates = event_date_range(event, language=language)
     event_name = event.title_en if language == "en" else event.title_sw
