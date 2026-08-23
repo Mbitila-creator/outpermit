@@ -211,9 +211,11 @@
     padding: clamp(12px, 1.7vw, 24px);
     color: #080808;
     background:
-        linear-gradient(135deg, transparent 0 76%, #f9d616 76% 79%, #050505 79% 88%, #f9d616 88% 91%, #00a6dd 91%) bottom right / 48% 48% no-repeat,
-        linear-gradient(315deg, transparent 0 76%, #f9d616 76% 79%, #050505 79% 88%, #f9d616 88% 91%, #00a6dd 91%) top right / 48% 48% no-repeat,
-        linear-gradient(135deg, #050505 0 10%, #f9d616 10% 14%, #00a651 14% 100%);
+        linear-gradient(135deg, #050505 0 16%, #f9d616 16% 21%, #00a6dd 21% 34%, transparent 34%) top left / 44% 44% no-repeat,
+        linear-gradient(225deg, #050505 0 16%, #f9d616 16% 21%, #00a6dd 21% 34%, transparent 34%) top right / 44% 44% no-repeat,
+        linear-gradient(45deg, #050505 0 16%, #f9d616 16% 21%, #00a6dd 21% 34%, transparent 34%) bottom left / 44% 44% no-repeat,
+        linear-gradient(315deg, #050505 0 16%, #f9d616 16% 21%, #00a6dd 21% 34%, transparent 34%) bottom right / 44% 44% no-repeat,
+        #00a651;
     border: 0;
     border-radius: 12px;
 }
@@ -234,12 +236,17 @@
 }
 
 .weuutz-certificate-header h2 {
-    margin: 0 0 4px;
+    margin: 0;
     color: #050505;
     font-family: Georgia, "Times New Roman", serif;
     font-size: clamp(16px, 2vw, 27px);
     font-weight: 900;
     letter-spacing: .025em;
+    line-height: 1.18;
+}
+
+.weuutz-certificate-header h2 + h2 {
+    margin-top: clamp(8px, 1vw, 14px);
 }
 
 .weuutz-certificate-header img {
@@ -251,10 +258,13 @@
 
 .weuutz-certificate-content .certificate-kicker {
     margin: 2px 0 5px;
-    color: #5cab28;
-    font-family: Georgia, "Times New Roman", serif;
+    color: #438f24;
+    font-family: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
     font-size: clamp(19px, 2.4vw, 32px);
-    letter-spacing: .025em;
+    font-weight: 800;
+    font-variant: small-caps;
+    letter-spacing: .045em;
+    text-shadow: 0 1px 0 rgba(16, 72, 21, .14);
 }
 
 .weuutz-certificate-content .certify-text {
@@ -267,10 +277,12 @@
     display: block;
     margin: 16px auto 2px;
     padding: 0 8px 4px;
-    color: #163fd5;
-    font-family: Georgia, "Times New Roman", serif;
+    color: #1747c9;
+    font-family: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
     font-size: clamp(23px, 3vw, 40px);
-    font-weight: 500;
+    font-weight: 700;
+    letter-spacing: .025em;
+    text-shadow: 0 1px 0 rgba(12, 39, 112, .12);
     text-transform: uppercase;
     border-bottom: 1px solid #888;
 }
