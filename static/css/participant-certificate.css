@@ -208,7 +208,7 @@
 
 /* WEUUTz institutional certificate: Tanzanian presentation frame. */
 .participant-certificate.weuutz-certificate {
-    padding: clamp(22px, 3vw, 42px);
+    padding: clamp(12px, 1.7vw, 24px);
     color: #080808;
     background:
         linear-gradient(135deg, transparent 0 76%, #f9d616 76% 79%, #050505 79% 88%, #f9d616 88% 91%, #00a6dd 91%) bottom right / 48% 48% no-repeat,
@@ -220,11 +220,12 @@
 
 .weuutz-certificate .certificate-border {
     min-height: 100%;
-    padding: clamp(20px, 3vw, 42px) clamp(28px, 5vw, 76px);
+    padding: clamp(12px, 1.7vw, 24px) clamp(22px, 3.2vw, 48px);
     justify-content: flex-start;
+    overflow: hidden;
     background: #fff;
-    border: 5px solid #063d23;
-    box-shadow: 0 0 0 8px rgba(0, 0, 0, .16);
+    border: 3px solid #063d23;
+    box-shadow: 0 0 0 5px rgba(0, 0, 0, .16);
 }
 
 .weuutz-certificate .certificate-border::before,
@@ -233,42 +234,42 @@
 }
 
 .weuutz-certificate-header h2 {
-    margin: 0 0 8px;
+    margin: 0 0 4px;
     color: #050505;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: clamp(17px, 2.5vw, 34px);
+    font-size: clamp(16px, 2vw, 27px);
     font-weight: 900;
     letter-spacing: .025em;
 }
 
 .weuutz-certificate-header img {
-    width: clamp(84px, 12vw, 150px);
-    height: clamp(84px, 12vw, 150px);
-    margin: 8px auto 5px;
+    width: clamp(72px, 9vw, 112px);
+    height: clamp(72px, 9vw, 112px);
+    margin: 4px auto 2px;
     object-fit: contain;
 }
 
 .weuutz-certificate-content .certificate-kicker {
-    margin: 4px 0 10px;
+    margin: 2px 0 5px;
     color: #5cab28;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: clamp(20px, 3.2vw, 43px);
+    font-size: clamp(19px, 2.4vw, 32px);
     letter-spacing: .025em;
 }
 
 .weuutz-certificate-content .certify-text {
-    margin: 4px 0;
+    margin: 2px 0;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: clamp(17px, 2.4vw, 32px);
+    font-size: clamp(16px, 1.9vw, 25px);
 }
 
 .weuutz-certificate-content h3 {
     display: block;
-    margin: 8px auto 4px;
-    padding: 0 10px 6px;
+    margin: 4px auto 2px;
+    padding: 0 8px 4px;
     color: #163fd5;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: clamp(25px, 4vw, 52px);
+    font-size: clamp(23px, 3vw, 40px);
     font-weight: 500;
     text-transform: uppercase;
     border-bottom: 1px solid #888;
@@ -276,15 +277,15 @@
 
 .weuutz-certificate-statement {
     max-width: 980px;
-    margin: 10px auto 0;
+    margin: 6px auto 0;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: clamp(15px, 1.9vw, 25px);
-    line-height: 1.35;
+    font-size: clamp(14px, 1.45vw, 19px);
+    line-height: 1.25;
 }
 
 .weuutz-certificate-footer {
     position: relative;
-    min-height: clamp(120px, 15vw, 178px);
+    min-height: clamp(100px, 10vw, 128px);
     margin-top: auto;
 }
 
@@ -309,24 +310,24 @@
 }
 
 .certificate-signature strong {
-    font-size: clamp(15px, 2vw, 25px);
+    font-size: clamp(14px, 1.55vw, 20px);
 }
 
 .certificate-signature b {
     margin-top: 4px;
-    font-size: clamp(13px, 1.7vw, 21px);
+    font-size: clamp(12px, 1.35vw, 17px);
 }
 
 .weuutz-certificate-footer .certificate-verification-qr {
     position: absolute;
     right: 0;
     bottom: 0;
-    width: clamp(92px, 13vw, 145px);
+    width: clamp(82px, 9vw, 112px);
 }
 
 .weuutz-certificate-footer .certificate-verification-qr img {
-    width: clamp(82px, 11vw, 125px);
-    height: clamp(82px, 11vw, 125px);
+    width: clamp(74px, 8vw, 100px);
+    height: clamp(74px, 8vw, 100px);
 }
 
 .weuutz-certificate-footer .certificate-verification-qr span,
