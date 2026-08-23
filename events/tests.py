@@ -492,7 +492,12 @@ class DepartmentEventAccessTests(TestCase):
                     "event_slug": self.dsti_event.slug,
                 }),
             )
-            self.assertContains(self.client.get(public_url), "Climax timetable")
+            public_response = self.client.get(public_url)
+            self.assertContains(public_response, "Climax timetable")
+            self.assertContains(public_response, "View timetable")
+            self.assertContains(public_response, "Download timetable")
+            self.assertNotContains(public_response, "Registration Status")
+            self.assertNotContains(public_response, "Event information")
             self.assertEqual(self.client.get(download_url).status_code, 200)
             qr_response = self.client.get(reverse(
                 "events:public_event_timetable_qr",
