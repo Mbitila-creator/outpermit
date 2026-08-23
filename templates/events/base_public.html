@@ -162,25 +162,6 @@
                     }
                 });
             });
-            const languageForm = document.getElementById(
-                "language-switcher-form"
-            );
-
-            const languageSelect = document.getElementById(
-                "public-language"
-            );
-
-            if (!languageForm || !languageSelect) {
-                return;
-            }
-
-            languageSelect.addEventListener("change", function () {
-                if (typeof languageForm.requestSubmit === "function") {
-                    languageForm.requestSubmit();
-                } else {
-                    languageForm.submit();
-                }
-            });
         });
     </script>
 
@@ -218,6 +199,17 @@
                     /^\/(sw|en)\//,
                     "/" + selectedLanguage + "/"
                 );
+            } else if (currentPath.startsWith("/event-management/")) {
+                // Public Event Management URLs are mounted below
+                // /event-management/ in the integrated application, while
+                // the language-aware compatibility routes live at /en/ and
+                // /sw/.  Keep the same resource and token when changing the
+                // language, but use the route Django can resolve.
+                newPath =
+                    "/" +
+                    selectedLanguage +
+                    "/" +
+                    currentPath.replace(/^\/event-management\/+/, "");
             } else {
                 newPath =
                     "/" +
@@ -239,4 +231,3 @@
 
 </body>
 </html>
-
