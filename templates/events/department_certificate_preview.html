@@ -21,7 +21,7 @@
         <div class="certificate-border">
             <header class="weuutz-certificate-header"><h2>THE UNITED REPUBLIC OF TANZANIA</h2><h2>MINISTRY OF EDUCATION, SCIENCE AND TECHNOLOGY</h2><img src="{% static 'logo/moest_logo.png' %}" alt="National coat of arms"></header>
             <div class="weuutz-certificate-content"><p class="certificate-kicker">CERTIFICATION OF PARTICIPATION</p><p class="certify-text">THIS IS TO CERTIFY THAT</p><h3>{{ sample_institution }}</h3><p class="weuutz-certificate-statement">{{ weuutz_event_sentence_html }}</p></div>
-            <footer class="weuutz-certificate-footer"><div class="certificate-signature"><span class="signature-line"></span><strong>Prof. Carolyne I. Nombo</strong><b>PERMANENT SECRETARY</b></div><div class="certificate-verification-qr"><img src="data:image/png;base64,{{ preview_qr_data }}" alt="Sample QR code with centered logo"><span>SAMPLE QR - NOT VALID</span><small class="certificate-preview-number">PREVIEW - NOT ISSUED</small></div></footer>
+            <footer class="weuutz-certificate-footer"><div class="certificate-signature"><img class="signature-image" src="{% static 'images/weuutz-permanent-secretary-signature.png' %}" alt="Permanent Secretary signature"><span class="signature-line"></span><strong>Prof. Carolyne I. Nombo</strong><b>PERMANENT SECRETARY</b></div><div class="certificate-verification-qr"><img src="data:image/png;base64,{{ preview_qr_data }}" alt="Sample QR code with centered logo"><span>SAMPLE QR - NOT VALID</span><small class="certificate-preview-number">PREVIEW - NOT ISSUED</small></div></footer>
         </div>
     </article>
 </section>

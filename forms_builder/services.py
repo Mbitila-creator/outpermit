@@ -563,6 +563,15 @@ def _generate_weuutz_certificate_pdf(submission, verification_url):
     )
 
     # Permanent Secretary signature block.
+    signature_path = finders.find(
+        "images/weuutz-permanent-secretary-signature.png"
+    )
+    if signature_path:
+        signature = Image.open(signature_path).convert("RGBA")
+        signature.thumbnail((390, 105), Image.Resampling.LANCZOS)
+        signature_x = (width - signature.width) // 2
+        signature_y = 940 - signature.height - 4
+        image.paste(signature, (signature_x, signature_y), signature)
     draw.line((520, 940, 1060, 940), fill="#777777", width=2)
     _draw_centered_fitted(
         draw, "Prof. Carolyne I. Nombo", 955, width, 30, 520,

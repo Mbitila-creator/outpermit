@@ -312,6 +312,14 @@
     border-top: 1px solid #777;
 }
 
+.certificate-signature .signature-image {
+    display: block;
+    width: clamp(150px, 19vw, 245px);
+    height: clamp(48px, 6.2vw, 80px);
+    margin: 0 auto -2px;
+    object-fit: contain;
+}
+
 .certificate-signature strong,
 .certificate-signature b {
     display: block;
