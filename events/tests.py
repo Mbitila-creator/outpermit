@@ -547,6 +547,10 @@ class DepartmentEventAccessTests(TestCase):
         self.assertContains(preview_response, "SAMPLE · NOT VALID")
         self.assertContains(preview_response, "Sample Participating Institution")
         self.assertContains(preview_response, "Prof. Carolyne I. Nombo")
+        self.assertContains(
+            preview_response,
+            "images/weuutz-permanent-secretary-signature.png",
+        )
         self.assertContains(preview_response, "CERTIFICATION OF PARTICIPATION")
         self.assertContains(preview_response, "SAMPLE QR - NOT VALID")
         self.assertContains(preview_response, "data:image/png;base64,")
