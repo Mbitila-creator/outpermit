@@ -52,7 +52,6 @@
                     </div>
                     <div class="certificate-verification-qr">
                         <img src="{% url 'forms_builder:participant_certificate_qr' submission.participant_token %}" alt="{% translate 'Certificate verification QR code' %}">
-                        <span>SCAN TO VERIFY</span>
                         <small>{{ certificate_number }}</small>
                     </div>
                 </footer>

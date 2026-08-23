@@ -350,20 +350,24 @@
     position: absolute;
     right: 0;
     bottom: 0;
-    width: clamp(82px, 9vw, 112px);
+    width: clamp(132px, 15vw, 190px);
+    text-align: center;
 }
 
 .weuutz-certificate-footer .certificate-verification-qr img {
+    display: block;
     width: clamp(74px, 8vw, 100px);
     height: clamp(74px, 8vw, 100px);
+    margin: 0 auto;
 }
 
 .weuutz-certificate-footer .certificate-verification-qr span,
 .weuutz-certificate-footer .certificate-verification-qr small {
     display: block;
-    font-size: clamp(7px, .8vw, 10px);
+    font-size: clamp(6px, .7vw, 9px);
     font-weight: 800;
-    overflow-wrap: anywhere;
+    overflow-wrap: normal;
+    white-space: nowrap;
 }
 
 @media (max-width: 720px) {
