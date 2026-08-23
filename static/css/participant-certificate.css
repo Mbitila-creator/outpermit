@@ -258,14 +258,14 @@
 }
 
 .weuutz-certificate-content .certify-text {
-    margin: 2px 0;
+    margin: 20px 0 0;
     font-family: Georgia, "Times New Roman", serif;
     font-size: clamp(16px, 1.9vw, 25px);
 }
 
 .weuutz-certificate-content h3 {
     display: block;
-    margin: 4px auto 2px;
+    margin: 16px auto 2px;
     padding: 0 8px 4px;
     color: #163fd5;
     font-family: Georgia, "Times New Roman", serif;
@@ -277,10 +277,10 @@
 
 .weuutz-certificate-statement {
     max-width: 980px;
-    margin: 6px auto 0;
+    margin: 18px auto 0;
     font-family: Georgia, "Times New Roman", serif;
     font-size: clamp(14px, 1.45vw, 19px);
-    line-height: 1.25;
+    line-height: 1.55;
 }
 
 .weuutz-certificate-footer {
