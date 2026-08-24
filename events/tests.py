@@ -667,6 +667,9 @@ class DepartmentEventAccessTests(TestCase):
         )
         self.assertEqual(print_response.status_code, 200)
         self.assertContains(print_response, submission.reference_number)
+        self.assertContains(print_response, "Certificate number")
+        self.assertContains(print_response, record.certificate_number)
+        self.assertNotContains(print_response, ">Attendance</th>")
 
         excel_response = self.client.get(
             reverse("checkin:participant_list_excel"),
