@@ -1740,8 +1740,9 @@ def participant_certificate_pdf(request, participant_token):
         ),
         content_type="application/pdf",
     )
+    disposition = "inline" if request.GET.get("view") == "1" else "attachment"
     response["Content-Disposition"] = (
-        f'attachment; filename="{submission.reference_number}-certificate.pdf"'
+        f'{disposition}; filename="{submission.reference_number}-certificate.pdf"'
     )
     response["X-Content-Type-Options"] = "nosniff"
     return response
