@@ -516,9 +516,18 @@ def _generate_weuutz_certificate_pdf(submission, verification_url):
             ) for x, y in polygon)
             draw.polygon(mirrored, fill=fill)
 
-    panel = (82, 72, width - 82, height - 72)
-    draw.rounded_rectangle((62, 52, width - 62, height - 52), radius=18, fill="#073b22")
-    draw.rounded_rectangle(panel, radius=8, fill="#fffefb", outline="#d6d6d6", width=3)
+    # Keep the PDF frame deliberately slim.  A wide raster frame becomes
+    # visually much heavier when the image is embedded into an A4 PDF.
+    frame = (28, 24, width - 28, height - 24)
+    panel = (40, 36, width - 40, height - 36)
+    draw.rounded_rectangle(frame, radius=12, fill="#073b22")
+    draw.rounded_rectangle(
+        panel,
+        radius=6,
+        fill="#fffefb",
+        outline="#d6d6d6",
+        width=2,
+    )
 
     black = "#080808"
     green = "#438f24"
