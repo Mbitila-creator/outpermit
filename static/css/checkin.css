@@ -230,6 +230,18 @@
     font: inherit;
 }
 
+.certificate-decision-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.certificate-decision-actions .primary-button,
+.certificate-decision-actions .danger-button {
+    min-height: 46px;
+}
+
 .danger-button {
     width: fit-content;
     padding: 11px 16px;

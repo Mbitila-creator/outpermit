@@ -688,7 +688,28 @@ class DepartmentEventAccessTests(TestCase):
         detail_response = self.client.get(detail_url)
         self.assertEqual(detail_response.status_code, 200)
         self.assertContains(detail_response, "Participant details")
+        self.assertContains(detail_response, "View certificate")
         self.assertContains(detail_response, "Revoke certificate")
+        certificate_pdf_url = reverse(
+            "forms_builder:participant_certificate_pdf",
+            kwargs={"participant_token": submission.participant_token},
+        )
+        self.assertContains(
+            detail_response,
+            f'{certificate_pdf_url}?view=1',
+        )
+        inline_pdf_response = self.client.get(
+            certificate_pdf_url,
+            {"view": "1"},
+        )
+        self.assertEqual(inline_pdf_response.status_code, 200)
+        self.assertEqual(
+            inline_pdf_response["Content-Type"],
+            "application/pdf",
+        )
+        self.assertTrue(
+            inline_pdf_response["Content-Disposition"].startswith("inline;")
+        )
 
         revoke_response = self.client.post(detail_url, {
             "action": "revoke",
