@@ -14,6 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
+from pypdf import PdfReader, PdfWriter
 
 from events.auth import User, has_event_role
 from events.models import Event
@@ -24,6 +25,8 @@ from forms_builder.notifications import send_submission_notification
 from forms_builder.services import (
     answer_export_value,
     certificate_number,
+    certificate_verification_url,
+    generate_certificate_pdf,
     participant_certificate_path,
     public_form_path,
     safe_spreadsheet_value,
@@ -133,6 +136,29 @@ def participant_report_rows(event):
     return report_submissions(event).order_by("badge_name", "reference_number")
 
 
+def authorized_certificate_rows(event):
+    return report_submissions(event).filter(
+        review_status=FormSubmission.ReviewStatus.APPROVED,
+        check_in__isnull=False,
+        certificate_record__status=CertificateRecord.Status.AUTHORIZED,
+    )
+
+
+def filter_certificate_rows(rows, search_query="", organization=""):
+    if search_query:
+        rows = rows.filter(
+            Q(reference_number__icontains=search_query)
+            | Q(badge_name__icontains=search_query)
+            | Q(badge_organization__icontains=search_query)
+            | Q(submitter_email__icontains=search_query)
+            | Q(submitter_phone__icontains=search_query)
+            | Q(certificate_record__certificate_number__icontains=search_query)
+        )
+    if organization:
+        rows = rows.filter(badge_organization=organization)
+    return rows
+
+
 @report_required
 @require_http_methods(["GET", "POST"])
 def attendance_reports(request):
@@ -150,6 +176,8 @@ def attendance_reports(request):
     request_data = request.POST if request.method == "POST" else request.GET
     selected_event_id = request_data.get("event", "").strip()
     selected_filter = request_data.get("filter", "all").strip()
+    search_query = request_data.get("q", "").strip()
+    organization = request_data.get("organization", "").strip()
     available_filters = {
         "all",
         "approved",
@@ -321,7 +349,19 @@ def attendance_reports(request):
         elif selected_filter in row_filters:
             rows = rows.filter(row_filters[selected_filter])
 
+        certificate_organizations = list(
+            authorized_certificate_rows(selected_event)
+            .exclude(badge_organization="")
+            .order_by("badge_organization")
+            .values_list("badge_organization", flat=True)
+            .distinct()
+        )
+        if selected_filter == "certificate_list":
+            rows = filter_certificate_rows(rows, search_query, organization)
+
         rows = rows.order_by("badge_name", "reference_number")
+    else:
+        certificate_organizations = []
 
     return render(
         request,
@@ -338,9 +378,62 @@ def attendance_reports(request):
                 selected_filter == "registration_certificates"
             ),
             "filtered_total": rows.count() if selected_event else 0,
+            "search_query": search_query,
+            "organization": organization,
+            "certificate_organizations": certificate_organizations,
             "can_authorize_certificates": can_authorize_certificates(request.user),
         },
     )
+
+
+@report_required
+@require_http_methods(["POST"])
+def certificate_bulk_pdf(request):
+    event = get_object_or_404(
+        events_visible_to(request.user),
+        pk=request.POST.get("event"),
+        certificate_enabled=True,
+    )
+    selected_ids = request.POST.getlist("submission")
+    rows = authorized_certificate_rows(event).filter(pk__in=selected_ids)
+    rows = rows.order_by("badge_name", "reference_number")
+    if not rows.exists():
+        messages.info(request, _("Select at least one authorized certificate."))
+        query = f"event={event.pk}&filter=certificate_list"
+        search_query = request.POST.get("q", "").strip()
+        organization = request.POST.get("organization", "").strip()
+        if search_query:
+            from urllib.parse import urlencode
+            query += "&" + urlencode({"q": search_query})
+        if organization:
+            from urllib.parse import urlencode
+            query += "&" + urlencode({"organization": organization})
+        return redirect(f"{reverse('checkin:reports')}?{query}")
+
+    writer = PdfWriter()
+    for submission in rows:
+        verification_url = certificate_verification_url(
+            submission,
+            request=request,
+            language=request.LANGUAGE_CODE,
+        )
+        certificate_pdf = generate_certificate_pdf(
+            submission,
+            verification_url,
+            language=request.LANGUAGE_CODE,
+        )
+        reader = PdfReader(BytesIO(certificate_pdf))
+        for page in reader.pages:
+            writer.add_page(page)
+
+    output = BytesIO()
+    writer.write(output)
+    response = HttpResponse(output.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="{event.code}-selected-certificates.pdf"'
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @report_required

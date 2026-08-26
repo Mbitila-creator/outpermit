@@ -48,7 +48,17 @@
                         </option>
                     {% endfor %}
                 </select>
+                {% if certificate_list_mode %}
+                    <label for="certificate-search">{% translate "Search" %}</label>
+                    <input id="certificate-search" name="q" type="search" value="{{ search_query }}" placeholder="{% translate 'Reference, representative, institution, email, phone or certificate number' %}">
+                    <label for="certificate-organization">{% translate "Institution" %}</label>
+                    <select id="certificate-organization" name="organization">
+                        <option value="">{% translate "All institutions" %}</option>
+                        {% for item in certificate_organizations %}<option value="{{ item }}" {% if organization == item %}selected{% endif %}>{{ item }}</option>{% endfor %}
+                    </select>
+                {% endif %}
                 <button type="submit" class="primary-button">{% translate "View report" %}</button>
+                {% if certificate_list_mode and search_query or certificate_list_mode and organization %}<a class="secondary-button" href="?event={{ selected_event.pk }}&amp;filter=certificate_list">{% translate "Clear search" %}</a>{% endif %}
             </form>
 
             {% if selected_event and summary %}
@@ -88,13 +98,14 @@
                     </div>
                 {% endif %}
 
-                <form method="post" class="report-table-card">
+                <form method="post" class="report-table-card" {% if certificate_list_mode %}action="{% url 'checkin:certificate_bulk_pdf' %}"{% endif %}>
                     {% csrf_token %}
                     <input type="hidden" name="event" value="{{ selected_event.pk }}">
                     <input type="hidden" name="filter" value="{{ selected_filter }}">
+                    {% if certificate_list_mode %}<input type="hidden" name="q" value="{{ search_query }}"><input type="hidden" name="organization" value="{{ organization }}">{% endif %}
                     <div class="report-table-heading">
                         <strong>{% translate "Filtered participants" %}: {{ filtered_total }}</strong>
-                        {% if selected_filter != "all" %}
+                        {% if selected_filter != "all" and not certificate_list_mode %}
                             <a href="?event={{ selected_event.pk }}&amp;filter=all">{% translate "Clear filter" %}</a>
                         {% endif %}
                     </div>
@@ -102,7 +113,7 @@
                         <table>
                             <thead>
                                 <tr>
-                                    {% if registration_certificate_mode or certificate_review_mode %}{% if can_authorize_certificates %}<th>{% translate "Select" %}</th>{% endif %}{% endif %}
+                                    {% if certificate_list_mode %}<th><label class="report-select-all"><input id="select-all-certificates" type="checkbox"> <span>{% translate "Select all" %}</span></label></th>{% elif registration_certificate_mode or certificate_review_mode %}{% if can_authorize_certificates %}<th>{% translate "Select" %}</th>{% endif %}{% endif %}
                                     <th>{% translate "Reference number" %}</th>
                                     <th>{% translate "Representative" %}</th>
                                     <th>{% translate "Organization" %}</th>
@@ -116,7 +127,7 @@
                             <tbody>
                                 {% for submission in rows %}
                                     <tr>
-                                        {% if registration_certificate_mode or certificate_review_mode %}{% if can_authorize_certificates %}
+                                        {% if certificate_list_mode %}<td><input class="certificate-row-select" type="checkbox" name="submission" value="{{ submission.pk }}" aria-label="{% translate 'Select certificate' %} {{ submission.reference_number }}"></td>{% elif registration_certificate_mode or certificate_review_mode %}{% if can_authorize_certificates %}
                                             <td>{% if submission.check_in and submission.certificate_record.status != "AUTHORIZED" %}<input type="checkbox" name="submission" value="{{ submission.pk }}" aria-label="{% translate 'Select participant' %} {{ submission.reference_number }}">{% else %}—{% endif %}</td>
                                         {% endif %}{% endif %}
                                         <td>{{ submission.reference_number }}</td>
@@ -151,10 +162,34 @@
                             <button type="submit" class="primary-button">{% translate "Approve selected certificates" %}</button>
                         </div>
                     {% endif %}{% endif %}
+                    {% if certificate_list_mode and rows %}
+                        <div class="report-downloads">
+                            <button type="submit" class="primary-button">{% translate "Download selected certificates PDF" %}</button>
+                            <span class="report-selection-note">{% translate "Use Select all to include every certificate in the filtered list." %}</span>
+                        </div>
+                    {% endif %}
                 </form>
             {% else %}
                 <div class="checkin-alert checkin-alert-warning">{% translate "No events are available for reporting." %}</div>
             {% endif %}
         </div>
     </section>
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    {% if certificate_list_mode %}<script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const selectAll = document.getElementById("select-all-certificates");
+            const rows = Array.from(document.querySelectorAll(".certificate-row-select"));
+            if (!selectAll) return;
+            selectAll.addEventListener("change", () => {
+                rows.forEach((checkbox) => { checkbox.checked = selectAll.checked; });
+            });
+            rows.forEach((checkbox) => checkbox.addEventListener("change", () => {
+                selectAll.checked = rows.length > 0 && rows.every((item) => item.checked);
+                selectAll.indeterminate = !selectAll.checked && rows.some((item) => item.checked);
+            }));
+        });
+    </script>{% endif %}
 {% endblock %}

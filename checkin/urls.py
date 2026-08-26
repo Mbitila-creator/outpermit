@@ -17,6 +17,11 @@ urlpatterns = [
         name="reports_csv",
     ),
     path(
+        "reports/certificates/pdf/",
+        views.certificate_bulk_pdf,
+        name="certificate_bulk_pdf",
+    ),
+    path(
         "reports/participants/print/",
         views.participant_list_print,
         name="participant_list_print",
