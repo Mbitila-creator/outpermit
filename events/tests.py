@@ -1,4 +1,5 @@
 from datetime import timedelta
+from io import BytesIO
 import shutil
 import tempfile
 from uuid import uuid4
@@ -12,6 +13,7 @@ from django.test import TestCase, override_settings
 from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
+from pypdf import PdfReader
 
 from core.models import Council, Country, Region
 from permits.models import Department
@@ -660,6 +662,46 @@ class DepartmentEventAccessTests(TestCase):
         self.assertContains(list_response, "Badge / QR")
         self.assertContains(list_response, "Print A4 list")
         self.assertContains(list_response, "Download Excel")
+
+        certificate_list_response = self.client.get(
+            reverse("checkin:reports"),
+            {"event": self.dsti_event.pk, "filter": "certificate_list"},
+        )
+        self.assertContains(certificate_list_response, "Search")
+        self.assertContains(certificate_list_response, "All institutions")
+        self.assertContains(certificate_list_response, "Select all")
+        self.assertContains(
+            certificate_list_response,
+            "Download selected certificates PDF",
+        )
+
+        bulk_pdf_response = self.client.post(
+            reverse("checkin:certificate_bulk_pdf"),
+            {"event": self.dsti_event.pk, "submission": [submission.pk]},
+        )
+        self.assertEqual(bulk_pdf_response.status_code, 200)
+        self.assertEqual(bulk_pdf_response["Content-Type"], "application/pdf")
+        self.assertIn(
+            f'{self.dsti_event.code}-selected-certificates.pdf',
+            bulk_pdf_response["Content-Disposition"],
+        )
+        self.assertEqual(
+            len(PdfReader(BytesIO(bulk_pdf_response.content)).pages),
+            1,
+        )
+
+        filtered_certificate_response = self.client.get(
+            reverse("checkin:reports"),
+            {
+                "event": self.dsti_event.pk,
+                "filter": "certificate_list",
+                "q": submission.reference_number,
+            },
+        )
+        self.assertContains(
+            filtered_certificate_response,
+            submission.reference_number,
+        )
 
         print_response = self.client.get(
             reverse("checkin:participant_list_print"),

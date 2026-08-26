@@ -40,7 +40,8 @@
     font-weight: 800;
 }
 
-.report-filter-card select {
+.report-filter-card select,
+.report-filter-card input[type="search"] {
     min-width: min(100%, 430px);
     min-height: 48px;
     padding: 8px 12px;
@@ -48,6 +49,22 @@
     border-radius: 9px;
     background: #fff;
     font: inherit;
+}
+
+.report-filter-card input[type="search"] {
+    flex: 1 1 360px;
+}
+
+.report-select-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.report-selection-note {
+    color: var(--muted);
+    font-size: 13px;
 }
 
 .report-event-title {
