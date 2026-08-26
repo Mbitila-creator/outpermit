@@ -662,6 +662,14 @@ class DepartmentEventAccessTests(TestCase):
         self.assertContains(list_response, "Badge / QR")
         self.assertContains(list_response, "Print A4 list")
         self.assertContains(list_response, "Download Excel")
+        self.assertContains(
+            list_response,
+            "Certificate list, filters and bulk PDF",
+        )
+        self.assertContains(
+            list_response,
+            f"?event={self.dsti_event.pk}&amp;filter=certificate_list",
+        )
 
         certificate_list_response = self.client.get(
             reverse("checkin:reports"),

@@ -74,7 +74,7 @@
                     <a href="?event={{ selected_event.pk }}&amp;filter=attendance_rate" class="report-summary-card {% if selected_filter == 'attendance_rate' %}is-selected{% endif %}" {% if selected_filter == 'attendance_rate' %}aria-current="true"{% endif %}><span>{% translate "Attendance rate" %}</span><strong>{{ summary.attendance_rate }}%</strong></a>
                     {% if selected_event.certificate_enabled %}
                         <a href="?event={{ selected_event.pk }}&amp;filter=certificate_review" class="report-summary-card {% if selected_filter == 'certificate_review' %}is-selected{% endif %}" {% if selected_filter == 'certificate_review' %}aria-current="true"{% endif %}><span>{% translate "Awaiting certificate authorization" %}</span><strong>{{ summary.certificate_review }}</strong></a>
-                        <a href="?event={{ selected_event.pk }}&amp;filter=certificate_eligible" class="report-summary-card {% if selected_filter == 'certificate_eligible' %}is-selected{% endif %}" {% if selected_filter == 'certificate_eligible' %}aria-current="true"{% endif %}><span>{% translate "Certificates authorized" %}</span><strong>{{ summary.certificate_eligible }}</strong></a>
+                        <a href="?event={{ selected_event.pk }}&amp;filter=certificate_list" class="report-summary-card"><span>{% translate "Certificates authorized" %}</span><strong>{{ summary.certificate_eligible }}</strong></a>
                     {% endif %}
                 </div>{% endif %}
 
@@ -85,6 +85,11 @@
                     {% if not certificate_review_mode and not certificate_list_mode %}<a class="primary-button" href="{% url 'checkin:participant_list_excel' %}?event={{ selected_event.pk }}">
                         {% translate "Download Excel" %}
                     </a>{% endif %}
+                    {% if selected_event.certificate_enabled and not certificate_list_mode %}
+                        <a class="secondary-button" href="?event={{ selected_event.pk }}&amp;filter=certificate_list">
+                            {% translate "Certificate list, filters and bulk PDF" %}
+                        </a>
+                    {% endif %}
                     {% if selected_event.certificate_enabled and certificate_list_mode %}
                         <a class="secondary-button" href="{% url 'checkin:reports_csv' %}?event={{ selected_event.pk }}&amp;report=certificates">
                             {% translate "Download certificate CSV" %}
