@@ -342,9 +342,8 @@
                         <section
                             class="form-section wizard-step"
                             data-step-title="{% if request.LANGUAGE_CODE == 'en' %}{{ section.title_en }}{% else %}{{ section.title_sw }}{% endif %}"
-                            {% if section.condition_question_id and section.condition_value %}
-                                data-condition-question-id="{{ section.condition_question_id }}"
-                                data-condition-value="{{ section.condition_value }}"
+                            {% if section.display_logic_json %}
+                                data-display-logic="{{ section.display_logic_json|escape }}"
                             {% endif %}
                         >
                             <div class="section-header">
@@ -392,6 +391,10 @@
                                                     data-question-type="{{ question.question_type }}"
                                                     data-required="{% if question.is_required %}true{% else %}false{% endif %}"
                                                     data-question-label="{% if language_code == 'en' %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}"
+                                                    {% if question.display_logic_json %}
+                                                        data-display-logic="{{ question.display_logic_json|escape }}"
+                                                        hidden
+                                                    {% endif %}
                                                 >
                                                     <th scope="row">
                                                         {% if language_code == "en" %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}
@@ -517,7 +520,7 @@
         </section>
     </main>
 
-    <script src="{% static 'js/public-event-form.js' %}?v=20260822-draft-submit-sync"></script>
+    <script src="{% static 'js/public-event-form.js' %}?v=20260827-advanced-logic"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {

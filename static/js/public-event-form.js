@@ -72,22 +72,74 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    const conditionMatches = (step) => {
-        const questionId = step.dataset.conditionQuestionId;
-        const expectedValue = step.dataset.conditionValue;
+    const answerValues = (questionId) => Array.from(
+        form.querySelectorAll(`[name="question_${questionId}"]`)
+    ).filter((control) => !control.disabled).flatMap((control) => {
+        if (control.type === "checkbox" || control.type === "radio") {
+            return control.checked ? [control.value.trim()] : [];
+        }
+        return control.value.trim() ? [control.value.trim()] : [];
+    });
 
-        if (!questionId || !expectedValue) {
+    const ruleMatches = (rule) => {
+        const values = answerValues(rule.question);
+        const expected = String(rule.value || "");
+        const foldedExpected = expected.toLocaleLowerCase();
+        switch (rule.operator) {
+        case "ANSWERED": return values.length > 0;
+        case "NOT_ANSWERED": return values.length === 0;
+        case "EQUALS": return values.includes(expected);
+        case "NOT_EQUALS": return !values.includes(expected);
+        case "CONTAINS":
+            return values.some((value) => value.toLocaleLowerCase().includes(foldedExpected));
+        case "NOT_CONTAINS":
+            return !values.some((value) => value.toLocaleLowerCase().includes(foldedExpected));
+        case "ANY_OF": return values.some((value) => (rule.values || []).map(String).includes(value));
+        case "NONE_OF": return !values.some((value) => (rule.values || []).map(String).includes(value));
+        case "GREATER_THAN": {
+            const actualNumber = Number(values[0]);
+            const expectedNumber = Number(expected);
+            return values.length > 0 && Number.isFinite(actualNumber) &&
+                Number.isFinite(expectedNumber) && actualNumber > expectedNumber;
+        }
+        case "LESS_THAN": {
+            const actualNumber = Number(values[0]);
+            const expectedNumber = Number(expected);
+            return values.length > 0 && Number.isFinite(actualNumber) &&
+                Number.isFinite(expectedNumber) && actualNumber < expectedNumber;
+        }
+        case "DATE_BEFORE": {
+            const actualDate = Date.parse(values[0]);
+            const expectedDate = Date.parse(expected);
+            return Number.isFinite(actualDate) && Number.isFinite(expectedDate) &&
+                actualDate < expectedDate;
+        }
+        case "DATE_AFTER": {
+            const actualDate = Date.parse(values[0]);
+            const expectedDate = Date.parse(expected);
+            return Number.isFinite(actualDate) && Number.isFinite(expectedDate) &&
+                actualDate > expectedDate;
+        }
+        default: return true;
+        }
+    };
+
+    const conditionMatches = (element) => {
+        if (!element.dataset.displayLogic) {
             return true;
         }
-
-        return Array.from(
-            form.querySelectorAll(`[name="question_${questionId}"]`)
-        ).some((control) => {
-            if (control.type === "checkbox" || control.type === "radio") {
-                return control.checked && control.value === expectedValue;
-            }
-            return control.value === expectedValue;
-        });
+        let logic;
+        try {
+            logic = JSON.parse(element.dataset.displayLogic);
+        } catch (error) {
+            console.error("Invalid questionnaire display logic.", error);
+            return true;
+        }
+        const results = (logic.rules || []).map(ruleMatches);
+        if (!results.length) {
+            return true;
+        }
+        return logic.match === "ANY" ? results.some(Boolean) : results.every(Boolean);
     };
 
     const getVisibleSteps = () => allSteps.filter(conditionMatches);
@@ -107,19 +159,8 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        form.querySelectorAll(
-            ".form-field[data-condition-question-id][data-condition-value]"
-        ).forEach((field) => {
-            const questionId = field.dataset.conditionQuestionId;
-            const expectedValue = field.dataset.conditionValue;
-            const visible = Array.from(
-                form.querySelectorAll(`[name="question_${questionId}"]`)
-            ).some((control) => {
-                if (control.type === "checkbox" || control.type === "radio") {
-                    return control.checked && control.value === expectedValue;
-                }
-                return control.value === expectedValue;
-            });
+        form.querySelectorAll(".form-field[data-display-logic]").forEach((field) => {
+            const visible = conditionMatches(field);
             field.hidden = !visible;
             field.querySelectorAll("input, select, textarea").forEach((control) => {
                 control.disabled = !visible;

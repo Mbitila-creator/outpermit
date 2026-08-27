@@ -479,6 +479,163 @@ class QuestionOption(BaseModel):
     def __str__(self):
         return self.label_sw
 
+
+class DisplayLogicGroup(BaseModel):
+    class MatchType(models.TextChoices):
+        ALL = "ALL", _("Match all rules (AND)")
+        ANY = "ANY", _("Match any rule (OR)")
+
+    event_form = models.ForeignKey(
+        EventForm,
+        related_name="display_logic_groups",
+        on_delete=models.CASCADE,
+    )
+    target_section = models.OneToOneField(
+        FormSection,
+        related_name="display_logic",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
+    target_question = models.OneToOneField(
+        FormQuestion,
+        related_name="display_logic",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
+    match_type = models.CharField(
+        max_length=3,
+        choices=MatchType.choices,
+        default=MatchType.ALL,
+    )
+
+    class Meta:
+        verbose_name = _("display logic group")
+        verbose_name_plural = _("display logic groups")
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(target_section__isnull=False, target_question__isnull=True)
+                    | models.Q(target_section__isnull=True, target_question__isnull=False)
+                ),
+                name="logic_group_has_exactly_one_target",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        targets = int(bool(self.target_section_id)) + int(bool(self.target_question_id))
+        if targets != 1:
+            raise ValidationError("A logic group must control exactly one section or question.")
+        target_form_id = (
+            self.target_section.event_form_id
+            if self.target_section_id
+            else self.target_question.section.event_form_id
+        )
+        if self.event_form_id and target_form_id != self.event_form_id:
+            raise ValidationError("The target must belong to the logic group's form.")
+
+    @property
+    def target(self):
+        return self.target_section or self.target_question
+
+    @property
+    def summary_en(self):
+        rules = [rule.summary_en for rule in self.rules.filter(is_active=True)]
+        if not rules:
+            return "Always show"
+        joiner = " AND " if self.match_type == self.MatchType.ALL else " OR "
+        return joiner.join(rules)
+
+    def __str__(self):
+        return f"{self.get_match_type_display()}: {self.target}"
+
+
+class DisplayLogicRule(BaseModel):
+    class Operator(models.TextChoices):
+        EQUALS = "EQUALS", _("equals")
+        NOT_EQUALS = "NOT_EQUALS", _("does not equal")
+        CONTAINS = "CONTAINS", _("contains")
+        NOT_CONTAINS = "NOT_CONTAINS", _("does not contain")
+        ANY_OF = "ANY_OF", _("is any of")
+        NONE_OF = "NONE_OF", _("is none of")
+        ANSWERED = "ANSWERED", _("is answered")
+        NOT_ANSWERED = "NOT_ANSWERED", _("is not answered")
+        GREATER_THAN = "GREATER_THAN", _("is greater than")
+        LESS_THAN = "LESS_THAN", _("is less than")
+        DATE_BEFORE = "DATE_BEFORE", _("is before date")
+        DATE_AFTER = "DATE_AFTER", _("is after date")
+
+    group = models.ForeignKey(
+        DisplayLogicGroup,
+        related_name="rules",
+        on_delete=models.CASCADE,
+    )
+    source_question = models.ForeignKey(
+        FormQuestion,
+        related_name="display_logic_rules",
+        on_delete=models.PROTECT,
+    )
+    operator = models.CharField(max_length=30, choices=Operator.choices)
+    comparison_value = models.TextField(blank=True)
+    comparison_values = models.JSONField(default=list, blank=True)
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["display_order", "pk"]
+        verbose_name = _("display logic rule")
+        verbose_name_plural = _("display logic rules")
+
+    def clean(self):
+        super().clean()
+        if (
+            self.group_id
+            and self.source_question_id
+            and self.source_question.section.event_form_id != self.group.event_form_id
+        ):
+            raise ValidationError("The controlling question must belong to the same form.")
+        if (
+            self.group_id
+            and self.group.target_question_id == self.source_question_id
+        ):
+            raise ValidationError("A question cannot control itself.")
+        no_value = {
+            self.Operator.ANSWERED,
+            self.Operator.NOT_ANSWERED,
+        }
+        multiple_values = {self.Operator.ANY_OF, self.Operator.NONE_OF}
+        if self.operator in no_value:
+            return
+        if self.operator in multiple_values and not self.comparison_values:
+            raise ValidationError({"comparison_values": "Select at least one answer."})
+        if self.operator not in multiple_values and not self.comparison_value:
+            raise ValidationError({"comparison_value": "Enter or select a comparison value."})
+
+    @property
+    def display_value(self):
+        values = self.comparison_values if self.operator in {
+            self.Operator.ANY_OF, self.Operator.NONE_OF
+        } else [self.comparison_value]
+        option_labels = {
+            option.value: option.label_en
+            for option in self.source_question.options.filter(is_active=True)
+        }
+        return ", ".join(option_labels.get(str(value), str(value)) for value in values)
+
+    @property
+    def summary_en(self):
+        suffix = "" if self.operator in {
+            self.Operator.ANSWERED, self.Operator.NOT_ANSWERED
+        } else f' “{self.display_value}”'
+        return (
+            f'“{self.source_question.label_en}” '
+            f'{self.get_operator_display()}{suffix}'
+        )
+
+    def __str__(self):
+        return self.summary_en
+
 class FormSubmission(BaseModel):
     class ReviewStatus(models.TextChoices):
         PENDING = "PENDING", _("Pending review")
