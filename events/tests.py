@@ -90,6 +90,15 @@ class DepartmentEventAccessTests(TestCase):
         )
         self.assertEqual(events_visible_to(admin).count(), 2)
 
+    def test_public_event_home_opens_without_a_selected_event(self):
+        self.dsti_event.is_public = True
+        self.dsti_event.save(update_fields=["is_public", "updated_at"])
+
+        response = self.client.get(reverse("events:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.dsti_event.title_en)
+
     def test_conference_registration_workspace_is_department_scoped(self):
         dsti_form = EventForm.objects.create(
             event=self.dsti_event,
