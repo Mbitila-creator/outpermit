@@ -1,0 +1,11 @@
+{% extends "forms_builder/management/base.html" %}
+{% block title %}Questionnaires{% endblock %}{% block heading %}{{ event.code }} questionnaires and forms{% endblock %}
+{% block content %}
+<nav class="toolbar"><a class="button primary" href="{% url 'forms_builder:questionnaire_create' event.slug %}">+ Create questionnaire</a></nav>
+<div class="cards">
+{% for questionnaire in questionnaires %}<article class="card">
+  <span class="badge {% if not questionnaire.is_published %}draft{% endif %}">{% if questionnaire.is_published %}Published{% else %}Draft{% endif %}</span>
+  <h2>{{ questionnaire.name_en }}</h2><p class="muted">{{ questionnaire.get_form_type_display }} · {{ questionnaire.section_count }} section{{ questionnaire.section_count|pluralize }} · {{ questionnaire.response_count }} response{{ questionnaire.response_count|pluralize }}</p>
+  <div class="actions"><a class="button primary" href="{% url 'forms_builder:questionnaire_builder' event.slug questionnaire.pk %}">Open builder</a><a class="button" href="{% url 'forms_builder:public_event_form' event.slug questionnaire.slug %}?preview=1" target="_blank">Preview</a></div>
+</article>{% empty %}<div class="panel empty"><h2>No questionnaires yet</h2><p>Create the first form for this event without using Django Admin.</p></div>{% endfor %}
+</div>{% endblock %}

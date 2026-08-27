@@ -1,0 +1,9 @@
+{% extends "forms_builder/management/base.html" %}
+{% block title %}{{ page_title }}{% endblock %}{% block heading %}{{ page_title }}{% endblock %}
+{% block content %}<section class="panel">
+<form method="post">{% csrf_token %}{% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+<div class="builder-form">{% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}</div>{% endfor %}</div>
+<div class="actions" style="margin-top:22px"><button class="primary" type="submit">Save</button>{% if questionnaire %}<a class="button" href="{% url 'forms_builder:questionnaire_builder' event.slug questionnaire.pk %}">Cancel</a>{% else %}<a class="button" href="{% url 'forms_builder:questionnaire_list' event.slug %}">Cancel</a>{% endif %}</div></form></section>{% endblock %}
+{% block scripts %}<script>
+document.addEventListener('DOMContentLoaded',()=>{const q=document.getElementById('id_condition_question'),v=document.getElementById('id_condition_value');if(!q||!v)return;let options={};try{options=JSON.parse(q.dataset.answerOptions||'{}')}catch(error){}q.addEventListener('change',()=>{const current=v.value;v.innerHTML='<option value="">'+(q.value?'Select an answer':'Always show')+'</option>';(options[q.value]||[]).forEach(item=>{const option=document.createElement('option');option.value=item.value;option.textContent=item.label_en;option.selected=item.value===current;v.appendChild(option)})})});
+</script>{% endblock %}
