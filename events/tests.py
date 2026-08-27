@@ -21,7 +21,14 @@ from permits.models import Department
 from .access import events_visible_to
 from .auth import EventRole
 from .models import Event, EventCategory, EventTimetable, Venue
-from forms_builder.models import CertificateRecord, EventForm, FormSubmission
+from forms_builder.models import (
+    CertificateRecord,
+    EventForm,
+    FormQuestion,
+    FormSection,
+    FormSubmission,
+    QuestionOption,
+)
 from checkin.models import ParticipantCheckIn
 from conferences.views import _conference_registration_forms
 from permits.views import system_home
@@ -101,6 +108,153 @@ class DepartmentEventAccessTests(TestCase):
             list(_conference_registration_forms(dsti_user)),
             [dsti_form],
         )
+
+    def test_event_administrator_builds_and_publishes_questionnaire(self):
+        user = self._staff("questionnaire-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("forms_builder:questionnaire_create", args=[self.dsti_event.slug]),
+            {
+                "name_en": "Participant evaluation",
+                "name_sw": "Tathmini ya mshiriki",
+                "form_type": EventForm.FormType.EVALUATION,
+                "introduction_en": "Tell us about the event.",
+                "introduction_sw": "Tueleze kuhusu tukio.",
+                "success_message_en": "Thank you.",
+                "success_message_sw": "Asante.",
+                "show_event_summary": "on",
+            },
+        )
+        questionnaire = EventForm.objects.get(name_en="Participant evaluation")
+        self.assertRedirects(
+            response,
+            reverse(
+                "forms_builder:questionnaire_builder",
+                args=[self.dsti_event.slug, questionnaire.pk],
+            ),
+        )
+        self.assertFalse(questionnaire.is_published)
+        self.assertEqual(questionnaire.created_by, user)
+
+        self.client.post(
+            reverse(
+                "forms_builder:section_create",
+                args=[self.dsti_event.slug, questionnaire.pk],
+            ),
+            {"title_en": "Experience", "title_sw": "Uzoefu"},
+        )
+        section = questionnaire.sections.get()
+        self.client.post(
+            reverse(
+                "forms_builder:question_create",
+                args=[self.dsti_event.slug, questionnaire.pk, section.pk],
+            ),
+            {
+                "label_en": "Were you satisfied?",
+                "label_sw": "Umeridhika?",
+                "question_type": FormQuestion.QuestionType.SINGLE_CHOICE,
+                "is_required": "on",
+            },
+        )
+        question = section.questions.get()
+        self.client.post(
+            reverse(
+                "forms_builder:option_create",
+                args=[self.dsti_event.slug, questionnaire.pk, question.pk],
+            ),
+            {"label_en": "Yes", "label_sw": "Ndiyo", "value": "YES"},
+        )
+        self.assertTrue(question.options.filter(value="YES").exists())
+
+        response = self.client.post(reverse(
+            "forms_builder:questionnaire_publish",
+            args=[self.dsti_event.slug, questionnaire.pk],
+        ))
+        self.assertRedirects(
+            response,
+            reverse(
+                "forms_builder:questionnaire_builder",
+                args=[self.dsti_event.slug, questionnaire.pk],
+            ),
+        )
+        questionnaire.refresh_from_db()
+        self.assertTrue(questionnaire.is_published)
+        list_response = self.client.get(reverse(
+            "forms_builder:questionnaire_list", args=[self.dsti_event.slug]
+        ))
+        self.assertContains(list_response, "Participant evaluation")
+        self.assertContains(list_response, "1 section")
+        builder_response = self.client.get(reverse(
+            "forms_builder:questionnaire_builder",
+            args=[self.dsti_event.slug, questionnaire.pk],
+        ))
+        self.assertContains(builder_response, "Were you satisfied?")
+        self.assertContains(builder_response, "Yes / Ndiyo")
+
+        event_response = self.client.get(reverse(
+            "events:department_event_detail", args=[self.dsti_event.slug]
+        ))
+        self.assertContains(event_response, "Questionnaires and forms")
+
+    def test_builder_configures_question_skip_logic_with_readable_answer(self):
+        user = self._staff("logic-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+        questionnaire = EventForm.objects.create(
+            event=self.dsti_event,
+            name_en="Logic form",
+            name_sw="Fomu ya mantiki",
+        )
+        section = FormSection.objects.create(
+            event_form=questionnaire,
+            title_en="Details",
+            title_sw="Maelezo",
+            display_order=1,
+        )
+        controller = FormQuestion.objects.create(
+            section=section,
+            label_en="Choose type",
+            label_sw="Chagua aina",
+            question_type=FormQuestion.QuestionType.SINGLE_CHOICE,
+            display_order=1,
+        )
+        QuestionOption.objects.create(
+            question=controller,
+            value="OTHER",
+            label_en="Other",
+            label_sw="Nyingine",
+        )
+
+        response = self.client.post(
+            reverse(
+                "forms_builder:question_create",
+                args=[self.dsti_event.slug, questionnaire.pk, section.pk],
+            ),
+            {
+                "label_en": "Specify other",
+                "label_sw": "Taja nyingine",
+                "question_type": FormQuestion.QuestionType.SHORT_TEXT,
+                "is_required": "on",
+                "condition_question": controller.pk,
+                "condition_value": "OTHER",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        dependent = section.questions.get(label_en="Specify other")
+        self.assertEqual(dependent.condition_question, controller)
+        self.assertEqual(dependent.condition_value, "OTHER")
+
+    def test_non_event_manager_cannot_open_questionnaire_builder(self):
+        user = self._staff("ordinary-department-user", self.dsti)
+        self.client.force_login(user)
+        response = self.client.get(reverse(
+            "forms_builder:questionnaire_list", args=[self.dsti_event.slug]
+        ))
+        self.assertEqual(response.status_code, 403)
 
     def test_department_head_creates_event_for_own_department(self):
         user = self._staff("dhe-head", self.dhe)

@@ -414,6 +414,27 @@ class FormQuestion(BaseModel):
     def __str__(self):
         return self.label_sw
 
+    @property
+    def supports_options(self):
+        return self.question_type in {
+            self.QuestionType.SINGLE_CHOICE,
+            self.QuestionType.MULTIPLE_CHOICE,
+            self.QuestionType.DROPDOWN,
+        }
+
+    @property
+    def condition_answer_label_en(self):
+        if not self.condition_question_id:
+            return ""
+        option = next(
+            (
+                item for item in self.condition_question.options.all()
+                if item.is_active and item.value == self.condition_value
+            ),
+            None,
+        )
+        return option.label_en if option else self.condition_value
+
 
 class QuestionOption(BaseModel):
     question = models.ForeignKey(

@@ -1,11 +1,72 @@
 from django.urls import path
 
 from . import views
+from . import department_views
 
 
 app_name = "forms_builder"
 
 urlpatterns = [
+    path(
+        "manage/<slug:event_slug>/questionnaires/",
+        department_views.questionnaire_list,
+        name="questionnaire_list",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/new/",
+        department_views.questionnaire_create,
+        name="questionnaire_create",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/",
+        department_views.questionnaire_builder,
+        name="questionnaire_builder",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/settings/",
+        department_views.questionnaire_edit,
+        name="questionnaire_edit",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/publish/",
+        department_views.questionnaire_publish,
+        name="questionnaire_publish",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/sections/new/",
+        department_views.section_edit,
+        name="section_create",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/sections/<int:section_id>/",
+        department_views.section_edit,
+        name="section_edit",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/sections/<int:section_id>/questions/new/",
+        department_views.question_edit,
+        name="question_create",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/sections/<int:section_id>/questions/<int:question_id>/",
+        department_views.question_edit,
+        name="question_edit",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/questions/<int:question_id>/options/new/",
+        department_views.option_edit,
+        name="option_create",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/questions/<int:question_id>/options/<int:option_id>/",
+        department_views.option_edit,
+        name="option_edit",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/<str:component>/<int:component_id>/<str:action>/",
+        department_views.component_action,
+        name="component_action",
+    ),
     path(
         "participants/<uuid:participant_token>/",
         views.participant_portal,
@@ -102,4 +163,3 @@ urlpatterns = [
         name="submission_success",
     ),
 ]
-
