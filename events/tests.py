@@ -199,6 +199,33 @@ class DepartmentEventAccessTests(TestCase):
         ))
         self.assertContains(event_response, "Questionnaires and forms")
 
+    def test_event_administrator_can_preview_an_unpublished_questionnaire(self):
+        user = self._staff("draft-preview-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+        questionnaire = EventForm.objects.create(
+            event=self.dsti_event,
+            name_en="Draft registration",
+            name_sw="Usajili wa rasimu",
+            form_type=EventForm.FormType.REGISTRATION,
+            is_published=False,
+        )
+        preview_url = reverse(
+            "forms_builder:public_event_form",
+            kwargs={
+                "event_slug": self.dsti_event.slug,
+                "form_slug": questionnaire.slug,
+            },
+        )
+
+        response = self.client.get(f"{preview_url}?preview=1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Draft registration")
+        self.client.logout()
+        self.assertEqual(self.client.get(preview_url).status_code, 404)
+
     def test_builder_configures_question_skip_logic_with_readable_answer(self):
         user = self._staff("logic-admin", self.dsti)
         user.profile.role = "EVENT_ADMIN"

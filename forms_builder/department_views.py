@@ -72,6 +72,11 @@ def questionnaire_create(request, event_slug):
     return render(request, "forms_builder/management/edit.html", {
         "event": event, "form": form, "page_title": "Create questionnaire",
         "cancel_url": "forms_builder:questionnaire_list",
+        "page_intro": (
+            "First save the questionnaire settings. You will then go directly "
+            "to the builder to add sections, questions, choices and display logic."
+        ),
+        "submit_label": "Create and open builder",
     })
 
 

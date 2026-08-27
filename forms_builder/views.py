@@ -505,9 +505,8 @@ def evaluation_report_csv(request):
     return response
 
 
-def get_public_event_form(event_slug, form_slug):
-    event_form = get_object_or_404(
-        EventForm.objects.select_related(
+def get_public_event_form(request, event_slug, form_slug):
+    queryset = EventForm.objects.select_related(
             "event",
             "event__category",
             "event__venue",
@@ -515,21 +514,29 @@ def get_public_event_form(event_slug, form_slug):
             "event__venue__council__region",
         ).prefetch_related(
             "sections__questions__options",
-        ),
+        ).filter(
         event__slug=event_slug,
         slug=form_slug,
         event__is_active=True,
-        event__is_public=True,
         is_active=True,
-        is_published=True,
     )
+    staff_preview = bool(
+        request.method == "GET"
+        and request.GET.get("preview") == "1"
+        and can_view_evaluation_reports(request.user)
+    )
+    if staff_preview:
+        queryset = queryset.filter(event__in=events_visible_to(request.user))
+    else:
+        queryset = queryset.filter(event__is_public=True, is_published=True)
+    event_form = get_object_or_404(queryset)
     is_evaluation = event_form.form_type == EventForm.FormType.EVALUATION
     form_enabled = (
         event_form.event.evaluation_enabled
         if is_evaluation
         else event_form.event.registration_enabled
     )
-    if not form_enabled:
+    if not form_enabled and not staff_preview:
         raise Http404("This public form is not enabled.")
 
     return event_form
@@ -783,6 +790,7 @@ def question_is_visible_for_submission(request, question):
 @require_http_methods(["GET", "POST"])
 def public_event_form(request, event_slug, form_slug):
     event_form = get_public_event_form(
+        request=request,
         event_slug=event_slug,
         form_slug=form_slug,
     )
