@@ -33,6 +33,26 @@ urlpatterns = [
         name="questionnaire_publish",
     ),
     path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/logic/<str:target_type>/<int:target_id>/",
+        department_views.logic_editor,
+        name="logic_editor",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/logic/<str:target_type>/<int:target_id>/rules/new/",
+        department_views.logic_rule_edit,
+        name="logic_rule_create",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/logic/<str:target_type>/<int:target_id>/rules/<int:rule_id>/",
+        department_views.logic_rule_edit,
+        name="logic_rule_edit",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/logic/<str:target_type>/<int:target_id>/rules/<int:rule_id>/archive/",
+        department_views.logic_rule_archive,
+        name="logic_rule_archive",
+    ),
+    path(
         "manage/<slug:event_slug>/questionnaires/<int:form_id>/sections/new/",
         department_views.section_edit,
         name="section_create",

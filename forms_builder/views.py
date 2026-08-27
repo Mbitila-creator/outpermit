@@ -35,6 +35,7 @@ from .models import (
 from .notifications import (
     process_due_reminders, send_payment_notification, send_submission_notification,
 )
+from .display_logic import group_spec_json, target_is_visible
 from .services import (
     booth_detail_url,
     certificate_number,
@@ -770,20 +771,13 @@ def save_answer_data(submission, validated_answers):
 
 
 def section_is_visible_for_submission(request, section):
-    """Apply a section's configured answer condition on the server."""
-    if not section.condition_question_id or not section.condition_value:
-        return True
-
-    field_name = f"question_{section.condition_question_id}"
-    return section.condition_value in request.POST.getlist(field_name)
+    """Apply a section's legacy or advanced display logic on the server."""
+    return target_is_visible(request, section)
 
 
 def question_is_visible_for_submission(request, question):
-    """Apply a question's configured answer condition on the server."""
-    if not question.condition_question_id or not question.condition_value:
-        return True
-    field_name = f"question_{question.condition_question_id}"
-    return question.condition_value in request.POST.getlist(field_name)
+    """Apply a question's legacy or advanced display logic on the server."""
+    return target_is_visible(request, question)
 
 
 @require_http_methods(["GET", "POST"])
@@ -800,15 +794,20 @@ def public_event_form(request, event_slug, form_slug):
         .filter(is_active=True)
         .prefetch_related(
             "questions__options",
+            "display_logic__rules",
+            "questions__display_logic__rules",
         )
         .order_by("display_order", "id")
     )
     for section in sections:
+        section.display_logic_json = group_spec_json(section)
         active_questions = [
             question for question in section.questions.all()
             if question.is_active
         ]
         section.active_questions = active_questions
+        for question in active_questions:
+            question.display_logic_json = group_spec_json(question)
         section.likert_questions = [
             question for question in active_questions
             if section.display_order in {2, 3}

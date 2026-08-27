@@ -19,12 +19,16 @@ from PIL import Image
 from core.models import Country, Region
 from events.models import Event, EventCategory
 from .models import (
+    DisplayLogicGroup,
+    DisplayLogicRule,
     EventForm,
     FormAnswer,
     FormQuestion,
     FormSubmission,
     QuestionOption,
 )
+from .display_logic import rule_matches_values, target_is_visible
+from .management_forms import LogicRuleForm
 from .admin import EventFormAdmin, FormSubmissionAdmin
 
 from .services import (
@@ -35,6 +39,107 @@ from .services import (
     weuutz_event_sentence_html,
 )
 from .views import registration_identity_conflicts
+
+
+class AdvancedDisplayLogicTests(TestCase):
+    def setUp(self):
+        category = EventCategory.objects.create(name_en="Conference", name_sw="Mkutano")
+        self.event = Event.objects.create(
+            category=category,
+            code="LOGIC-2027",
+            title_en="Logic event",
+            title_sw="Tukio la mantiki",
+            slug="logic-event",
+            starts_at=timezone.now(),
+            ends_at=timezone.now() + timedelta(days=1),
+        )
+        self.event_form = EventForm.objects.create(
+            event=self.event, name_en="Survey", name_sw="Dodoso"
+        )
+        self.section = self.event_form.sections.create(
+            title_en="Questions", title_sw="Maswali", display_order=1
+        )
+        self.first = self.section.questions.create(
+            label_en="Score", label_sw="Alama",
+            question_type=FormQuestion.QuestionType.NUMBER,
+            display_order=1,
+        )
+        self.second = self.section.questions.create(
+            label_en="Reason", label_sw="Sababu",
+            question_type=FormQuestion.QuestionType.SHORT_TEXT,
+            display_order=2,
+        )
+        self.target = self.section.questions.create(
+            label_en="Follow-up", label_sw="Ufuatiliaji",
+            question_type=FormQuestion.QuestionType.SHORT_TEXT,
+            display_order=3,
+        )
+
+    def test_all_and_any_groups_are_enforced_on_server(self):
+        group = DisplayLogicGroup.objects.create(
+            event_form=self.event_form,
+            target_question=self.target,
+            match_type=DisplayLogicGroup.MatchType.ALL,
+        )
+        DisplayLogicRule.objects.create(
+            group=group, source_question=self.first,
+            operator=DisplayLogicRule.Operator.GREATER_THAN,
+            comparison_value="3",
+        )
+        DisplayLogicRule.objects.create(
+            group=group, source_question=self.second,
+            operator=DisplayLogicRule.Operator.CONTAINS,
+            comparison_value="innovation",
+        )
+        request = RequestFactory().post("/", {
+            f"question_{self.first.pk}": "5",
+            f"question_{self.second.pk}": "Education innovation",
+        })
+        self.assertTrue(target_is_visible(request, self.target))
+        request = RequestFactory().post("/", {
+            f"question_{self.first.pk}": "2",
+            f"question_{self.second.pk}": "Education innovation",
+        })
+        self.assertFalse(target_is_visible(request, self.target))
+        group.match_type = DisplayLogicGroup.MatchType.ANY
+        group.save(update_fields=["match_type"])
+        self.assertTrue(target_is_visible(request, self.target))
+
+    def test_extended_operators(self):
+        rule = SimpleNamespace(
+            operator=DisplayLogicRule.Operator.ANY_OF,
+            comparison_value="",
+            comparison_values=["A", "B"],
+        )
+        self.assertTrue(rule_matches_values(rule, ["B"]))
+        rule.operator = DisplayLogicRule.Operator.NONE_OF
+        self.assertFalse(rule_matches_values(rule, ["A"]))
+        rule.operator = DisplayLogicRule.Operator.NOT_ANSWERED
+        self.assertTrue(rule_matches_values(rule, []))
+        rule.operator = DisplayLogicRule.Operator.DATE_BEFORE
+        rule.comparison_value = "2027-01-01"
+        self.assertTrue(rule_matches_values(rule, ["2026-12-31"]))
+
+    def test_indirect_question_cycle_is_rejected(self):
+        first_group = DisplayLogicGroup.objects.create(
+            event_form=self.event_form, target_question=self.first
+        )
+        DisplayLogicRule.objects.create(
+            group=first_group, source_question=self.second,
+            operator=DisplayLogicRule.Operator.ANSWERED,
+        )
+        second_group = DisplayLogicGroup.objects.create(
+            event_form=self.event_form, target_question=self.second
+        )
+        form = LogicRuleForm(
+            {
+                "source_question": self.first.pk,
+                "operator": DisplayLogicRule.Operator.ANSWERED,
+            },
+            group=second_group,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("circular", str(form.errors).lower())
 
 
 class RegistrationIdentityConflictTests(SimpleTestCase):

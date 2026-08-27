@@ -8,8 +8,22 @@ from django.shortcuts import get_object_or_404, redirect, render
 from events.access import events_visible_to
 from events.department_views import can_manage_department_event
 
-from .management_forms import OptionForm, QuestionnaireForm, QuestionForm, SectionForm
-from .models import EventForm, FormQuestion, FormSection, QuestionOption
+from .display_logic import create_group_from_legacy
+from .management_forms import (
+    LogicGroupForm,
+    LogicRuleForm,
+    OptionForm,
+    QuestionnaireForm,
+    QuestionForm,
+    SectionForm,
+)
+from .models import (
+    DisplayLogicRule,
+    EventForm,
+    FormQuestion,
+    FormSection,
+    QuestionOption,
+)
 
 
 def _event(request, event_slug):
@@ -81,12 +95,124 @@ def questionnaire_builder(request, event_slug, form_id):
     event = _event(request, event_slug)
     questionnaire = _form(event, form_id)
     sections = questionnaire.sections.filter(is_active=True).prefetch_related(
-        "questions__options", "questions__condition_question__options"
+        "display_logic__rules__source_question__options",
+        "questions__options",
+        "questions__condition_question__options",
+        "questions__display_logic__rules__source_question__options",
     ).order_by("display_order", "pk")
     return render(request, "forms_builder/management/builder.html", {
         "event": event, "questionnaire": questionnaire, "sections": sections,
         "has_responses": questionnaire.submissions.exists(),
     })
+
+
+def _logic_target(questionnaire, target_type, target_id):
+    if target_type == "section":
+        return get_object_or_404(
+            FormSection, pk=target_id, event_form=questionnaire, is_active=True
+        )
+    if target_type == "question":
+        return get_object_or_404(
+            FormQuestion,
+            pk=target_id,
+            section__event_form=questionnaire,
+            is_active=True,
+        )
+    raise PermissionDenied
+
+
+@login_required
+@transaction.atomic
+def logic_editor(request, event_slug, form_id, target_type, target_id):
+    event = _event(request, event_slug)
+    questionnaire = _form(event, form_id)
+    target = _logic_target(questionnaire, target_type, target_id)
+    group = create_group_from_legacy(target, request.user)
+    form = LogicGroupForm(request.POST or None, instance=group)
+    if request.method == "POST" and form.is_valid():
+        logic_group = form.save(commit=False)
+        logic_group.updated_by = request.user
+        logic_group.full_clean()
+        logic_group.save()
+        messages.success(request, "AND/OR matching was updated.")
+        return redirect(
+            "forms_builder:logic_editor",
+            event.slug,
+            questionnaire.pk,
+            target_type,
+            target.pk,
+        )
+    return render(request, "forms_builder/management/logic_editor.html", {
+        "event": event,
+        "questionnaire": questionnaire,
+        "target": target,
+        "target_type": target_type,
+        "logic_group": group,
+        "form": form,
+        "rules": group.rules.filter(is_active=True).select_related(
+            "source_question"
+        ).prefetch_related("source_question__options"),
+    })
+
+
+@login_required
+def logic_rule_edit(
+    request, event_slug, form_id, target_type, target_id, rule_id=None
+):
+    event = _event(request, event_slug)
+    questionnaire = _form(event, form_id)
+    target = _logic_target(questionnaire, target_type, target_id)
+    group = create_group_from_legacy(target, request.user)
+    rule = get_object_or_404(
+        DisplayLogicRule, pk=rule_id, group=group, is_active=True
+    ) if rule_id else DisplayLogicRule(group=group)
+    form = LogicRuleForm(request.POST or None, instance=rule, group=group)
+    if request.method == "POST" and form.is_valid():
+        rule = form.save(commit=False)
+        rule.group = group
+        if not rule.pk:
+            rule.display_order = (group.rules.aggregate(
+                value=Max("display_order")
+            )["value"] or 0) + 1
+        _audit_save(rule, request.user)
+        messages.success(request, "Display rule saved.")
+        return redirect(
+            "forms_builder:logic_editor",
+            event.slug,
+            questionnaire.pk,
+            target_type,
+            target.pk,
+        )
+    return render(request, "forms_builder/management/logic_rule_edit.html", {
+        "event": event,
+        "questionnaire": questionnaire,
+        "target": target,
+        "target_type": target_type,
+        "rule": rule,
+        "form": form,
+    })
+
+
+@login_required
+def logic_rule_archive(request, event_slug, form_id, target_type, target_id, rule_id):
+    event = _event(request, event_slug)
+    questionnaire = _form(event, form_id)
+    target = _logic_target(questionnaire, target_type, target_id)
+    group = create_group_from_legacy(target, request.user)
+    if request.method != "POST":
+        raise PermissionDenied
+    rule = get_object_or_404(DisplayLogicRule, pk=rule_id, group=group, is_active=True)
+    rule.is_active = False
+    rule.updated_by = request.user
+    rule.save(update_fields=["is_active", "updated_by", "updated_at"])
+    messages.success(request, "Display rule removed.")
+    return redirect(
+        "forms_builder:logic_editor",
+        event.slug,
+        questionnaire.pk,
+        target_type,
+        target.pk,
+    )
 
 
 @login_required
@@ -212,6 +338,10 @@ def component_action(request, event_slug, form_id, component, component_id, acti
             FormSection.objects.filter(condition_question=item).update(
                 condition_question=None, condition_value=""
             )
+            DisplayLogicRule.objects.filter(source_question=item).update(
+                is_active=False,
+                updated_by=request.user,
+            )
         elif component == "option":
             FormQuestion.objects.filter(
                 condition_question=item.question,
@@ -221,6 +351,28 @@ def component_action(request, event_slug, form_id, component, component_id, acti
                 condition_question=item.question,
                 condition_value=item.value,
             ).update(condition_question=None, condition_value="")
+            for rule in DisplayLogicRule.objects.filter(
+                source_question=item.question,
+                is_active=True,
+            ):
+                if rule.operator in {
+                    DisplayLogicRule.Operator.ANY_OF,
+                    DisplayLogicRule.Operator.NONE_OF,
+                } and item.value in rule.comparison_values:
+                    rule.comparison_values = [
+                        value for value in rule.comparison_values
+                        if value != item.value
+                    ]
+                    if not rule.comparison_values:
+                        rule.is_active = False
+                    rule.updated_by = request.user
+                    rule.save(update_fields=[
+                        "comparison_values", "is_active", "updated_by", "updated_at"
+                    ])
+                elif rule.comparison_value == item.value:
+                    rule.is_active = False
+                    rule.updated_by = request.user
+                    rule.save(update_fields=["is_active", "updated_by", "updated_at"])
         item.is_active = False
         item.updated_by = request.user
         item.save(update_fields=["is_active", "updated_by", "updated_at"])

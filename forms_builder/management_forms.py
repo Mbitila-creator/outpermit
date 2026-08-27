@@ -4,7 +4,19 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
 
-from .models import EventForm, FormQuestion, FormSection, QuestionOption
+from .display_logic import (
+    MULTI_VALUE_OPERATORS,
+    NO_VALUE_OPERATORS,
+    validate_dependency_graph,
+)
+from .models import (
+    DisplayLogicGroup,
+    DisplayLogicRule,
+    EventForm,
+    FormQuestion,
+    FormSection,
+    QuestionOption,
+)
 
 
 class StyledModelForm(forms.ModelForm):
@@ -110,6 +122,11 @@ class SectionForm(ConditionalManagementForm):
             "description_sw": forms.Textarea(attrs={"rows": 2}),
         }
 
+    def __init__(self, *args, event_form, **kwargs):
+        super().__init__(*args, event_form=event_form, **kwargs)
+        self.fields["condition_question"].widget = forms.HiddenInput()
+        self.fields["condition_value"].widget = forms.HiddenInput()
+
     def clean(self):
         cleaned = super().clean()
         controlling = cleaned.get("condition_question")
@@ -120,7 +137,6 @@ class SectionForm(ConditionalManagementForm):
                     "A section can only depend on a question in an earlier section.",
                 )
         return cleaned
-
 
 class QuestionForm(ConditionalManagementForm):
     CHOICE_TYPES = {
@@ -135,13 +151,15 @@ class QuestionForm(ConditionalManagementForm):
             "label_en", "label_sw", "question_type", "help_text_en",
             "help_text_sw", "placeholder_en", "placeholder_sw",
             "is_required", "minimum_length", "maximum_length",
-            "minimum_value", "maximum_value", "condition_question",
-            "condition_value",
+            "minimum_value", "maximum_value",
+            "condition_question", "condition_value",
         )
 
     def __init__(self, *args, section, **kwargs):
         self.section = section
         super().__init__(*args, event_form=section.event_form, **kwargs)
+        self.fields["condition_question"].widget = forms.HiddenInput()
+        self.fields["condition_value"].widget = forms.HiddenInput()
 
     def clean(self):
         cleaned = super().clean()
@@ -177,3 +195,103 @@ class OptionForm(StyledModelForm):
         if not value:
             raise ValidationError("Enter a stored value or an English option label.")
         return value
+
+
+class LogicGroupForm(StyledModelForm):
+    class Meta:
+        model = DisplayLogicGroup
+        fields = ("match_type",)
+
+
+class LogicRuleForm(StyledModelForm):
+    choice_value = forms.ChoiceField(required=False, label="Answer")
+    comparison_values = forms.MultipleChoiceField(
+        required=False,
+        label="Answers",
+        widget=forms.CheckboxSelectMultiple,
+    )
+
+    class Meta:
+        model = DisplayLogicRule
+        fields = (
+            "source_question", "operator", "choice_value", "comparison_value",
+            "comparison_values",
+        )
+        labels = {"comparison_value": "Value"}
+
+    def __init__(self, *args, group, **kwargs):
+        self.group = group
+        super().__init__(*args, **kwargs)
+        questions = FormQuestion.objects.filter(
+            section__event_form=group.event_form,
+            is_active=True,
+        ).prefetch_related("options").order_by(
+            "section__display_order", "display_order", "pk"
+        )
+        if group.target_question_id:
+            questions = questions.exclude(pk=group.target_question_id)
+        self.fields["source_question"].queryset = questions
+        source_id = self.data.get("source_question") if self.is_bound else (
+            self.instance.source_question_id if self.instance.pk else None
+        )
+        source = next((item for item in questions if str(item.pk) == str(source_id)), None)
+        choices = []
+        if source:
+            choices = [
+                (option.value, option.label_en)
+                for option in source.options.all() if option.is_active
+            ]
+        self.fields["choice_value"].choices = [("", "Select an answer")] + choices
+        self.fields["comparison_values"].choices = choices
+        if self.instance.pk:
+            self.fields["choice_value"].initial = self.instance.comparison_value
+        option_map = {
+            str(question.pk): [
+                {"value": option.value, "label": option.label_en}
+                for option in question.options.all() if option.is_active
+            ]
+            for question in questions
+        }
+        self.fields["source_question"].widget.attrs["data-answer-options"] = json.dumps(option_map)
+        self.fields["operator"].widget.attrs["data-no-value-operators"] = json.dumps(list(NO_VALUE_OPERATORS))
+        self.fields["operator"].widget.attrs["data-multi-value-operators"] = json.dumps(list(MULTI_VALUE_OPERATORS))
+
+    def clean(self):
+        cleaned = super().clean()
+        source = cleaned.get("source_question")
+        operator = cleaned.get("operator")
+        if not source or not operator:
+            return cleaned
+        has_choices = source.options.filter(is_active=True).exists()
+        if operator in NO_VALUE_OPERATORS:
+            cleaned["comparison_value"] = ""
+            cleaned["comparison_values"] = []
+        elif operator in MULTI_VALUE_OPERATORS:
+            if not cleaned.get("comparison_values"):
+                self.add_error("comparison_values", "Select at least one answer.")
+            cleaned["comparison_value"] = ""
+        elif has_choices:
+            choice = cleaned.get("choice_value")
+            if not choice:
+                self.add_error("choice_value", "Select an answer.")
+            cleaned["comparison_value"] = choice
+            cleaned["comparison_values"] = []
+        elif not cleaned.get("comparison_value"):
+            self.add_error("comparison_value", "Enter a comparison value.")
+        if self.group.target_section_id:
+            if source.section.display_order >= self.group.target_section.display_order:
+                self.add_error(
+                    "source_question",
+                    "A section can only depend on a question in an earlier section.",
+                )
+        if "source_question" not in self.errors:
+            try:
+                validate_dependency_graph(
+                    self.group.event_form,
+                    pending_target=self.group.target,
+                    pending_source=source,
+                    ignored_rule=self.instance,
+                )
+            except ValidationError as error:
+                self.add_error("source_question", error)
+        return cleaned
