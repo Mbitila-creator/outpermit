@@ -83,7 +83,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const ruleMatches = (rule) => {
         const values = answerValues(rule.question);
-        const expected = String(rule.value || "");
+        const comparedValues = rule.comparison_question
+            ? answerValues(rule.comparison_question)
+            : [];
+        const expected = rule.comparison_question
+            ? String(comparedValues[0] || "")
+            : String(rule.value || "");
         const foldedExpected = expected.toLocaleLowerCase();
         switch (rule.operator) {
         case "ANSWERED": return values.length > 0;
@@ -94,19 +99,46 @@ document.addEventListener("DOMContentLoaded", () => {
             return values.some((value) => value.toLocaleLowerCase().includes(foldedExpected));
         case "NOT_CONTAINS":
             return !values.some((value) => value.toLocaleLowerCase().includes(foldedExpected));
+        case "STARTS_WITH":
+            return values.some((value) => value.toLocaleLowerCase().startsWith(foldedExpected));
+        case "ENDS_WITH":
+            return values.some((value) => value.toLocaleLowerCase().endsWith(foldedExpected));
         case "ANY_OF": return values.some((value) => (rule.values || []).map(String).includes(value));
         case "NONE_OF": return !values.some((value) => (rule.values || []).map(String).includes(value));
+        case "SELECTION_COUNT_EQUALS": return values.length === Number(expected);
+        case "SELECTION_COUNT_AT_LEAST": return values.length >= Number(expected);
+        case "SELECTION_COUNT_AT_MOST": return values.length <= Number(expected);
         case "GREATER_THAN": {
             const actualNumber = Number(values[0]);
             const expectedNumber = Number(expected);
             return values.length > 0 && Number.isFinite(actualNumber) &&
                 Number.isFinite(expectedNumber) && actualNumber > expectedNumber;
         }
+        case "GREATER_THAN_OR_EQUAL": {
+            const actualNumber = Number(values[0]);
+            const expectedNumber = Number(expected);
+            return values.length > 0 && Number.isFinite(actualNumber) &&
+                Number.isFinite(expectedNumber) && actualNumber >= expectedNumber;
+        }
         case "LESS_THAN": {
             const actualNumber = Number(values[0]);
             const expectedNumber = Number(expected);
             return values.length > 0 && Number.isFinite(actualNumber) &&
                 Number.isFinite(expectedNumber) && actualNumber < expectedNumber;
+        }
+        case "LESS_THAN_OR_EQUAL": {
+            const actualNumber = Number(values[0]);
+            const expectedNumber = Number(expected);
+            return values.length > 0 && Number.isFinite(actualNumber) &&
+                Number.isFinite(expectedNumber) && actualNumber <= expectedNumber;
+        }
+        case "BETWEEN": {
+            const actualNumber = Number(values[0]);
+            const lowerNumber = Number(expected);
+            const upperNumber = Number(rule.value_end);
+            return values.length > 0 && Number.isFinite(actualNumber) &&
+                Number.isFinite(lowerNumber) && Number.isFinite(upperNumber) &&
+                actualNumber >= lowerNumber && actualNumber <= upperNumber;
         }
         case "DATE_BEFORE": {
             const actualDate = Date.parse(values[0]);
@@ -124,6 +156,15 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
+    const logicMatches = (logic) => {
+        const results = (logic.rules || []).map(ruleMatches);
+        (logic.groups || []).forEach((group) => results.push(logicMatches(group)));
+        if (!results.length) {
+            return true;
+        }
+        return logic.match === "ANY" ? results.some(Boolean) : results.every(Boolean);
+    };
+
     const conditionMatches = (element) => {
         if (!element.dataset.displayLogic) {
             return true;
@@ -135,11 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Invalid questionnaire display logic.", error);
             return true;
         }
-        const results = (logic.rules || []).map(ruleMatches);
-        if (!results.length) {
-            return true;
-        }
-        return logic.match === "ANY" ? results.some(Boolean) : results.every(Boolean);
+        return logicMatches(logic);
     };
 
     const getVisibleSteps = () => allSteps.filter(conditionMatches);

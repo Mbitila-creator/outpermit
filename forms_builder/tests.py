@@ -27,7 +27,7 @@ from .models import (
     FormSubmission,
     QuestionOption,
 )
-from .display_logic import rule_matches_values, target_is_visible
+from .display_logic import group_spec, rule_matches_values, target_is_visible
 from .management_forms import LogicRuleForm
 from .admin import EventFormAdmin, FormSubmissionAdmin
 
@@ -140,6 +140,95 @@ class AdvancedDisplayLogicTests(TestCase):
         )
         self.assertFalse(form.is_valid())
         self.assertIn("circular", str(form.errors).lower())
+
+    def test_nested_groups_support_mixed_and_or_expression(self):
+        root = DisplayLogicGroup.objects.create(
+            event_form=self.event_form,
+            target_question=self.target,
+            match_type=DisplayLogicGroup.MatchType.ANY,
+        )
+        first_pair = DisplayLogicGroup.objects.create(
+            event_form=self.event_form,
+            parent_group=root,
+            match_type=DisplayLogicGroup.MatchType.ALL,
+        )
+        second_pair = DisplayLogicGroup.objects.create(
+            event_form=self.event_form,
+            parent_group=root,
+            match_type=DisplayLogicGroup.MatchType.ALL,
+        )
+        for group, minimum, word in (
+            (first_pair, "5", "innovation"),
+            (second_pair, "10", "research"),
+        ):
+            DisplayLogicRule.objects.create(
+                group=group,
+                source_question=self.first,
+                operator=DisplayLogicRule.Operator.GREATER_THAN,
+                comparison_value=minimum,
+            )
+            DisplayLogicRule.objects.create(
+                group=group,
+                source_question=self.second,
+                operator=DisplayLogicRule.Operator.CONTAINS,
+                comparison_value=word,
+            )
+
+        request = RequestFactory().post("/", {
+            f"question_{self.first.pk}": "7",
+            f"question_{self.second.pk}": "Innovation programme",
+        })
+        self.assertTrue(target_is_visible(request, self.target))
+        request = RequestFactory().post("/", {
+            f"question_{self.first.pk}": "11",
+            f"question_{self.second.pk}": "No matching phrase",
+        })
+        self.assertFalse(target_is_visible(request, self.target))
+        spec = group_spec(self.target)
+        self.assertEqual(spec["match"], "ANY")
+        self.assertEqual(len(spec["groups"]), 2)
+
+    def test_question_to_question_numeric_comparison(self):
+        group = DisplayLogicGroup.objects.create(
+            event_form=self.event_form,
+            target_question=self.target,
+        )
+        rule = DisplayLogicRule.objects.create(
+            group=group,
+            source_question=self.first,
+            comparison_question=self.second,
+            operator=DisplayLogicRule.Operator.GREATER_THAN,
+        )
+        request = RequestFactory().post("/", {
+            f"question_{self.first.pk}": "8",
+            f"question_{self.second.pk}": "5",
+        })
+        self.assertTrue(target_is_visible(request, self.target))
+        request = RequestFactory().post("/", {
+            f"question_{self.first.pk}": "3",
+            f"question_{self.second.pk}": "5",
+        })
+        self.assertFalse(target_is_visible(request, self.target))
+        self.assertIn("answer to", rule.summary_en)
+
+    def test_new_range_text_and_selection_count_operators(self):
+        rule = SimpleNamespace(
+            operator=DisplayLogicRule.Operator.BETWEEN,
+            comparison_value="5",
+            comparison_value_end="10",
+            comparison_values=[],
+            comparison_question_id=None,
+        )
+        self.assertTrue(rule_matches_values(rule, ["7"]))
+        rule.operator = DisplayLogicRule.Operator.GREATER_THAN_OR_EQUAL
+        rule.comparison_value = "7"
+        self.assertTrue(rule_matches_values(rule, ["7"]))
+        rule.operator = DisplayLogicRule.Operator.STARTS_WITH
+        rule.comparison_value = "Ministry"
+        self.assertTrue(rule_matches_values(rule, ["MINISTRY of Education"]))
+        rule.operator = DisplayLogicRule.Operator.SELECTION_COUNT_AT_LEAST
+        rule.comparison_value = "2"
+        self.assertTrue(rule_matches_values(rule, ["A", "B"]))
 
 
 class RegistrationIdentityConflictTests(SimpleTestCase):

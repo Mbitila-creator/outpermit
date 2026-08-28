@@ -23,9 +23,12 @@ def request_answer_values(request, question_id):
     ) if value.strip()]
 
 
-def rule_matches_values(rule, values):
+def rule_matches_values(rule, values, comparison_values=None):
     operator = rule.operator
     expected = rule.comparison_value
+    comparison_values = comparison_values or []
+    if getattr(rule, "comparison_question_id", None):
+        expected = comparison_values[0] if comparison_values else ""
     if operator == DisplayLogicRule.Operator.ANSWERED:
         return bool(values)
     if operator == DisplayLogicRule.Operator.NOT_ANSWERED:
@@ -42,17 +45,50 @@ def rule_matches_values(rule, values):
         return bool(set(values) & set(map(str, rule.comparison_values)))
     if operator == DisplayLogicRule.Operator.NONE_OF:
         return not bool(set(values) & set(map(str, rule.comparison_values)))
+    if operator == DisplayLogicRule.Operator.STARTS_WITH:
+        return any(value.casefold().startswith(expected.casefold()) for value in values)
+    if operator == DisplayLogicRule.Operator.ENDS_WITH:
+        return any(value.casefold().endswith(expected.casefold()) for value in values)
+    if operator in {
+        DisplayLogicRule.Operator.SELECTION_COUNT_EQUALS,
+        DisplayLogicRule.Operator.SELECTION_COUNT_AT_LEAST,
+        DisplayLogicRule.Operator.SELECTION_COUNT_AT_MOST,
+    }:
+        try:
+            target_count = int(expected)
+        except (TypeError, ValueError):
+            return False
+        if operator == DisplayLogicRule.Operator.SELECTION_COUNT_EQUALS:
+            return len(values) == target_count
+        if operator == DisplayLogicRule.Operator.SELECTION_COUNT_AT_LEAST:
+            return len(values) >= target_count
+        return len(values) <= target_count
     if not values:
         return False
     if operator in {
         DisplayLogicRule.Operator.GREATER_THAN,
+        DisplayLogicRule.Operator.GREATER_THAN_OR_EQUAL,
         DisplayLogicRule.Operator.LESS_THAN,
+        DisplayLogicRule.Operator.LESS_THAN_OR_EQUAL,
+        DisplayLogicRule.Operator.BETWEEN,
     }:
         try:
             actual, target = Decimal(values[0]), Decimal(expected)
-        except InvalidOperation:
+        except (InvalidOperation, TypeError, ValueError):
             return False
-        return actual > target if operator == DisplayLogicRule.Operator.GREATER_THAN else actual < target
+        if operator == DisplayLogicRule.Operator.GREATER_THAN:
+            return actual > target
+        if operator == DisplayLogicRule.Operator.GREATER_THAN_OR_EQUAL:
+            return actual >= target
+        if operator == DisplayLogicRule.Operator.LESS_THAN:
+            return actual < target
+        if operator == DisplayLogicRule.Operator.LESS_THAN_OR_EQUAL:
+            return actual <= target
+        try:
+            upper = Decimal(rule.comparison_value_end)
+        except (InvalidOperation, TypeError, ValueError):
+            return False
+        return target <= actual <= upper
     if operator in {
         DisplayLogicRule.Operator.DATE_BEFORE,
         DisplayLogicRule.Operator.DATE_AFTER,
@@ -65,6 +101,36 @@ def rule_matches_values(rule, values):
     return True
 
 
+def logic_group_matches(group, answer_values):
+    results = []
+    for rule in group.rules.filter(is_active=True).select_related(
+        "source_question", "comparison_question"
+    ):
+        compared = (
+            answer_values(rule.comparison_question_id)
+            if rule.comparison_question_id
+            else None
+        )
+        results.append(
+            rule_matches_values(
+                rule,
+                answer_values(rule.source_question_id),
+                compared,
+            )
+        )
+    results.extend(
+        logic_group_matches(child, answer_values)
+        for child in group.child_groups.filter(is_active=True)
+    )
+    if not results:
+        return True
+    return (
+        all(results)
+        if group.match_type == DisplayLogicGroup.MatchType.ALL
+        else any(results)
+    )
+
+
 def target_is_visible(request, target):
     try:
         group = target.display_logic
@@ -74,14 +140,30 @@ def target_is_visible(request, target):
         return target.condition_value in request_answer_values(
             request, target.condition_question_id
         )
-    rules = list(group.rules.filter(is_active=True).select_related("source_question"))
-    if not rules:
-        return True
-    results = [
-        rule_matches_values(rule, request_answer_values(request, rule.source_question_id))
-        for rule in rules
+    return logic_group_matches(
+        group,
+        lambda question_id: request_answer_values(request, question_id),
+    )
+
+
+def logic_group_spec(group):
+    rules = [{
+        "question": rule.source_question_id,
+        "comparison_question": rule.comparison_question_id,
+        "operator": rule.operator,
+        "value": rule.comparison_value,
+        "value_end": rule.comparison_value_end,
+        "values": rule.comparison_values,
+    } for rule in group.rules.filter(is_active=True)]
+    children = [
+        logic_group_spec(child)
+        for child in group.child_groups.filter(is_active=True)
     ]
-    return all(results) if group.match_type == DisplayLogicGroup.MatchType.ALL else any(results)
+    return {
+        "match": group.match_type,
+        "rules": rules,
+        "groups": children,
+    }
 
 
 def group_spec(target):
@@ -99,13 +181,8 @@ def group_spec(target):
                 }],
             }
         return None
-    rules = [{
-        "question": rule.source_question_id,
-        "operator": rule.operator,
-        "value": rule.comparison_value,
-        "values": rule.comparison_values,
-    } for rule in group.rules.filter(is_active=True)]
-    return {"match": group.match_type, "rules": rules} if rules else None
+    spec = logic_group_spec(group)
+    return spec if spec["rules"] or spec["groups"] else None
 
 
 def group_spec_json(target):
@@ -139,12 +216,15 @@ def validate_dependency_graph(event_form, *, pending_target=None, pending_source
     if ignored_rule and ignored_rule.pk:
         rules = rules.exclude(pk=ignored_rule.pk)
     for rule in rules:
+        root = rule.group.root_group
         target_node = (
-            ("question", rule.group.target_question_id)
-            if rule.group.target_question_id
-            else ("section", rule.group.target_section_id)
+            ("question", root.target_question_id)
+            if root.target_question_id
+            else ("section", root.target_section_id)
         )
         graph.setdefault(target_node, set()).add(("question", rule.source_question_id))
+        if rule.comparison_question_id:
+            graph[target_node].add(("question", rule.comparison_question_id))
     if pending_target and pending_source:
         target_node = (
             ("section", pending_target.pk)

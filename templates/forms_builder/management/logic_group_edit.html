@@ -1,0 +1,6 @@
+{% extends "forms_builder/management/base.html" %}
+{% block title %}Add nested condition group{% endblock %}
+{% block heading %}Add nested condition group{% endblock %}
+{% block content %}
+<section class="panel"><p class="muted">Target: {{ target }}</p><p>This group will be combined inside its parent as one condition.</p><form method="post">{% csrf_token %}{{ form.non_field_errors }}<div class="field"><label for="{{ form.match_type.id_for_label }}">Combine rules inside the new group using</label>{{ form.match_type }}{{ form.match_type.errors }}</div><div class="actions" style="margin-top:20px"><button class="primary">Create nested group</button><a class="button" href="{% url 'forms_builder:logic_editor' event.slug questionnaire.pk target_type target.pk %}{% if parent_group.parent_group_id %}?group={{ parent_group.pk }}{% endif %}">Cancel</a></div></form></section>
+{% endblock %}

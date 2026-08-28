@@ -4,6 +4,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from events.access import events_visible_to
 from events.department_views import can_manage_department_event
@@ -18,6 +19,7 @@ from .management_forms import (
     SectionForm,
 )
 from .models import (
+    DisplayLogicGroup,
     DisplayLogicRule,
     EventForm,
     FormQuestion,
@@ -126,13 +128,38 @@ def _logic_target(questionnaire, target_type, target_id):
     raise PermissionDenied
 
 
+def _selected_logic_group(root_group, group_id):
+    if not group_id:
+        return root_group
+    group = get_object_or_404(
+        DisplayLogicGroup,
+        pk=group_id,
+        event_form=root_group.event_form,
+        is_active=True,
+    )
+    if group.root_group.pk != root_group.pk:
+        raise PermissionDenied
+    return group
+
+
+def _logic_editor_url(event, questionnaire, target_type, target, group=None):
+    url = reverse(
+        "forms_builder:logic_editor",
+        args=(event.slug, questionnaire.pk, target_type, target.pk),
+    )
+    if group and group.parent_group_id:
+        return f"{url}?group={group.pk}"
+    return url
+
+
 @login_required
 @transaction.atomic
 def logic_editor(request, event_slug, form_id, target_type, target_id):
     event = _event(request, event_slug)
     questionnaire = _form(event, form_id)
     target = _logic_target(questionnaire, target_type, target_id)
-    group = create_group_from_legacy(target, request.user)
+    root_group = create_group_from_legacy(target, request.user)
+    group = _selected_logic_group(root_group, request.GET.get("group"))
     form = LogicGroupForm(request.POST or None, instance=group)
     if request.method == "POST" and form.is_valid():
         logic_group = form.save(commit=False)
@@ -140,23 +167,22 @@ def logic_editor(request, event_slug, form_id, target_type, target_id):
         logic_group.full_clean()
         logic_group.save()
         messages.success(request, "AND/OR matching was updated.")
-        return redirect(
-            "forms_builder:logic_editor",
-            event.slug,
-            questionnaire.pk,
-            target_type,
-            target.pk,
-        )
+        return redirect(_logic_editor_url(
+            event, questionnaire, target_type, target, group
+        ))
     return render(request, "forms_builder/management/logic_editor.html", {
         "event": event,
         "questionnaire": questionnaire,
         "target": target,
         "target_type": target_type,
         "logic_group": group,
+        "root_group": root_group,
+        "parent_group": group.parent_group,
         "form": form,
         "rules": group.rules.filter(is_active=True).select_related(
-            "source_question"
+            "source_question", "comparison_question"
         ).prefetch_related("source_question__options"),
+        "child_groups": group.child_groups.filter(is_active=True),
     })
 
 
@@ -167,10 +193,18 @@ def logic_rule_edit(
     event = _event(request, event_slug)
     questionnaire = _form(event, form_id)
     target = _logic_target(questionnaire, target_type, target_id)
-    group = create_group_from_legacy(target, request.user)
-    rule = get_object_or_404(
-        DisplayLogicRule, pk=rule_id, group=group, is_active=True
-    ) if rule_id else DisplayLogicRule(group=group)
+    root_group = create_group_from_legacy(target, request.user)
+    if rule_id:
+        rule = get_object_or_404(
+            DisplayLogicRule,
+            pk=rule_id,
+            group__event_form=questionnaire,
+            is_active=True,
+        )
+        group = _selected_logic_group(root_group, rule.group_id)
+    else:
+        group = _selected_logic_group(root_group, request.GET.get("group"))
+        rule = DisplayLogicRule(group=group)
     form = LogicRuleForm(request.POST or None, instance=rule, group=group)
     if request.method == "POST" and form.is_valid():
         rule = form.save(commit=False)
@@ -181,13 +215,9 @@ def logic_rule_edit(
             )["value"] or 0) + 1
         _audit_save(rule, request.user)
         messages.success(request, "Display rule saved.")
-        return redirect(
-            "forms_builder:logic_editor",
-            event.slug,
-            questionnaire.pk,
-            target_type,
-            target.pk,
-        )
+        return redirect(_logic_editor_url(
+            event, questionnaire, target_type, target, group
+        ))
     return render(request, "forms_builder/management/logic_rule_edit.html", {
         "event": event,
         "questionnaire": questionnaire,
@@ -195,6 +225,7 @@ def logic_rule_edit(
         "target_type": target_type,
         "rule": rule,
         "form": form,
+        "logic_group": group,
     })
 
 
@@ -203,21 +234,76 @@ def logic_rule_archive(request, event_slug, form_id, target_type, target_id, rul
     event = _event(request, event_slug)
     questionnaire = _form(event, form_id)
     target = _logic_target(questionnaire, target_type, target_id)
-    group = create_group_from_legacy(target, request.user)
+    root_group = create_group_from_legacy(target, request.user)
     if request.method != "POST":
         raise PermissionDenied
-    rule = get_object_or_404(DisplayLogicRule, pk=rule_id, group=group, is_active=True)
+    rule = get_object_or_404(
+        DisplayLogicRule,
+        pk=rule_id,
+        group__event_form=questionnaire,
+        is_active=True,
+    )
+    group = _selected_logic_group(root_group, rule.group_id)
     rule.is_active = False
     rule.updated_by = request.user
     rule.save(update_fields=["is_active", "updated_by", "updated_at"])
     messages.success(request, "Display rule removed.")
-    return redirect(
-        "forms_builder:logic_editor",
-        event.slug,
-        questionnaire.pk,
-        target_type,
-        target.pk,
+    return redirect(_logic_editor_url(
+        event, questionnaire, target_type, target, group
+    ))
+
+
+@login_required
+@transaction.atomic
+def logic_group_create(request, event_slug, form_id, target_type, target_id):
+    event = _event(request, event_slug)
+    questionnaire = _form(event, form_id)
+    target = _logic_target(questionnaire, target_type, target_id)
+    root_group = create_group_from_legacy(target, request.user)
+    parent = _selected_logic_group(root_group, request.GET.get("parent"))
+    nested = DisplayLogicGroup(
+        event_form=questionnaire,
+        parent_group=parent,
+        created_by=request.user,
+        updated_by=request.user,
     )
+    form = LogicGroupForm(request.POST or None, instance=nested)
+    if request.method == "POST" and form.is_valid():
+        nested = form.save(commit=False)
+        nested.event_form = questionnaire
+        nested.parent_group = parent
+        _audit_save(nested, request.user)
+        messages.success(request, "Nested condition group added.")
+        return redirect(_logic_editor_url(
+            event, questionnaire, target_type, target, nested
+        ))
+    return render(request, "forms_builder/management/logic_group_edit.html", {
+        "event": event,
+        "questionnaire": questionnaire,
+        "target": target,
+        "target_type": target_type,
+        "parent_group": parent,
+        "form": form,
+    })
+
+
+@login_required
+def logic_group_archive(request, event_slug, form_id, target_type, target_id, group_id):
+    event = _event(request, event_slug)
+    questionnaire = _form(event, form_id)
+    target = _logic_target(questionnaire, target_type, target_id)
+    root_group = create_group_from_legacy(target, request.user)
+    group = _selected_logic_group(root_group, group_id)
+    if request.method != "POST" or not group.parent_group_id:
+        raise PermissionDenied
+    parent = group.parent_group
+    group.is_active = False
+    group.updated_by = request.user
+    group.save(update_fields=["is_active", "updated_by", "updated_at"])
+    messages.success(request, "Nested condition group removed.")
+    return redirect(_logic_editor_url(
+        event, questionnaire, target_type, target, parent
+    ))
 
 
 @login_required
