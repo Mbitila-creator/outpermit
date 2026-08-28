@@ -396,7 +396,7 @@ class Event(BaseModel):
 
     certificate_enabled = models.BooleanField(
         _("certificate enabled"),
-        default=False,
+        default=True,
     )
 
     booth_enabled = models.BooleanField(
