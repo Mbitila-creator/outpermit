@@ -790,6 +790,31 @@ class DepartmentEventAccessTests(TestCase):
             f"{reports_url}?event={self.dsti_event.pk}&amp;filter=certificate_list",
         )
 
+    def test_certificate_operations_are_available_without_a_registration_form(self):
+        self.dsti_event.certificate_enabled = True
+        self.dsti_event.save(update_fields=["certificate_enabled", "updated_at"])
+        user = self._staff("generic-certificate-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+
+        response = self.client.get(reverse(
+            "events:department_event_detail",
+            kwargs={"event_slug": self.dsti_event.slug},
+        ))
+
+        reports_url = reverse("checkin:reports")
+        self.assertContains(response, "Registration and Certificate approval")
+        self.assertContains(response, "Certificate list")
+        self.assertContains(
+            response,
+            f"{reports_url}?event={self.dsti_event.pk}&amp;filter=registration_certificates",
+        )
+        self.assertContains(
+            response,
+            f"{reports_url}?event={self.dsti_event.pk}&amp;filter=certificate_list",
+        )
+
     def test_event_administrator_can_authorize_checked_in_certificate(self):
         self.dsti_event.certificate_enabled = True
         self.dsti_event.badge_enabled = True
