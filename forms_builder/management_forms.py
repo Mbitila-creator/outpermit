@@ -214,10 +214,15 @@ class LogicRuleForm(StyledModelForm):
     class Meta:
         model = DisplayLogicRule
         fields = (
-            "source_question", "operator", "choice_value", "comparison_value",
+            "source_question", "operator", "comparison_question",
+            "choice_value", "comparison_value", "comparison_value_end",
             "comparison_values",
         )
-        labels = {"comparison_value": "Value"}
+        labels = {
+            "comparison_question": "Or compare with another question",
+            "comparison_value": "Value",
+            "comparison_value_end": "Upper value",
+        }
 
     def __init__(self, *args, group, **kwargs):
         self.group = group
@@ -228,9 +233,12 @@ class LogicRuleForm(StyledModelForm):
         ).prefetch_related("options").order_by(
             "section__display_order", "display_order", "pk"
         )
-        if group.target_question_id:
-            questions = questions.exclude(pk=group.target_question_id)
+        if isinstance(group.target, FormQuestion):
+            questions = questions.exclude(pk=group.target.pk)
         self.fields["source_question"].queryset = questions
+        self.fields["comparison_question"].queryset = questions
+        self.fields["comparison_question"].required = False
+        self.fields["comparison_question"].empty_label = "Use a fixed value"
         source_id = self.data.get("source_question") if self.is_bound else (
             self.instance.source_question_id if self.instance.pk else None
         )
@@ -255,31 +263,57 @@ class LogicRuleForm(StyledModelForm):
         self.fields["source_question"].widget.attrs["data-answer-options"] = json.dumps(option_map)
         self.fields["operator"].widget.attrs["data-no-value-operators"] = json.dumps(list(NO_VALUE_OPERATORS))
         self.fields["operator"].widget.attrs["data-multi-value-operators"] = json.dumps(list(MULTI_VALUE_OPERATORS))
+        self.fields["operator"].widget.attrs["data-between-operator"] = DisplayLogicRule.Operator.BETWEEN
 
     def clean(self):
         cleaned = super().clean()
         source = cleaned.get("source_question")
         operator = cleaned.get("operator")
+        comparison_question = cleaned.get("comparison_question")
         if not source or not operator:
             return cleaned
+        if comparison_question and comparison_question.pk == source.pk:
+            self.add_error(
+                "comparison_question",
+                "Choose a different question to compare against.",
+            )
         has_choices = source.options.filter(is_active=True).exists()
         if operator in NO_VALUE_OPERATORS:
             cleaned["comparison_value"] = ""
+            cleaned["comparison_value_end"] = ""
+            cleaned["comparison_values"] = []
+            cleaned["comparison_question"] = None
+        elif comparison_question:
+            if operator in MULTI_VALUE_OPERATORS or operator == DisplayLogicRule.Operator.BETWEEN:
+                self.add_error(
+                    "comparison_question",
+                    "This operator requires fixed comparison values.",
+                )
+            cleaned["comparison_value"] = ""
+            cleaned["comparison_value_end"] = ""
             cleaned["comparison_values"] = []
         elif operator in MULTI_VALUE_OPERATORS:
             if not cleaned.get("comparison_values"):
                 self.add_error("comparison_values", "Select at least one answer.")
             cleaned["comparison_value"] = ""
+            cleaned["comparison_value_end"] = ""
+        elif operator == DisplayLogicRule.Operator.BETWEEN:
+            if not cleaned.get("comparison_value"):
+                self.add_error("comparison_value", "Enter the lower value.")
+            if not cleaned.get("comparison_value_end"):
+                self.add_error("comparison_value_end", "Enter the upper value.")
+            cleaned["comparison_values"] = []
         elif has_choices:
             choice = cleaned.get("choice_value")
             if not choice:
                 self.add_error("choice_value", "Select an answer.")
             cleaned["comparison_value"] = choice
+            cleaned["comparison_value_end"] = ""
             cleaned["comparison_values"] = []
         elif not cleaned.get("comparison_value"):
             self.add_error("comparison_value", "Enter a comparison value.")
-        if self.group.target_section_id:
-            if source.section.display_order >= self.group.target_section.display_order:
+        if isinstance(self.group.target, FormSection):
+            if source.section.display_order >= self.group.target.display_order:
                 self.add_error(
                     "source_question",
                     "A section can only depend on a question in an earlier section.",
@@ -292,6 +326,13 @@ class LogicRuleForm(StyledModelForm):
                     pending_source=source,
                     ignored_rule=self.instance,
                 )
+                if comparison_question and "comparison_question" not in self.errors:
+                    validate_dependency_graph(
+                        self.group.event_form,
+                        pending_target=self.group.target,
+                        pending_source=comparison_question,
+                        ignored_rule=self.instance,
+                    )
             except ValidationError as error:
                 self.add_error("source_question", error)
         return cleaned

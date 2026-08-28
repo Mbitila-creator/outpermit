@@ -490,6 +490,13 @@ class DisplayLogicGroup(BaseModel):
         related_name="display_logic_groups",
         on_delete=models.CASCADE,
     )
+    parent_group = models.ForeignKey(
+        "self",
+        related_name="child_groups",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
     target_section = models.OneToOneField(
         FormSection,
         related_name="display_logic",
@@ -516,37 +523,71 @@ class DisplayLogicGroup(BaseModel):
         constraints = [
             models.CheckConstraint(
                 check=(
-                    models.Q(target_section__isnull=False, target_question__isnull=True)
-                    | models.Q(target_section__isnull=True, target_question__isnull=False)
+                    models.Q(
+                        parent_group__isnull=True,
+                        target_section__isnull=False,
+                        target_question__isnull=True,
+                    )
+                    | models.Q(
+                        parent_group__isnull=True,
+                        target_section__isnull=True,
+                        target_question__isnull=False,
+                    )
+                    | models.Q(
+                        parent_group__isnull=False,
+                        target_section__isnull=True,
+                        target_question__isnull=True,
+                    )
                 ),
-                name="logic_group_has_exactly_one_target",
+                name="logic_group_is_root_target_or_nested",
             ),
         ]
 
     def clean(self):
         super().clean()
         targets = int(bool(self.target_section_id)) + int(bool(self.target_question_id))
-        if targets != 1:
-            raise ValidationError("A logic group must control exactly one section or question.")
-        target_form_id = (
-            self.target_section.event_form_id
-            if self.target_section_id
-            else self.target_question.section.event_form_id
-        )
-        if self.event_form_id and target_form_id != self.event_form_id:
-            raise ValidationError("The target must belong to the logic group's form.")
+        if self.parent_group_id:
+            if targets:
+                raise ValidationError("A nested logic group cannot have its own target.")
+            if self.event_form_id and self.parent_group.event_form_id != self.event_form_id:
+                raise ValidationError("A nested group must belong to its parent's form.")
+        else:
+            if targets != 1:
+                raise ValidationError(
+                    "A root logic group must control exactly one section or question."
+                )
+            target_form_id = (
+                self.target_section.event_form_id
+                if self.target_section_id
+                else self.target_question.section.event_form_id
+            )
+            if self.event_form_id and target_form_id != self.event_form_id:
+                raise ValidationError("The target must belong to the logic group's form.")
 
     @property
     def target(self):
+        if self.parent_group_id:
+            return self.root_group.target
         return self.target_section or self.target_question
 
     @property
+    def root_group(self):
+        group = self
+        while group.parent_group_id:
+            group = group.parent_group
+        return group
+
+    @property
     def summary_en(self):
-        rules = [rule.summary_en for rule in self.rules.filter(is_active=True)]
-        if not rules:
+        parts = [rule.summary_en for rule in self.rules.filter(is_active=True)]
+        parts.extend(
+            f"({group.summary_en})"
+            for group in self.child_groups.filter(is_active=True)
+        )
+        if not parts:
             return "Always show"
         joiner = " AND " if self.match_type == self.MatchType.ALL else " OR "
-        return joiner.join(rules)
+        return joiner.join(parts)
 
     def __str__(self):
         return f"{self.get_match_type_display()}: {self.target}"
@@ -563,7 +604,15 @@ class DisplayLogicRule(BaseModel):
         ANSWERED = "ANSWERED", _("is answered")
         NOT_ANSWERED = "NOT_ANSWERED", _("is not answered")
         GREATER_THAN = "GREATER_THAN", _("is greater than")
+        GREATER_THAN_OR_EQUAL = "GREATER_THAN_OR_EQUAL", _("is greater than or equal to")
         LESS_THAN = "LESS_THAN", _("is less than")
+        LESS_THAN_OR_EQUAL = "LESS_THAN_OR_EQUAL", _("is less than or equal to")
+        BETWEEN = "BETWEEN", _("is between")
+        STARTS_WITH = "STARTS_WITH", _("starts with")
+        ENDS_WITH = "ENDS_WITH", _("ends with")
+        SELECTION_COUNT_EQUALS = "SELECTION_COUNT_EQUALS", _("has exactly this many selections")
+        SELECTION_COUNT_AT_LEAST = "SELECTION_COUNT_AT_LEAST", _("has at least this many selections")
+        SELECTION_COUNT_AT_MOST = "SELECTION_COUNT_AT_MOST", _("has at most this many selections")
         DATE_BEFORE = "DATE_BEFORE", _("is before date")
         DATE_AFTER = "DATE_AFTER", _("is after date")
 
@@ -579,7 +628,16 @@ class DisplayLogicRule(BaseModel):
     )
     operator = models.CharField(max_length=30, choices=Operator.choices)
     comparison_value = models.TextField(blank=True)
+    comparison_value_end = models.TextField(blank=True)
     comparison_values = models.JSONField(default=list, blank=True)
+    comparison_question = models.ForeignKey(
+        FormQuestion,
+        related_name="display_logic_comparison_rules",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text=_("Compare with this question's answer instead of a fixed value."),
+    )
     display_order = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -597,9 +655,18 @@ class DisplayLogicRule(BaseModel):
             raise ValidationError("The controlling question must belong to the same form.")
         if (
             self.group_id
-            and self.group.target_question_id == self.source_question_id
+            and self.group.target == self.source_question
         ):
             raise ValidationError("A question cannot control itself.")
+        if self.comparison_question_id:
+            if self.comparison_question.section.event_form_id != self.group.event_form_id:
+                raise ValidationError(
+                    "The comparison question must belong to the same form."
+                )
+            if self.comparison_question_id == self.source_question_id:
+                raise ValidationError(
+                    "Choose two different questions for a question comparison."
+                )
         no_value = {
             self.Operator.ANSWERED,
             self.Operator.NOT_ANSWERED,
@@ -607,13 +674,27 @@ class DisplayLogicRule(BaseModel):
         multiple_values = {self.Operator.ANY_OF, self.Operator.NONE_OF}
         if self.operator in no_value:
             return
+        if self.comparison_question_id:
+            if self.operator in multiple_values or self.operator == self.Operator.BETWEEN:
+                raise ValidationError(
+                    "This operator cannot compare against another question."
+                )
+            return
         if self.operator in multiple_values and not self.comparison_values:
             raise ValidationError({"comparison_values": "Select at least one answer."})
+        if self.operator == self.Operator.BETWEEN and (
+            not self.comparison_value or not self.comparison_value_end
+        ):
+            raise ValidationError("Enter both ends of the comparison range.")
         if self.operator not in multiple_values and not self.comparison_value:
             raise ValidationError({"comparison_value": "Enter or select a comparison value."})
 
     @property
     def display_value(self):
+        if self.comparison_question_id:
+            return f'the answer to “{self.comparison_question.label_en}”'
+        if self.operator == self.Operator.BETWEEN:
+            return f"{self.comparison_value} and {self.comparison_value_end}"
         values = self.comparison_values if self.operator in {
             self.Operator.ANY_OF, self.Operator.NONE_OF
         } else [self.comparison_value]
@@ -627,7 +708,11 @@ class DisplayLogicRule(BaseModel):
     def summary_en(self):
         suffix = "" if self.operator in {
             self.Operator.ANSWERED, self.Operator.NOT_ANSWERED
-        } else f' “{self.display_value}”'
+        } else (
+            f" {self.display_value}"
+            if self.comparison_question_id
+            else f' “{self.display_value}”'
+        )
         return (
             f'“{self.source_question.label_en}” '
             f'{self.get_operator_display()}{suffix}'

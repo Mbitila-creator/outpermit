@@ -53,6 +53,16 @@ urlpatterns = [
         name="logic_rule_archive",
     ),
     path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/logic/<str:target_type>/<int:target_id>/groups/new/",
+        department_views.logic_group_create,
+        name="logic_group_create",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/logic/<str:target_type>/<int:target_id>/groups/<int:group_id>/archive/",
+        department_views.logic_group_archive,
+        name="logic_group_archive",
+    ),
+    path(
         "manage/<slug:event_slug>/questionnaires/<int:form_id>/sections/new/",
         department_views.section_edit,
         name="section_create",
