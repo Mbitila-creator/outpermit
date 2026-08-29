@@ -107,6 +107,7 @@ def questionnaire_builder(request, event_slug, form_id):
         "questions__condition_question__options",
         "questions__display_logic__rules__source_question__options",
         "questions__required_logic__rules__source_question__options",
+        "questions__validation_logic__rules__source_question__options",
     ).order_by("display_order", "pk")
     return render(request, "forms_builder/management/builder.html", {
         "event": event, "questionnaire": questionnaire, "sections": sections,
@@ -119,7 +120,7 @@ def _logic_target(questionnaire, target_type, target_id):
         return get_object_or_404(
             FormSection, pk=target_id, event_form=questionnaire, is_active=True
         )
-    if target_type in {"question", "required"}:
+    if target_type in {"question", "required", "validation"}:
         return get_object_or_404(
             FormQuestion,
             pk=target_id,
@@ -157,7 +158,7 @@ def _root_logic_group(target, target_type, user):
     return create_group_from_legacy(
         target,
         user,
-        purpose="required" if target_type == "required" else "visibility",
+        purpose=target_type if target_type in {"required", "validation"} else "visibility",
     )
 
 
@@ -188,6 +189,7 @@ def logic_editor(request, event_slug, form_id, target_type, target_id):
         "root_group": root_group,
         "parent_group": group.parent_group,
         "is_required_logic": target_type == "required",
+        "is_validation_logic": target_type == "validation",
         "form": form,
         "rules": group.rules.filter(is_active=True).select_related(
             "source_question", "comparison_question"

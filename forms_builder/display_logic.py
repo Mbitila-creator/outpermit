@@ -212,6 +212,25 @@ def required_group_spec_json(question):
     return json.dumps(spec, separators=(",", ":")) if spec["rules"] or spec["groups"] else ""
 
 
+def validation_group_spec_json(question):
+    try:
+        group = question.validation_logic
+    except DisplayLogicGroup.DoesNotExist:
+        return ""
+    spec = logic_group_spec(group)
+    return json.dumps(spec, separators=(",", ":")) if spec["rules"] or spec["groups"] else ""
+
+
+def question_passes_visual_validation(request, question):
+    try:
+        group = question.validation_logic
+    except DisplayLogicGroup.DoesNotExist:
+        return True
+    return logic_group_matches(
+        group, lambda question_id: request_answer_values(request, question_id)
+    )
+
+
 def validate_dependency_graph(event_form, *, pending_target=None, pending_source=None, ignored_rule=None):
     """Reject cycles across question rules, section rules, and section membership."""
     graph = {}
@@ -239,12 +258,21 @@ def validate_dependency_graph(event_form, *, pending_target=None, pending_source
         rules = rules.exclude(pk=ignored_rule.pk)
     for rule in rules:
         root = rule.group.root_group
+        target_question_id = (
+            root.target_question_id or root.target_required_question_id
+            or root.target_validation_question_id
+        )
         target_node = (
-            ("question", root.target_question_id or root.target_required_question_id)
-            if root.target_question_id or root.target_required_question_id
+            ("question", target_question_id)
+            if target_question_id
             else ("section", root.target_section_id)
         )
-        graph.setdefault(target_node, set()).add(("question", rule.source_question_id))
+        graph.setdefault(target_node, set())
+        if not (
+            root.target_validation_question_id
+            and root.target_validation_question_id == rule.source_question_id
+        ):
+            graph[target_node].add(("question", rule.source_question_id))
         if rule.comparison_question_id:
             graph[target_node].add(("question", rule.comparison_question_id))
     if pending_target and pending_source:
@@ -277,7 +305,11 @@ def create_group_from_legacy(target, user, *, purpose="visibility"):
         {"target_section": target}
         if isinstance(target, FormSection)
         else {
-            ("target_required_question" if purpose == "required" else "target_question"): target
+            (
+                "target_required_question" if purpose == "required"
+                else "target_validation_question" if purpose == "validation"
+                else "target_question"
+            ): target
         }
     )
     event_form = target.event_form if hasattr(target, "event_form") else target.section.event_form

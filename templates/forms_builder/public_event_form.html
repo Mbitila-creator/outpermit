@@ -251,13 +251,13 @@
 
                 {% if request.LANGUAGE_CODE == "en" %}
                     {% if event_form.introduction_en %}
-                        <div class="form-introduction">
+                        <div class="form-introduction dynamic-label" data-label-template="{{ event_form.introduction_en|striptags|escape }}">
                             {{ event_form.introduction_en|simple_rich_text }}
                         </div>
                     {% endif %}
                 {% else %}
                     {% if event_form.introduction_sw %}
-                        <div class="form-introduction">
+                        <div class="form-introduction dynamic-label" data-label-template="{{ event_form.introduction_sw|striptags|escape }}">
                             {{ event_form.introduction_sw|simple_rich_text }}
                         </div>
                     {% endif %}

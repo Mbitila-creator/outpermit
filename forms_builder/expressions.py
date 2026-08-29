@@ -5,7 +5,7 @@ from decimal import Decimal, InvalidOperation
 from django.core.exceptions import ValidationError
 
 QUESTION_NAME = re.compile(r"q(?P<id>\d+)$")
-ALLOWED_FUNCTIONS = {"COUNT", "IF"}
+ALLOWED_FUNCTIONS = {"COUNT", "IF", "SUM"}
 
 
 class ExpressionError(ValueError):
@@ -72,6 +72,11 @@ def evaluate_expression(expression, answers):
                     values.append(answers.get(int(argument.id[1:]), ""))
                 else:
                     values.append(evaluate(argument))
+            if function == "SUM":
+                flattened = []
+                for value in values:
+                    flattened.extend(value if isinstance(value, (list, tuple, set)) else [value])
+                return sum((_number(value) for value in flattened if value not in (None, "")), Decimal("0"))
             return Decimal(sum(
                 len(value) if isinstance(value, (list, tuple, set))
                 else int(value not in (None, ""))

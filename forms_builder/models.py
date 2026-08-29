@@ -621,6 +621,13 @@ class DisplayLogicGroup(BaseModel):
         null=True,
         blank=True,
     )
+    target_validation_question = models.OneToOneField(
+        FormQuestion,
+        related_name="validation_logic",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
     match_type = models.CharField(
         max_length=3,
         choices=MatchType.choices,
@@ -638,24 +645,35 @@ class DisplayLogicGroup(BaseModel):
                         target_section__isnull=False,
                         target_question__isnull=True,
                         target_required_question__isnull=True,
+                        target_validation_question__isnull=True,
                     )
                     | models.Q(
                         parent_group__isnull=True,
                         target_section__isnull=True,
                         target_question__isnull=False,
                         target_required_question__isnull=True,
+                        target_validation_question__isnull=True,
                     )
                     | models.Q(
                         parent_group__isnull=True,
                         target_section__isnull=True,
                         target_question__isnull=True,
                         target_required_question__isnull=False,
+                        target_validation_question__isnull=True,
+                    )
+                    | models.Q(
+                        parent_group__isnull=True,
+                        target_section__isnull=True,
+                        target_question__isnull=True,
+                        target_required_question__isnull=True,
+                        target_validation_question__isnull=False,
                     )
                     | models.Q(
                         parent_group__isnull=False,
                         target_section__isnull=True,
                         target_question__isnull=True,
                         target_required_question__isnull=True,
+                        target_validation_question__isnull=True,
                     )
                 ),
                 name="logic_group_is_root_target_or_nested",
@@ -668,6 +686,7 @@ class DisplayLogicGroup(BaseModel):
             int(bool(self.target_section_id)),
             int(bool(self.target_question_id)),
             int(bool(self.target_required_question_id)),
+            int(bool(self.target_validation_question_id)),
         ))
         if self.parent_group_id:
             if targets:
@@ -677,7 +696,7 @@ class DisplayLogicGroup(BaseModel):
         else:
             if targets != 1:
                 raise ValidationError(
-                    "A root logic group must control exactly one section, question, or required state."
+                    "A root logic group must control exactly one section, question, required state, or validation state."
                 )
             target_form_id = (
                 self.target_section.event_form_id
@@ -685,7 +704,11 @@ class DisplayLogicGroup(BaseModel):
                 else (
                     self.target_question.section.event_form_id
                     if self.target_question_id
-                    else self.target_required_question.section.event_form_id
+                    else (
+                        self.target_required_question.section.event_form_id
+                        if self.target_required_question_id
+                        else self.target_validation_question.section.event_form_id
+                    )
                 )
             )
             if self.event_form_id and target_form_id != self.event_form_id:
@@ -695,7 +718,10 @@ class DisplayLogicGroup(BaseModel):
     def target(self):
         if self.parent_group_id:
             return self.root_group.target
-        return self.target_section or self.target_question or self.target_required_question
+        return (
+            self.target_section or self.target_question
+            or self.target_required_question or self.target_validation_question
+        )
 
     @property
     def root_group(self):
@@ -783,6 +809,7 @@ class DisplayLogicRule(BaseModel):
         if (
             self.group_id
             and self.group.target == self.source_question
+            and not self.group.root_group.target_validation_question_id
         ):
             raise ValidationError("A question cannot control itself.")
         if self.comparison_question_id:

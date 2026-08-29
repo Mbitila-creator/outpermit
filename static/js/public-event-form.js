@@ -70,92 +70,120 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    const answerValues = (questionId) => Array.from(
-        form.querySelectorAll(`[name="question_${questionId}"]`)
+    const answerValues = (questionId, context = null) => {
+        const step = context?.closest?.(".wizard-step");
+        const repeatIndex = Number(step?.dataset.repeatIndex || 0);
+        const name = repeatIndex
+            ? `question_${questionId}__repeat_${repeatIndex}`
+            : `question_${questionId}`;
+        return Array.from(
+        form.querySelectorAll(`[name="${name}"]`)
     ).filter((control) => !control.disabled).flatMap((control) => {
         if (control.type === "checkbox" || control.type === "radio") {
             return control.checked ? [control.value.trim()] : [];
         }
         return control.value.trim() ? [control.value.trim()] : [];
     });
+    };
 
     const updateDynamicLabels = () => {
         form.querySelectorAll(".dynamic-label[data-label-template]").forEach((element) => {
             element.textContent = element.dataset.labelTemplate.replace(
                 /\{\{\s*q(\d+)\s*\}\}/gi,
-                (_match, questionId) => answerValues(questionId).join(", ") || "…"
+                (_match, questionId) => answerValues(questionId, element).join(", ") || "…"
             );
         });
         form.querySelectorAll(".form-field[data-question-id]").forEach((field) => {
             const label = field.querySelector(".dynamic-label")?.textContent.trim();
             if (label) field.dataset.questionLabel = label;
+            const placeholder = (field.dataset.placeholderTemplate || "").replace(
+                /\{\{\s*q(\d+)\s*\}\}/gi,
+                (_match, questionId) => answerValues(questionId, field).join(", ") || "…"
+            );
+            field.querySelectorAll("input[placeholder], textarea[placeholder]")
+                .forEach((control) => { control.placeholder = placeholder; });
+        });
+        allSteps.forEach((step) => {
+            const title = step.querySelector(".section-header h3 .dynamic-label")?.textContent.trim();
+            if (title) step.dataset.stepTitle = title;
         });
     };
 
-    const calculateExpression = (expression) => {
+    const calculateExpression = (expression, context = null) => {
         const source = expression.trim();
-        const tokens = source.match(/q\d+|COUNT|IF|>=|<=|==|!=|>|<|\d+(?:\.\d+)?|[(),+\-*/%]/gi) || [];
+        const tokens = source.match(/q\d+|COUNT|SUM|IF|>=|<=|==|!=|>|<|\d+(?:\.\d+)?|[(),+\-*/%]/gi) || [];
         if (tokens.join("").toUpperCase() !== source.replace(/\s+/g, "").toUpperCase()) throw new Error("Invalid expression");
         let position = 0;
-        const primary = () => {
+        const primary = (evaluate = true) => {
             const token = tokens[position++];
             if (/^q\d+$/i.test(token || "")) {
-                const values = answerValues(token.slice(1));
+                if (!evaluate) return 0;
+                const values = answerValues(token.slice(1), context);
                 if (!values.length) throw new Error(`${token} is empty`);
                 return values.length > 1 ? values : values[0];
             }
-            if (/^(COUNT|IF)$/i.test(token || "")) {
+            if (/^(COUNT|SUM|IF)$/i.test(token || "")) {
                 const functionName = token.toUpperCase();
                 if (tokens[position++] !== "(") throw new Error("Missing parenthesis");
+                if (functionName === "IF") {
+                    const condition = comparison(evaluate);
+                    if (tokens[position++] !== ",") throw new Error("IF needs three arguments");
+                    const trueValue = comparison(evaluate && Boolean(condition));
+                    if (tokens[position++] !== ",") throw new Error("IF needs three arguments");
+                    const falseValue = comparison(evaluate && !Boolean(condition));
+                    if (tokens[position++] !== ")") throw new Error("Missing parenthesis");
+                    return evaluate ? (condition ? trueValue : falseValue) : 0;
+                }
                 const args = [];
                 if (tokens[position] !== ")") {
                     do {
-                        args.push(comparison());
+                        args.push(comparison(evaluate));
                     } while (tokens[position] === "," && ++position);
                 }
                 if (tokens[position++] !== ")") throw new Error("Missing parenthesis");
-                if (functionName === "IF") {
-                    if (args.length !== 3) throw new Error("IF needs three arguments");
-                    return args[0] ? args[1] : args[2];
+                if (!evaluate) return 0;
+                if (functionName === "SUM") {
+                    return args.flatMap((value) => Array.isArray(value) ? value : [value])
+                        .reduce((total, value) => total + Number(value || 0), 0);
                 }
                 return args.reduce((count, value) => count + (Array.isArray(value) ? value.length : (value === "" ? 0 : 1)), 0);
             }
             if (token === "(") {
-                const value = comparison();
+                const value = comparison(evaluate);
                 if (tokens[position++] !== ")") throw new Error("Missing parenthesis");
                 return value;
             }
-            if (token === "+") return primary();
-            if (token === "-") return -primary();
+            if (token === "+") return primary(evaluate);
+            if (token === "-") return -primary(evaluate);
             const value = Number(token);
             if (!Number.isFinite(value)) throw new Error("Invalid number");
             return value;
         };
-        const multiplication = () => {
-            let value = primary();
+        const multiplication = (evaluate = true) => {
+            let value = primary(evaluate);
             while (["*", "/", "%"].includes(tokens[position])) {
                 const operator = tokens[position++];
-                const right = Number(primary());
+                const right = Number(primary(evaluate));
                 value = Number(value);
                 value = operator === "*" ? value * right : operator === "/" ? value / right : value % right;
             }
             return value;
         };
-        const addition = () => {
-            let value = Number(multiplication());
+        const addition = (evaluate = true) => {
+            let value = Number(multiplication(evaluate));
             while (["+", "-"].includes(tokens[position])) {
                 const operator = tokens[position++];
-                const right = Number(multiplication());
+                const right = Number(multiplication(evaluate));
                 value = operator === "+" ? value + right : value - right;
             }
             return value;
         };
-        const comparison = () => {
-            let value = addition();
+        const comparison = (evaluate = true) => {
+            let value = addition(evaluate);
             const operator = tokens[position];
             if (![">", ">=", "<", "<=", "==", "!="].includes(operator)) return value;
             position += 1;
-            const right = addition();
+            const right = addition(evaluate);
             if (operator === ">") return value > right;
             if (operator === ">=") return value >= right;
             if (operator === "<") return value < right;
@@ -172,7 +200,7 @@ document.addEventListener("DOMContentLoaded", () => {
         form.querySelectorAll(".form-field[data-calculation-expression]").forEach((field) => {
             const control = field.querySelector("input");
             try {
-                const result = calculateExpression(field.dataset.calculationExpression);
+                const result = calculateExpression(field.dataset.calculationExpression, field);
                 control.value = result.toFixed(Number(field.dataset.decimalPlaces || 2));
             } catch (_error) {
                 control.value = "";
@@ -182,7 +210,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const updateChoiceFilters = () => {
         form.querySelectorAll(".form-field[data-choice-filter-question]").forEach((field) => {
-            const controllingValues = answerValues(field.dataset.choiceFilterQuestion);
+            const controllingValues = answerValues(field.dataset.choiceFilterQuestion, field);
             const controls = Array.from(field.querySelectorAll("option[data-filter-values], .choice-item[data-filter-values]"));
             controls.forEach((item) => {
                 const allowedValues = (item.dataset.filterValues || "")
@@ -207,10 +235,10 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     };
 
-    const ruleMatches = (rule) => {
-        const values = answerValues(rule.question);
+    const ruleMatches = (rule, context = null) => {
+        const values = answerValues(rule.question, context);
         const comparedValues = rule.comparison_question
-            ? answerValues(rule.comparison_question)
+            ? answerValues(rule.comparison_question, context)
             : [];
         const expected = rule.comparison_question
             ? String(comparedValues[0] || "")
@@ -282,9 +310,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    const logicMatches = (logic) => {
-        const results = (logic.rules || []).map(ruleMatches);
-        (logic.groups || []).forEach((group) => results.push(logicMatches(group)));
+    const logicMatches = (logic, context = null) => {
+        const results = (logic.rules || []).map((rule) => ruleMatches(rule, context));
+        (logic.groups || []).forEach((group) => results.push(logicMatches(group, context)));
         if (!results.length) {
             return true;
         }
@@ -302,7 +330,7 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Invalid questionnaire display logic.", error);
             return true;
         }
-        return logicMatches(logic);
+        return logicMatches(logic, element);
     };
 
     const getVisibleSteps = () => allSteps.filter(conditionMatches);
@@ -313,7 +341,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return false;
             }
             try {
-                return logicMatches(JSON.parse(field.dataset.requiredLogic));
+                return logicMatches(JSON.parse(field.dataset.requiredLogic), field);
             } catch (error) {
                 console.error("Invalid questionnaire required logic.", error);
                 return false;
@@ -567,6 +595,29 @@ document.addEventListener("DOMContentLoaded", () => {
     const validateCurrentStep = () => {
         const steps = getVisibleSteps();
         const step = steps[currentStep];
+        const invalidVisualRule = Array.from(
+            step.querySelectorAll(".form-field[data-validation-logic]")
+        ).find((field) => {
+            const hasAnswer = field.querySelectorAll("input:checked").length
+                || Array.from(field.querySelectorAll("input, select, textarea"))
+                    .some((control) => control.type !== "checkbox" && control.type !== "radio" && control.value);
+            if (!hasAnswer) return false;
+            try {
+                return !logicMatches(JSON.parse(field.dataset.validationLogic), field);
+            } catch (_error) {
+                return true;
+            }
+        });
+        if (invalidVisualRule) {
+            const control = invalidVisualRule.querySelector("input, select, textarea");
+            control?.setCustomValidity(
+                invalidVisualRule.dataset.validationMessage
+                || (language === "en" ? "This answer does not meet the validation rules." : "Jibu hili halikidhi masharti ya uthibitishaji.")
+            );
+            control?.reportValidity();
+            control?.focus({preventScroll: true});
+            return false;
+        }
         const unansweredRequiredGroup = Array.from(
             step.querySelectorAll(
                 '.form-field[data-effective-required="true"][data-question-type="MULTIPLE_CHOICE"]'

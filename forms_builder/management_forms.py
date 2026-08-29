@@ -185,14 +185,14 @@ class QuestionForm(ConditionalManagementForm):
         self.fields["choice_filter_question"].empty_label = "Do not filter choices"
         expression_fields = (
             "calculation_expression", "calculation_decimal_places",
-            "validation_expression", "validation_message_en", "validation_message_sw",
+            "validation_expression",
         )
         if not section.event_form.advanced_expression_mode:
             for field_name in expression_fields:
                 self.fields.pop(field_name, None)
         else:
             self.fields["calculation_expression"].help_text = (
-                "Expert mode: use q12 references, arithmetic, COUNT(...), and "
+                "Expert mode: use q12 references, arithmetic, SUM(...), COUNT(...), and "
                 "IF(condition, true_value, false_value)."
             )
             self.fields["validation_expression"].help_text = (
@@ -323,7 +323,7 @@ class LogicRuleForm(StyledModelForm):
         ).prefetch_related("options").order_by(
             "section__display_order", "display_order", "pk"
         )
-        if isinstance(group.target, FormQuestion):
+        if isinstance(group.target, FormQuestion) and not group.root_group.target_validation_question_id:
             questions = questions.exclude(pk=group.target.pk)
         self.fields["source_question"].queryset = questions
         self.fields["comparison_question"].queryset = questions
@@ -408,7 +408,11 @@ class LogicRuleForm(StyledModelForm):
                     "source_question",
                     "A section can only depend on a question in an earlier section.",
                 )
-        if "source_question" not in self.errors:
+        is_self_validation = (
+            self.group.root_group.target_validation_question_id
+            and source.pk == self.group.root_group.target_validation_question_id
+        )
+        if "source_question" not in self.errors and not is_self_validation:
             try:
                 validate_dependency_graph(
                     self.group.event_form,

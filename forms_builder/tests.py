@@ -29,7 +29,8 @@ from .models import (
     QuestionOption,
 )
 from .display_logic import (
-    group_spec, question_is_required, rule_matches_values, target_is_visible,
+    group_spec, question_is_required, question_passes_visual_validation,
+    rule_matches_values, target_is_visible,
 )
 from .management_forms import LogicRuleForm
 from .admin import EventFormAdmin, FormSubmissionAdmin
@@ -56,6 +57,7 @@ class QuestionnaireExpressionTests(SimpleTestCase):
     def test_count_and_conditional_functions(self):
         answers = {12: ["a", "b"], 13: Decimal("6"), 14: ""}
         self.assertEqual(evaluate_expression("COUNT(q12, q13, q14)", answers), Decimal("3"))
+        self.assertEqual(evaluate_expression("SUM(q13, 4)", answers), Decimal("10"))
         self.assertEqual(evaluate_expression("IF(q13 >= 5, q13 * 2, 0)", answers), Decimal("12"))
         self.assertEqual(question_reference_ids("IF(q13 > 0, COUNT(q12), 0)"), {12, 13})
 
@@ -96,6 +98,33 @@ class ConditionalRequiredTests(TestCase):
         ))
         self.assertFalse(question_is_required(
             RequestFactory().post("/", {f"question_{source.pk}": "no"}), target
+        ))
+
+    def test_visual_validation_can_validate_the_target_answer(self):
+        category = EventCategory.objects.create(name_en="Survey", name_sw="Dodoso")
+        event = Event.objects.create(
+            category=category, code="VAL-2027", title_en="Validation", title_sw="Uthibitishaji",
+            slug="validation", starts_at=timezone.now(), ends_at=timezone.now() + timedelta(days=1),
+        )
+        event_form = EventForm.objects.create(event=event, name_en="Form", name_sw="Fomu")
+        section = event_form.sections.create(title_en="Section", title_sw="Sehemu")
+        target = section.questions.create(
+            label_en="Age", label_sw="Umri", question_type=FormQuestion.QuestionType.NUMBER,
+        )
+        group = DisplayLogicGroup.objects.create(
+            event_form=event_form, target_validation_question=target,
+        )
+        rule = DisplayLogicRule.objects.create(
+            group=group, source_question=target,
+            operator=DisplayLogicRule.Operator.GREATER_THAN_OR_EQUAL,
+            comparison_value="18",
+        )
+        rule.full_clean()
+        self.assertTrue(question_passes_visual_validation(
+            RequestFactory().post("/", {f"question_{target.pk}": "20"}), target
+        ))
+        self.assertFalse(question_passes_visual_validation(
+            RequestFactory().post("/", {f"question_{target.pk}": "17"}), target
         ))
 
 

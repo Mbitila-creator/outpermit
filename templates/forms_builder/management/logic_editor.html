@@ -1,6 +1,6 @@
 {% extends "forms_builder/management/base.html" %}
-{% block title %}{% if is_required_logic %}Required when{% else %}Display logic{% endif %}{% endblock %}
-{% block heading %}{% if is_required_logic %}Required when{% else %}Display logic{% endif %}: {{ target }}{% endblock %}
+{% block title %}{% if is_validation_logic %}Validation{% elif is_required_logic %}Required when{% else %}Display logic{% endif %}{% endblock %}
+{% block heading %}{% if is_validation_logic %}Validation{% elif is_required_logic %}Required when{% else %}Display logic{% endif %}: {{ target }}{% endblock %}
 {% block content %}
 <nav class="toolbar">
     <a class="button" href="{% url 'forms_builder:questionnaire_builder' event.slug questionnaire.pk %}">← Back to builder</a>
@@ -10,7 +10,8 @@
 </nav>
 <section class="panel">
     <h2>Visual logic summary</h2>
-    <p>{% if is_required_logic %}<strong>MAKE</strong> this question <strong>REQUIRED WHEN</strong>{% else %}<strong>SHOW</strong> this {{ target_type }} <strong>WHEN</strong>{% endif %}</p>
+    <p>{% if is_validation_logic %}<strong>ACCEPT</strong> this answer <strong>WHEN</strong>{% elif is_required_logic %}<strong>MAKE</strong> this question <strong>REQUIRED WHEN</strong>{% else %}<strong>SHOW</strong> this {{ target_type }} <strong>WHEN</strong>{% endif %}</p>
+    {% if is_validation_logic %}<p class="muted">Set the custom validation messages in the question editor. Rules are evaluated safely in the browser and on the server.</p>{% endif %}
     <div class="question"><strong>{{ logic_group.summary_en }}</strong></div>
     <form method="post">{% csrf_token %}<div class="field"><label for="{{ form.match_type.id_for_label }}">Combine items in this group using</label>{{ form.match_type }}{{ form.match_type.errors }}</div><p><button class="primary" type="submit">Save group matching</button></p></form>
 </section>

@@ -38,8 +38,10 @@ from .notifications import (
 )
 from .display_logic import (
     group_spec_json,
+    question_passes_visual_validation,
     question_is_required,
     required_group_spec_json,
+    validation_group_spec_json,
     target_is_visible,
 )
 from .expressions import ExpressionError, evaluate_expression
@@ -874,6 +876,7 @@ def public_event_form(request, event_slug, form_slug):
             "display_logic__rules",
             "questions__display_logic__rules",
             "questions__required_logic__rules",
+            "questions__validation_logic__rules",
         )
         .order_by("display_order", "id")
     )
@@ -887,6 +890,7 @@ def public_event_form(request, event_slug, form_slug):
         for question in active_questions:
             question.display_logic_json = group_spec_json(question)
             question.required_logic_json = required_group_spec_json(question)
+            question.validation_logic_json = validation_group_spec_json(question)
         section.likert_questions = [
             question for question in active_questions
             if section.display_order in {2, 3}
@@ -1175,6 +1179,18 @@ def public_event_form(request, event_slug, form_slug):
                 if error:
                     errors[error_key] = error
                 else:
+                    if (
+                        not save_draft
+                        and not answer_data.get("empty")
+                        and not question_passes_visual_validation(question_request, question)
+                    ):
+                        errors[error_key] = (
+                            question.validation_message_en
+                            if language_code == "en"
+                            else question.validation_message_sw or question.validation_message_en
+                            or "This answer does not meet the validation rules."
+                        )
+                        continue
                     if question.validation_expression and not answer_data.get("empty"):
                         try:
                             valid = bool(evaluate_expression(
