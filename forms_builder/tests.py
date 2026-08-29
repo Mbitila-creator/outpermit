@@ -28,7 +28,9 @@ from .models import (
     FormSubmission,
     QuestionOption,
 )
-from .display_logic import group_spec, rule_matches_values, target_is_visible
+from .display_logic import (
+    group_spec, question_is_required, rule_matches_values, target_is_visible,
+)
 from .management_forms import LogicRuleForm
 from .admin import EventFormAdmin, FormSubmissionAdmin
 
@@ -51,11 +53,75 @@ class QuestionnaireExpressionTests(SimpleTestCase):
         self.assertTrue(evaluate_expression("q12 <= q13 and q14 > 0", answers))
         self.assertEqual(question_reference_ids("q12 + q13"), {12, 13})
 
+    def test_count_and_conditional_functions(self):
+        answers = {12: ["a", "b"], 13: Decimal("6"), 14: ""}
+        self.assertEqual(evaluate_expression("COUNT(q12, q13, q14)", answers), Decimal("3"))
+        self.assertEqual(evaluate_expression("IF(q13 >= 5, q13 * 2, 0)", answers), Decimal("12"))
+        self.assertEqual(question_reference_ids("IF(q13 > 0, COUNT(q12), 0)"), {12, 13})
+
     def test_unsafe_or_unknown_syntax_is_rejected(self):
         with self.assertRaises(ExpressionError):
             evaluate_expression("__import__('os')", {})
         with self.assertRaises(ExpressionError):
             evaluate_expression("unknown + 1", {})
+
+
+class ConditionalRequiredTests(TestCase):
+    def test_required_group_is_enforced_only_when_rules_match(self):
+        category = EventCategory.objects.create(name_en="Survey", name_sw="Dodoso")
+        event = Event.objects.create(
+            category=category, code="REQ-2027", title_en="Required", title_sw="Lazima",
+            slug="required", starts_at=timezone.now(), ends_at=timezone.now() + timedelta(days=1),
+        )
+        event_form = EventForm.objects.create(event=event, name_en="Form", name_sw="Fomu")
+        section = event_form.sections.create(title_en="Section", title_sw="Sehemu")
+        source = section.questions.create(
+            label_en="Needs details?", label_sw="Maelezo?",
+            question_type=FormQuestion.QuestionType.YES_NO,
+        )
+        target = section.questions.create(
+            label_en="Details", label_sw="Maelezo",
+            question_type=FormQuestion.QuestionType.SHORT_TEXT,
+        )
+        group = DisplayLogicGroup.objects.create(
+            event_form=event_form, target_required_question=target,
+        )
+        DisplayLogicRule.objects.create(
+            group=group, source_question=source,
+            operator=DisplayLogicRule.Operator.EQUALS,
+            comparison_value="yes",
+        )
+        self.assertTrue(question_is_required(
+            RequestFactory().post("/", {f"question_{source.pk}": "yes"}), target
+        ))
+        self.assertFalse(question_is_required(
+            RequestFactory().post("/", {f"question_{source.pk}": "no"}), target
+        ))
+
+
+class RepeatableAnswerTests(TestCase):
+    def test_same_question_can_store_multiple_repeat_entries(self):
+        category = EventCategory.objects.create(name_en="Survey", name_sw="Dodoso")
+        event = Event.objects.create(
+            category=category, code="REP-2027", title_en="Repeat", title_sw="Rudia",
+            slug="repeat", starts_at=timezone.now(), ends_at=timezone.now() + timedelta(days=1),
+        )
+        event_form = EventForm.objects.create(event=event, name_en="Form", name_sw="Fomu")
+        section = event_form.sections.create(
+            title_en="Representatives", title_sw="Wawakilishi", is_repeatable=True,
+        )
+        question = section.questions.create(
+            label_en="Name", label_sw="Jina",
+            question_type=FormQuestion.QuestionType.SHORT_TEXT,
+        )
+        submission = FormSubmission.objects.create(event_form=event_form)
+        FormAnswer.objects.create(
+            submission=submission, question=question, repeat_index=0, text_value="A",
+        )
+        FormAnswer.objects.create(
+            submission=submission, question=question, repeat_index=1, text_value="B",
+        )
+        self.assertEqual(submission.answers.count(), 2)
 
 
 class CalculatedAnswerTests(TestCase):

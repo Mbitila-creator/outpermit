@@ -146,6 +146,19 @@ def target_is_visible(request, target):
     )
 
 
+def question_is_required(request, question):
+    if question.is_required:
+        return True
+    try:
+        group = question.required_logic
+    except DisplayLogicGroup.DoesNotExist:
+        return False
+    return logic_group_matches(
+        group,
+        lambda question_id: request_answer_values(request, question_id),
+    )
+
+
 def logic_group_spec(group):
     rules = [{
         "question": rule.source_question_id,
@@ -190,6 +203,15 @@ def group_spec_json(target):
     return json.dumps(spec, separators=(",", ":")) if spec else ""
 
 
+def required_group_spec_json(question):
+    try:
+        group = question.required_logic
+    except DisplayLogicGroup.DoesNotExist:
+        return ""
+    spec = logic_group_spec(group)
+    return json.dumps(spec, separators=(",", ":")) if spec["rules"] or spec["groups"] else ""
+
+
 def validate_dependency_graph(event_form, *, pending_target=None, pending_source=None, ignored_rule=None):
     """Reject cycles across question rules, section rules, and section membership."""
     graph = {}
@@ -218,8 +240,8 @@ def validate_dependency_graph(event_form, *, pending_target=None, pending_source
     for rule in rules:
         root = rule.group.root_group
         target_node = (
-            ("question", root.target_question_id)
-            if root.target_question_id
+            ("question", root.target_question_id or root.target_required_question_id)
+            if root.target_question_id or root.target_required_question_id
             else ("section", root.target_section_id)
         )
         graph.setdefault(target_node, set()).add(("question", rule.source_question_id))
@@ -250,11 +272,13 @@ def validate_dependency_graph(event_form, *, pending_target=None, pending_source
         visit(node)
 
 
-def create_group_from_legacy(target, user):
+def create_group_from_legacy(target, user, *, purpose="visibility"):
     target_kw = (
         {"target_section": target}
         if isinstance(target, FormSection)
-        else {"target_question": target}
+        else {
+            ("target_required_question" if purpose == "required" else "target_question"): target
+        }
     )
     event_form = target.event_form if hasattr(target, "event_form") else target.section.event_form
     group, created = DisplayLogicGroup.objects.get_or_create(
@@ -262,7 +286,7 @@ def create_group_from_legacy(target, user):
         defaults={"created_by": user, "updated_by": user},
         **target_kw,
     )
-    if created and target.condition_question_id and target.condition_value:
+    if created and purpose == "visibility" and target.condition_question_id and target.condition_value:
         DisplayLogicRule.objects.create(
             group=group,
             source_question=target.condition_question,

@@ -2,6 +2,7 @@ import csv
 import re
 import secrets
 import uuid
+from types import SimpleNamespace
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
@@ -35,7 +36,12 @@ from .models import (
 from .notifications import (
     process_due_reminders, send_payment_notification, send_submission_notification,
 )
-from .display_logic import group_spec_json, target_is_visible
+from .display_logic import (
+    group_spec_json,
+    question_is_required,
+    required_group_spec_json,
+    target_is_visible,
+)
 from .expressions import ExpressionError, evaluate_expression
 from .services import (
     booth_detail_url,
@@ -833,6 +839,7 @@ def save_answer_data(submission, validated_answers):
         answer = FormAnswer.objects.create(
             submission=submission,
             question=question,
+            repeat_index=answer_data.pop("repeat_index", 0),
             **answer_data,
         )
         if selected_options:
@@ -866,6 +873,7 @@ def public_event_form(request, event_slug, form_slug):
             "questions__options",
             "display_logic__rules",
             "questions__display_logic__rules",
+            "questions__required_logic__rules",
         )
         .order_by("display_order", "id")
     )
@@ -878,6 +886,7 @@ def public_event_form(request, event_slug, form_slug):
         section.active_questions = active_questions
         for question in active_questions:
             question.display_logic_json = group_spec_json(question)
+            question.required_logic_json = required_group_spec_json(question)
         section.likert_questions = [
             question for question in active_questions
             if section.display_order in {2, 3}
@@ -975,7 +984,11 @@ def public_event_form(request, event_slug, form_slug):
 
     if request.method == "GET" and draft_submission is not None:
         draft_answer_values = {
-            str(answer.question_id): draft_answer_value(answer)
+            (
+                str(answer.question_id)
+                if not answer.repeat_index
+                else f"{answer.question_id}__repeat_{answer.repeat_index}"
+            ): draft_answer_value(answer)
             for answer in draft_submission.answers.all()
         }
 
@@ -1086,54 +1099,98 @@ def public_event_form(request, event_slug, form_slug):
         )
         unresolved_ids = {item.id for item in unresolved_calculations}
 
+        repeat_expression_cache = {}
         for question in questions:
-            if not section_is_visible_for_submission(
-                request,
-                question.section,
-            ):
-                continue
-            if not question_is_visible_for_submission(request, question):
-                continue
+            repeat_count = 1
+            if question.section.is_repeatable:
+                try:
+                    repeat_count = int(request.POST.get(
+                        f"_repeat_section_{question.section_id}",
+                        question.section.minimum_repeats,
+                    ))
+                except (TypeError, ValueError):
+                    repeat_count = question.section.minimum_repeats
+                repeat_count = max(
+                    question.section.minimum_repeats,
+                    min(question.section.maximum_repeats, repeat_count),
+                )
 
-            if (
-                question.question_type == FormQuestion.QuestionType.CALCULATED
-                and question.id in unresolved_ids
-            ):
-                if not save_draft:
-                    errors[str(question.id)] = (
-                        "This value could not be calculated. Complete its referenced questions."
-                    )
-                continue
-
-            answer_data, error = validate_question_answer(
-                request,
-                question,
-                enforce_required=not save_draft,
-                override_value=(
-                    expression_values.get(question.id)
-                    if question.question_type == FormQuestion.QuestionType.CALCULATED
-                    else None
-                ),
-            )
-
-            if error:
-                errors[str(question.id)] = error
-            else:
-                if question.validation_expression and not answer_data.get("empty"):
-                    try:
-                        valid = bool(evaluate_expression(
-                            question.validation_expression, expression_values
-                        ))
-                    except ExpressionError:
-                        valid = save_draft
-                    if not valid:
-                        errors[str(question.id)] = (
-                            question.validation_message_en
-                            if language_code == "en"
-                            else question.validation_message_sw or question.validation_message_en
+            for repeat_index in range(repeat_count):
+                question_request = request
+                current_expression_values = expression_values
+                current_unresolved_ids = unresolved_ids
+                if repeat_index:
+                    repeat_post = request.POST.copy()
+                    repeat_files = request.FILES.copy()
+                    for candidate in questions:
+                        source_name = f"question_{candidate.id}__repeat_{repeat_index}"
+                        target_name = f"question_{candidate.id}"
+                        if source_name in request.POST:
+                            repeat_post.setlist(target_name, request.POST.getlist(source_name))
+                        else:
+                            repeat_post.pop(target_name, None)
+                        if source_name in request.FILES:
+                            repeat_files.setlist(target_name, request.FILES.getlist(source_name))
+                        else:
+                            repeat_files.pop(target_name, None)
+                    question_request = SimpleNamespace(POST=repeat_post, FILES=repeat_files)
+                    cache_key = (question.section_id, repeat_index)
+                    if cache_key not in repeat_expression_cache:
+                        values, unresolved = expression_answer_values(question_request, questions)
+                        repeat_expression_cache[cache_key] = (
+                            values,
+                            {item.id for item in unresolved},
                         )
-                        continue
-                validated_answers.append(answer_data)
+                    current_expression_values, current_unresolved_ids = repeat_expression_cache[cache_key]
+
+                if not section_is_visible_for_submission(question_request, question.section):
+                    continue
+                if not question_is_visible_for_submission(question_request, question):
+                    continue
+
+                error_key = str(question.id) if not repeat_index else f"{question.id}__repeat_{repeat_index}"
+                if (
+                    question.question_type == FormQuestion.QuestionType.CALCULATED
+                    and question.id in current_unresolved_ids
+                ):
+                    if not save_draft:
+                        errors[error_key] = (
+                            "This value could not be calculated. Complete its referenced questions."
+                        )
+                    continue
+
+                answer_data, error = validate_question_answer(
+                    question_request,
+                    question,
+                    enforce_required=(
+                        not save_draft and question_is_required(question_request, question)
+                    ),
+                    override_value=(
+                        current_expression_values.get(question.id)
+                        if question.question_type == FormQuestion.QuestionType.CALCULATED
+                        else None
+                    ),
+                )
+
+                if error:
+                    errors[error_key] = error
+                else:
+                    if question.validation_expression and not answer_data.get("empty"):
+                        try:
+                            valid = bool(evaluate_expression(
+                                question.validation_expression, current_expression_values
+                            ))
+                        except ExpressionError:
+                            valid = save_draft
+                        if not valid:
+                            errors[error_key] = (
+                                question.validation_message_en
+                                if language_code == "en"
+                                else question.validation_message_sw or question.validation_message_en
+                            )
+                            continue
+                    answer_data["repeat_index"] = repeat_index
+                    validated_answers.append(answer_data)
 
         if errors:
             return JsonResponse(

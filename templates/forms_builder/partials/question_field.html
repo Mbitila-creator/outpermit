@@ -4,6 +4,7 @@
     data-question-id="{{ question.id }}"
     data-question-type="{{ question.question_type }}"
     data-required="{% if question.is_required %}true{% else %}false{% endif %}"
+    {% if question.required_logic_json %}data-required-logic="{{ question.required_logic_json|escape }}"{% endif %}
     data-question-label="{% if language_code == 'en' %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}"
     {% if question.choice_filter_question_id %}data-choice-filter-question="{{ question.choice_filter_question_id }}"{% endif %}
     {% if question.calculation_expression %}data-calculation-expression="{{ question.calculation_expression|escape }}" data-decimal-places="{{ question.calculation_decimal_places }}"{% endif %}
@@ -15,12 +16,12 @@
 >
     {% if question.question_type == "SINGLE_CHOICE" or question.question_type == "MULTIPLE_CHOICE" or question.question_type == "YES_NO" %}
         <div class="field-label" id="question-label-{{ question.id }}">
-            {% if language_code == "en" %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}
+            <span class="dynamic-label" data-label-template="{% if language_code == 'en' %}{{ question.label_en|escape }}{% else %}{{ question.label_sw|escape }}{% endif %}">{% if language_code == "en" %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}</span>
             {% if question.is_required and question.question_type != "CALCULATED" %}<span class="required-mark" aria-label="{% translate 'Required' %}" title="{% translate 'Required' %}">*</span>{% endif %}
         </div>
     {% else %}
         <label for="question-{{ question.id }}" class="field-label">
-            {% if language_code == "en" %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}
+            <span class="dynamic-label" data-label-template="{% if language_code == 'en' %}{{ question.label_en|escape }}{% else %}{{ question.label_sw|escape }}{% endif %}">{% if language_code == "en" %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}</span>
             {% if question.is_required %}<span class="required-mark" aria-label="{% translate 'Required' %}" title="{% translate 'Required' %}">*</span>{% endif %}
         </label>
     {% endif %}

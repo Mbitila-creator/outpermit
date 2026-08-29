@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 from django.core.exceptions import ValidationError
 
 QUESTION_NAME = re.compile(r"q(?P<id>\d+)$")
+ALLOWED_FUNCTIONS = {"COUNT", "IF"}
 
 
 class ExpressionError(ValueError):
@@ -29,9 +30,10 @@ def question_reference_ids(expression):
     for node in ast.walk(tree):
         if isinstance(node, ast.Name):
             match = QUESTION_NAME.fullmatch(node.id)
-            if not match:
+            if not match and node.id.upper() not in ALLOWED_FUNCTIONS:
                 raise ExpressionError(f"Unknown reference: {node.id}.")
-            references.add(int(match.group("id")))
+            if match:
+                references.add(int(match.group("id")))
     return references
 
 
@@ -44,8 +46,10 @@ def evaluate_expression(expression, answers):
     def evaluate(node):
         if isinstance(node, ast.Expression):
             return evaluate(node.body)
-        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float, bool)):
-            return node.value if isinstance(node.value, bool) else Decimal(str(node.value))
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float, bool, str)):
+            if isinstance(node.value, bool) or isinstance(node.value, str):
+                return node.value
+            return Decimal(str(node.value))
         if isinstance(node, ast.Name):
             match = QUESTION_NAME.fullmatch(node.id)
             if not match:
@@ -54,6 +58,25 @@ def evaluate_expression(expression, answers):
             if question_id not in answers or answers[question_id] in (None, "", []):
                 raise ExpressionError(f"Question q{question_id} has no answer.")
             return answers[question_id]
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            function = node.func.id.upper()
+            if node.keywords or function not in ALLOWED_FUNCTIONS:
+                raise ExpressionError("This function is not supported.")
+            if function == "IF":
+                if len(node.args) != 3:
+                    raise ExpressionError("IF requires a condition, true value, and false value.")
+                return evaluate(node.args[1]) if bool(evaluate(node.args[0])) else evaluate(node.args[2])
+            values = []
+            for argument in node.args:
+                if isinstance(argument, ast.Name) and QUESTION_NAME.fullmatch(argument.id):
+                    values.append(answers.get(int(argument.id[1:]), ""))
+                else:
+                    values.append(evaluate(argument))
+            return Decimal(sum(
+                len(value) if isinstance(value, (list, tuple, set))
+                else int(value not in (None, ""))
+                for value in values
+            ))
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub, ast.Not)):
             value = evaluate(node.operand)
             if isinstance(node.op, ast.Not):
