@@ -81,6 +81,63 @@ document.addEventListener("DOMContentLoaded", () => {
         return control.value.trim() ? [control.value.trim()] : [];
     });
 
+    const calculateExpression = (expression) => {
+        const source = expression.replace(/q(\d+)/g, (_match, id) => {
+            const value = Number(answerValues(id)[0]);
+            if (!Number.isFinite(value)) throw new Error(`q${id} is empty`);
+            return String(value);
+        });
+        const tokens = source.match(/\d+(?:\.\d+)?|[()+\-*/%]/g) || [];
+        if (tokens.join("") !== source.replace(/\s+/g, "")) throw new Error("Invalid expression");
+        let position = 0;
+        const primary = () => {
+            const token = tokens[position++];
+            if (token === "(") {
+                const value = addition();
+                if (tokens[position++] !== ")") throw new Error("Missing parenthesis");
+                return value;
+            }
+            if (token === "+") return primary();
+            if (token === "-") return -primary();
+            const value = Number(token);
+            if (!Number.isFinite(value)) throw new Error("Invalid number");
+            return value;
+        };
+        const multiplication = () => {
+            let value = primary();
+            while (["*", "/", "%"].includes(tokens[position])) {
+                const operator = tokens[position++];
+                const right = primary();
+                value = operator === "*" ? value * right : operator === "/" ? value / right : value % right;
+            }
+            return value;
+        };
+        const addition = () => {
+            let value = multiplication();
+            while (["+", "-"].includes(tokens[position])) {
+                const operator = tokens[position++];
+                const right = multiplication();
+                value = operator === "+" ? value + right : value - right;
+            }
+            return value;
+        };
+        const result = addition();
+        if (position !== tokens.length || !Number.isFinite(result)) throw new Error("Invalid result");
+        return result;
+    };
+
+    const updateCalculatedFields = () => {
+        form.querySelectorAll(".form-field[data-calculation-expression]").forEach((field) => {
+            const control = field.querySelector("input");
+            try {
+                const result = calculateExpression(field.dataset.calculationExpression);
+                control.value = result.toFixed(Number(field.dataset.decimalPlaces || 2));
+            } catch (_error) {
+                control.value = "";
+            }
+        });
+    };
+
     const ruleMatches = (rule) => {
         const values = answerValues(rule.question);
         const comparedValues = rule.comparison_question
@@ -490,6 +547,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         };
 
+        updateCalculatedFields();
         applyConditionalState();
         rebuildStepDots();
 
@@ -501,6 +559,7 @@ document.addEventListener("DOMContentLoaded", () => {
             event.target.closest(".form-field")
                 ?.querySelectorAll("input, select, textarea")
                 .forEach((control) => control.setCustomValidity(""));
+            updateCalculatedFields();
             const activeStep = getVisibleSteps()[currentStep];
             applyConditionalState();
             const updatedSteps = getVisibleSteps();
@@ -579,7 +638,12 @@ document.addEventListener("DOMContentLoaded", () => {
         draftSaveTimer = window.setTimeout(saveDraft, 800);
     };
 
-    form.addEventListener("input", scheduleDraftSave);
+    form.addEventListener("input", (event) => {
+        if (event.target.matches("input, select, textarea")) {
+            updateCalculatedFields();
+        }
+        scheduleDraftSave();
+    });
     form.addEventListener("change", scheduleDraftSave);
 
     const showGeneralMessage = (message, type = "error") => {

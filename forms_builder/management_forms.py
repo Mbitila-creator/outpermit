@@ -129,6 +129,8 @@ class SectionForm(ConditionalManagementForm):
 
     def clean(self):
         cleaned = super().clean()
+        if cleaned.get("calculation_decimal_places") is None:
+            cleaned["calculation_decimal_places"] = 2
         controlling = cleaned.get("condition_question")
         if controlling and self.instance.pk:
             if controlling.section.display_order >= self.instance.display_order:
@@ -152,6 +154,9 @@ class QuestionForm(ConditionalManagementForm):
             "help_text_sw", "placeholder_en", "placeholder_sw",
             "is_required", "minimum_length", "maximum_length",
             "minimum_value", "maximum_value",
+            "calculation_expression", "calculation_decimal_places",
+            "validation_expression", "validation_message_en",
+            "validation_message_sw",
             "condition_question", "condition_value",
         )
 

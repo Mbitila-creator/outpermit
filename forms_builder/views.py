@@ -36,6 +36,7 @@ from .notifications import (
     process_due_reminders, send_payment_notification, send_submission_notification,
 )
 from .display_logic import group_spec_json, target_is_visible
+from .expressions import ExpressionError, evaluate_expression
 from .services import (
     booth_detail_url,
     certificate_number,
@@ -573,7 +574,7 @@ def form_availability(event_form):
     return form_not_open, form_closed
 
 
-def validate_question_answer(request, question, *, enforce_required=True):
+def validate_question_answer(request, question, *, enforce_required=True, override_value=None):
     field_name = f"question_{question.id}"
     question_type = question.question_type
 
@@ -584,6 +585,8 @@ def validate_question_answer(request, question, *, enforce_required=True):
         FormQuestion.QuestionType.IMAGE,
     }:
         raw_value = request.FILES.get(field_name)
+    elif override_value is not None:
+        raw_value = str(override_value)
     else:
         raw_value = request.POST.get(field_name, "").strip()
 
@@ -646,7 +649,10 @@ def validate_question_answer(request, question, *, enforce_required=True):
 
         result["text_value"] = text_value
 
-    elif question_type == FormQuestion.QuestionType.NUMBER:
+    elif question_type in {
+        FormQuestion.QuestionType.NUMBER,
+        FormQuestion.QuestionType.CALCULATED,
+    }:
         try:
             number_value = Decimal(str(raw_value))
         except (InvalidOperation, TypeError, ValueError):
@@ -736,6 +742,46 @@ def validate_question_answer(request, question, *, enforce_required=True):
         result["text_value"] = str(raw_value).strip()
 
     return result, None
+
+
+def expression_answer_values(request, questions):
+    """Return trusted calculated values and raw scalar answers keyed by question id."""
+    values = {}
+    calculated = []
+    for question in questions:
+        field_name = f"question_{question.id}"
+        if question.question_type == FormQuestion.QuestionType.CALCULATED:
+            calculated.append(question)
+            continue
+        if question.question_type == FormQuestion.QuestionType.MULTIPLE_CHOICE:
+            values[question.id] = request.POST.getlist(field_name)
+            continue
+        raw = request.POST.get(field_name, "").strip()
+        if question.question_type == FormQuestion.QuestionType.NUMBER and raw:
+            try:
+                values[question.id] = Decimal(raw)
+            except InvalidOperation:
+                values[question.id] = raw
+        elif question.question_type == FormQuestion.QuestionType.YES_NO:
+            values[question.id] = raw == "yes" if raw else ""
+        else:
+            values[question.id] = raw
+
+    unresolved = list(calculated)
+    for _ in range(len(calculated) + 1):
+        progressed = False
+        for question in unresolved[:]:
+            try:
+                value = evaluate_expression(question.calculation_expression, values)
+            except ExpressionError:
+                continue
+            quantizer = Decimal(1).scaleb(-question.calculation_decimal_places)
+            values[question.id] = Decimal(value).quantize(quantizer)
+            unresolved.remove(question)
+            progressed = True
+        if not unresolved or not progressed:
+            break
+    return values, unresolved
 
 
 def draft_answer_value(answer):
@@ -1019,6 +1065,10 @@ def public_event_form(request, event_slug, form_slug):
 
         errors = {}
         validated_answers = []
+        expression_values, unresolved_calculations = expression_answer_values(
+            request, questions
+        )
+        unresolved_ids = {item.id for item in unresolved_calculations}
 
         for question in questions:
             if not section_is_visible_for_submission(
@@ -1029,15 +1079,44 @@ def public_event_form(request, event_slug, form_slug):
             if not question_is_visible_for_submission(request, question):
                 continue
 
+            if (
+                question.question_type == FormQuestion.QuestionType.CALCULATED
+                and question.id in unresolved_ids
+            ):
+                if not save_draft:
+                    errors[str(question.id)] = (
+                        "This value could not be calculated. Complete its referenced questions."
+                    )
+                continue
+
             answer_data, error = validate_question_answer(
                 request,
                 question,
                 enforce_required=not save_draft,
+                override_value=(
+                    expression_values.get(question.id)
+                    if question.question_type == FormQuestion.QuestionType.CALCULATED
+                    else None
+                ),
             )
 
             if error:
                 errors[str(question.id)] = error
             else:
+                if question.validation_expression and not answer_data.get("empty"):
+                    try:
+                        valid = bool(evaluate_expression(
+                            question.validation_expression, expression_values
+                        ))
+                    except ExpressionError:
+                        valid = save_draft
+                    if not valid:
+                        errors[str(question.id)] = (
+                            question.validation_message_en
+                            if language_code == "en"
+                            else question.validation_message_sw or question.validation_message_en
+                        )
+                        continue
                 validated_answers.append(answer_data)
 
         if errors:

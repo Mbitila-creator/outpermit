@@ -37,13 +37,14 @@
         {% if question.is_required %}required{% endif %}
     >
 
-{% elif question.question_type == "NUMBER" %}
+{% elif question.question_type == "NUMBER" or question.question_type == "CALCULATED" %}
     <input
         type="number"
         id="question-{{ question.id }}"
         name="question_{{ question.id }}"
         placeholder="{{ placeholder }}"
         inputmode="decimal"
+        {% if question.question_type == "CALCULATED" %}readonly aria-readonly="true"{% endif %}
         {% if question.minimum_value != None %}
             min="{{ question.minimum_value }}"
         {% endif %}
