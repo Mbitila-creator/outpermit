@@ -115,6 +115,24 @@ def questionnaire_builder(request, event_slug, form_id):
     })
 
 
+@login_required
+def questionnaire_print(request, event_slug, form_id):
+    """Render every active question in an A4-friendly administrator print view."""
+    event = _event(request, event_slug)
+    questionnaire = _form(event, form_id)
+    sections = questionnaire.sections.filter(is_active=True).prefetch_related(
+        "questions__options",
+        "questions__display_logic",
+        "questions__required_logic",
+        "questions__validation_logic",
+    ).order_by("display_order", "pk")
+    return render(request, "forms_builder/management/questionnaire_print.html", {
+        "event": event,
+        "questionnaire": questionnaire,
+        "sections": sections,
+    })
+
+
 def _logic_target(questionnaire, target_type, target_id):
     if target_type == "section":
         return get_object_or_404(

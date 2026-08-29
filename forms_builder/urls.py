@@ -28,6 +28,11 @@ urlpatterns = [
         name="questionnaire_edit",
     ),
     path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/print/",
+        department_views.questionnaire_print,
+        name="questionnaire_print",
+    ),
+    path(
         "manage/<slug:event_slug>/questionnaires/<int:form_id>/publish/",
         department_views.questionnaire_publish,
         name="questionnaire_publish",

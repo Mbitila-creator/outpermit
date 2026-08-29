@@ -1,0 +1,78 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>{{ questionnaire.name_en }} — Printable questionnaire</title>
+    <style>
+        @page { size: A4; margin: 14mm; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #eef2f6; color: #17263c; font: 14px/1.45 Arial, sans-serif; }
+        .actions { position: sticky; top: 0; z-index: 2; display: flex; justify-content: center; gap: 10px; padding: 12px; background: #0b3a69; }
+        .button { padding: 10px 16px; border: 0; border-radius: 7px; background: #fff; color: #0b3a69; font-weight: 700; text-decoration: none; cursor: pointer; }
+        .button.primary { background: #087f73; color: #fff; }
+        .paper { width: min(210mm, calc(100% - 24px)); min-height: 297mm; margin: 20px auto; padding: 14mm; background: #fff; box-shadow: 0 5px 22px #17324d22; }
+        .official { padding-bottom: 15px; border-bottom: 2px solid #2f6fac; text-align: center; }
+        .logo { display: block; width: auto; max-width: 31mm; max-height: 31mm; margin: 0 auto 8px; object-fit: contain; }
+        .ministry { margin: 0; font-size: 17px; font-weight: 800; text-transform: uppercase; }
+        h1 { margin: 20px 0 5px; color: #0b3a69; font-size: 24px; text-align: center; }
+        .subtitle { margin: 0 0 20px; color: #52657c; text-align: center; }
+        .introduction { margin: 16px 0; padding: 12px; border: 1px solid #d7e1eb; border-radius: 7px; }
+        .section { margin: 22px 0 0; break-inside: avoid-page; }
+        .section h2 { margin: 0 0 5px; padding: 8px 10px; background: #eaf1f8; color: #0b3a69; font-size: 17px; }
+        .section-description { margin: 5px 10px 12px; color: #52657c; }
+        .question { margin: 0 10px; padding: 12px 0; border-bottom: 1px solid #dce4ec; break-inside: avoid; }
+        .question-title { font-weight: 700; }
+        .sw { color: #52657c; font-style: italic; }
+        .required { color: #a7251d; }
+        .choices { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 5px 16px; margin: 9px 0 0; padding: 0; list-style: none; }
+        .choice::before { content: "☐"; margin-right: 7px; }
+        .answer-lines { height: 42px; margin-top: 8px; background: repeating-linear-gradient(to bottom, transparent 0, transparent 20px, #b8c5d3 21px); }
+        .long-answer { height: 86px; }
+        .logic { margin-top: 6px; color: #6b5200; font-size: 11px; }
+        .footer-note { margin-top: 28px; color: #52657c; font-size: 11px; text-align: center; }
+        @media print {
+            body { background: #fff; font-size: 11pt; }
+            .actions { display: none !important; }
+            .paper { width: auto; min-height: auto; margin: 0; padding: 0; box-shadow: none; }
+            .section { break-inside: auto; }
+            .question { break-inside: avoid; }
+        }
+        @media (max-width: 600px) { .choices { grid-template-columns: 1fr; } .paper { padding: 18px; } }
+    </style>
+</head>
+<body>
+    <nav class="actions" aria-label="Print actions">
+        <a class="button" href="{% url 'forms_builder:questionnaire_builder' event.slug questionnaire.pk %}">Back to builder</a>
+        <button class="button primary" type="button" onclick="window.print()">Print / Save as PDF</button>
+    </nav>
+    <main class="paper">
+        <header class="official">
+            {% if event.logo %}<img class="logo" src="{{ event.logo.url }}" alt="{{ event.code }} logo">{% else %}<img class="logo" src="{% static 'logo/moest_logo.png' %}" alt="Ministry of Education, Science and Technology logo">{% endif %}
+            <p class="ministry">{% if event.organizer_name_en %}{{ event.organizer_name_en }}{% else %}Ministry of Education, Science and Technology{% endif %}</p>
+        </header>
+        <h1>{{ questionnaire.name_en }}</h1>
+        <p class="subtitle">{{ questionnaire.name_sw }} · {{ event.code }}</p>
+        {% if questionnaire.introduction_en or questionnaire.introduction_sw %}<section class="introduction"><strong>Introduction / Utangulizi</strong>{% if questionnaire.introduction_en %}<p>{{ questionnaire.introduction_en|linebreaksbr }}</p>{% endif %}{% if questionnaire.introduction_sw %}<p class="sw">{{ questionnaire.introduction_sw|linebreaksbr }}</p>{% endif %}</section>{% endif %}
+        {% for section in sections %}
+            <section class="section">
+                <h2>{{ forloop.counter }}. {{ section.title_en }}{% if section.title_sw %} / {{ section.title_sw }}{% endif %}</h2>
+                {% if section.description_en or section.description_sw %}<p class="section-description">{{ section.description_en }}{% if section.description_sw %}<br><span class="sw">{{ section.description_sw }}</span>{% endif %}</p>{% endif %}
+                {% for question in section.questions.all %}{% if question.is_active %}
+                    <article class="question">
+                        <div class="question-title">{{ forloop.counter }}. {{ question.label_en }}{% if question.is_required %} <span class="required">*</span>{% endif %}</div>
+                        {% if question.label_sw %}<div class="sw">{{ question.label_sw }}</div>{% endif %}
+                        {% if question.help_text_en %}<div>{{ question.help_text_en }}</div>{% endif %}
+                        {% if question.options.all %}<ul class="choices">{% for option in question.options.all %}{% if option.is_active %}<li class="choice">{{ option.label_en }}{% if option.label_sw %} / <span class="sw">{{ option.label_sw }}</span>{% endif %}</li>{% endif %}{% endfor %}</ul>{% else %}<div class="answer-lines {% if question.question_type == 'LONG_TEXT' %}long-answer{% endif %}"></div>{% endif %}
+                        {% if question.display_logic %}<div class="logic">Show when: {{ question.display_logic.summary_en }}</div>{% endif %}
+                        {% if question.required_logic %}<div class="logic">Required when: {{ question.required_logic.summary_en }}</div>{% endif %}
+                        {% if question.validation_logic %}<div class="logic">Valid when: {{ question.validation_logic.summary_en }}</div>{% endif %}
+                    </article>
+                {% endif %}{% empty %}<p>No active questions.</p>{% endfor %}
+            </section>
+        {% empty %}<p>No active sections.</p>{% endfor %}
+        <p class="footer-note">Generated from the OutPermit Event Management questionnaire builder.</p>
+    </main>
+</body>
+</html>
