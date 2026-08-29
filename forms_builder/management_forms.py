@@ -157,6 +157,7 @@ class QuestionForm(ConditionalManagementForm):
             "calculation_expression", "calculation_decimal_places",
             "validation_expression", "validation_message_en",
             "validation_message_sw",
+            "choice_filter_question",
             "condition_question", "condition_value",
         )
 
@@ -165,6 +166,16 @@ class QuestionForm(ConditionalManagementForm):
         super().__init__(*args, event_form=section.event_form, **kwargs)
         self.fields["condition_question"].widget = forms.HiddenInput()
         self.fields["condition_value"].widget = forms.HiddenInput()
+        preceding = FormQuestion.objects.filter(
+            section__event_form=section.event_form,
+            is_active=True,
+            question_type__in=self.CHOICE_TYPES,
+        ).exclude(pk=self.instance.pk if self.instance.pk else None).order_by(
+            "section__display_order", "display_order", "pk"
+        )
+        self.fields["choice_filter_question"].queryset = preceding
+        self.fields["choice_filter_question"].required = False
+        self.fields["choice_filter_question"].empty_label = "Do not filter choices"
 
     def clean(self):
         cleaned = super().clean()
@@ -185,13 +196,64 @@ class QuestionForm(ConditionalManagementForm):
                     "condition_question",
                     "Skip logic can only depend on a question displayed earlier in the form.",
                 )
+        filter_question = cleaned.get("choice_filter_question")
+        if filter_question:
+            filter_position = (
+                filter_question.section.display_order,
+                filter_question.display_order,
+                filter_question.pk,
+            )
+            own_position = (
+                self.section.display_order,
+                self.instance.display_order if self.instance.pk else 10**9,
+                self.instance.pk or 10**9,
+            )
+            if filter_position >= own_position:
+                self.add_error(
+                    "choice_filter_question",
+                    "Choice filtering can only use a question displayed earlier in the form.",
+                )
         return cleaned
 
 
 class OptionForm(StyledModelForm):
     class Meta:
         model = QuestionOption
-        fields = ("label_en", "label_sw", "value")
+        fields = ("label_en", "label_sw", "value", "filter_values")
+
+    def __init__(self, *args, question=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.question = question or getattr(self.instance, "question", None)
+        controller = getattr(self.question, "choice_filter_question", None)
+        if controller:
+            options = ", ".join(
+                f"{option.value} ({option.label_en})"
+                for option in controller.options.filter(is_active=True)
+            )
+            self.fields["filter_values"].help_text = (
+                "Show this choice when the controlling answer matches one of these "
+                f"stored values: {options}. Separate multiple values with commas."
+            )
+        else:
+            self.fields["filter_values"].widget = forms.HiddenInput()
+
+    def clean_filter_values(self):
+        values = [
+            value.strip()
+            for value in (self.cleaned_data.get("filter_values") or "").split(",")
+            if value.strip()
+        ]
+        controller = getattr(self.question, "choice_filter_question", None)
+        if not controller and values:
+            raise ValidationError("Choose a filter question before assigning option filter values.")
+        if controller:
+            valid = set(controller.options.filter(is_active=True).values_list("value", flat=True))
+            unknown = [value for value in values if value not in valid]
+            if unknown:
+                raise ValidationError(
+                    "Unknown controlling value(s): " + ", ".join(unknown)
+                )
+        return ",".join(dict.fromkeys(values))
 
     def clean_value(self):
         value = (self.cleaned_data.get("value") or "").strip()

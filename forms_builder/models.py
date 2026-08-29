@@ -378,6 +378,18 @@ class FormQuestion(BaseModel):
         _("validation message in Kiswahili"), max_length=300, blank=True,
     )
 
+    choice_filter_question = models.ForeignKey(
+        "self",
+        verbose_name=_("filter choices using question"),
+        related_name="filtered_choice_questions",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text=_(
+            "For cascading choices, show only options matching an earlier question."
+        ),
+    )
+
     condition_question = models.ForeignKey(
         "self",
         verbose_name=_("show when question"),
@@ -411,6 +423,31 @@ class FormQuestion(BaseModel):
         validate_question_expression(self.validation_expression, self, "validation_expression")
         if self.validation_expression and not self.validation_message_en:
             raise ValidationError({"validation_message_en": _("Enter the message shown when validation fails.")})
+        if self.choice_filter_question_id:
+            if not self.supports_options:
+                raise ValidationError({
+                    "choice_filter_question": _(
+                        "Choice filtering is available only for choice and dropdown questions."
+                    )
+                })
+            if self.choice_filter_question_id == self.pk:
+                raise ValidationError({
+                    "choice_filter_question": _("A question cannot filter its own choices.")
+                })
+            if not self.choice_filter_question.supports_options:
+                raise ValidationError({
+                    "choice_filter_question": _(
+                        "The filter question must provide configured answer choices."
+                    )
+                })
+            if (
+                self.section_id
+                and self.choice_filter_question.section.event_form_id
+                != self.section.event_form_id
+            ):
+                raise ValidationError({
+                    "choice_filter_question": _("The filter question must belong to the same form.")
+                })
         has_question = bool(self.condition_question_id)
         has_value = bool(self.condition_value)
         if has_question != has_value:
@@ -487,6 +524,15 @@ class QuestionOption(BaseModel):
         max_length=200,
     )
 
+    filter_values = models.CharField(
+        _("controlling answer values"),
+        max_length=500,
+        blank=True,
+        help_text=_(
+            "Comma-separated stored values. Leave blank to show this option for every answer."
+        ),
+    )
+
     display_order = models.PositiveIntegerField(
         _("display order"),
         default=0,
@@ -506,6 +552,10 @@ class QuestionOption(BaseModel):
 
     def __str__(self):
         return self.label_sw
+
+    @property
+    def filter_value_list(self):
+        return [value.strip() for value in self.filter_values.split(",") if value.strip()]
 
 
 class DisplayLogicGroup(BaseModel):

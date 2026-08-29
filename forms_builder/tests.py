@@ -41,7 +41,7 @@ from .services import (
 )
 from .views import registration_identity_conflicts
 from .expressions import ExpressionError, evaluate_expression, question_reference_ids
-from .views import expression_answer_values
+from .views import choice_option_is_available, expression_answer_values
 
 
 class QuestionnaireExpressionTests(SimpleTestCase):
@@ -94,6 +94,52 @@ class CalculatedAnswerTests(TestCase):
         )
         self.assertFalse(unresolved)
         self.assertEqual(values[self.total.pk], Decimal("10.00"))
+
+
+class CascadingChoiceTests(TestCase):
+    def setUp(self):
+        category = EventCategory.objects.create(name_en="Survey", name_sw="Dodoso")
+        event = Event.objects.create(
+            category=category, code="CASCADE-2027", title_en="Cascade",
+            title_sw="Mfuatano", slug="cascade", starts_at=timezone.now(),
+            ends_at=timezone.now() + timedelta(days=1),
+        )
+        event_form = EventForm.objects.create(event=event, name_en="Form", name_sw="Fomu")
+        section = event_form.sections.create(title_en="Location", title_sw="Mahali")
+        self.country = section.questions.create(
+            label_en="Country", label_sw="Nchi",
+            question_type=FormQuestion.QuestionType.DROPDOWN, display_order=1,
+        )
+        self.country.options.create(value="TZ", label_en="Tanzania", label_sw="Tanzania")
+        self.country.options.create(value="KE", label_en="Kenya", label_sw="Kenya")
+        self.region = section.questions.create(
+            label_en="Region", label_sw="Mkoa",
+            question_type=FormQuestion.QuestionType.DROPDOWN,
+            choice_filter_question=self.country, display_order=2,
+        )
+        self.tanga = self.region.options.create(
+            value="TANGA", label_en="Tanga", label_sw="Tanga", filter_values="TZ"
+        )
+        self.nairobi = self.region.options.create(
+            value="NAIROBI", label_en="Nairobi", label_sw="Nairobi", filter_values="KE"
+        )
+        self.other = self.region.options.create(
+            value="OTHER", label_en="Other", label_sw="Nyingine", filter_values=""
+        )
+
+    def test_server_enforces_filtered_choices(self):
+        request = RequestFactory().post("/", {
+            f"question_{self.country.pk}": "TZ",
+            f"question_{self.region.pk}": "NAIROBI",
+        })
+        self.assertFalse(choice_option_is_available(request, self.region, self.nairobi))
+        self.assertTrue(choice_option_is_available(request, self.region, self.tanga))
+
+    def test_unfiltered_option_is_always_available(self):
+        request = RequestFactory().post("/", {
+            f"question_{self.country.pk}": "KE",
+        })
+        self.assertTrue(choice_option_is_available(request, self.region, self.other))
 
 
 class AdvancedDisplayLogicTests(TestCase):

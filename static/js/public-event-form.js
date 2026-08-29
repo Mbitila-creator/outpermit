@@ -138,6 +138,33 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     };
 
+    const updateChoiceFilters = () => {
+        form.querySelectorAll(".form-field[data-choice-filter-question]").forEach((field) => {
+            const controllingValues = answerValues(field.dataset.choiceFilterQuestion);
+            const controls = Array.from(field.querySelectorAll("option[data-filter-values], .choice-item[data-filter-values]"));
+            controls.forEach((item) => {
+                const allowedValues = (item.dataset.filterValues || "")
+                    .split(",").map((value) => value.trim()).filter(Boolean);
+                const show = !allowedValues.length || controllingValues.some(
+                    (value) => allowedValues.includes(value)
+                );
+                const input = item.matches("option") ? item : item.querySelector("input");
+                item.hidden = !show;
+                if (input) {
+                    input.disabled = !show;
+                    if (!show) {
+                        if (input.matches("option")) {
+                            const select = input.closest("select");
+                            if (select && select.value === input.value) select.value = "";
+                        } else {
+                            input.checked = false;
+                        }
+                    }
+                }
+            });
+        });
+    };
+
     const ruleMatches = (rule) => {
         const values = answerValues(rule.question);
         const comparedValues = rule.comparison_question
@@ -547,6 +574,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         };
 
+        updateChoiceFilters();
         updateCalculatedFields();
         applyConditionalState();
         rebuildStepDots();
@@ -559,6 +587,7 @@ document.addEventListener("DOMContentLoaded", () => {
             event.target.closest(".form-field")
                 ?.querySelectorAll("input, select, textarea")
                 .forEach((control) => control.setCustomValidity(""));
+            updateChoiceFilters();
             updateCalculatedFields();
             const activeStep = getVisibleSteps()[currentStep];
             applyConditionalState();
@@ -640,6 +669,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     form.addEventListener("input", (event) => {
         if (event.target.matches("input, select, textarea")) {
+            updateChoiceFilters();
             updateCalculatedFields();
         }
         scheduleDraftSave();

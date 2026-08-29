@@ -86,7 +86,7 @@
 
         {% for option in question.options.all %}
             {% if option.is_active %}
-                <option value="{{ option.value }}">
+                <option value="{{ option.value }}"{% if option.filter_values %} data-filter-values="{{ option.filter_values|escape }}"{% endif %}>
                     {% if language_code == "en" %}
                         {{ option.label_en }}
                     {% else %}
@@ -108,6 +108,7 @@
                 <label
                     class="choice-item"
                     for="question-{{ question.id }}-option-{{ option.id }}"
+                    {% if option.filter_values %}data-filter-values="{{ option.filter_values|escape }}"{% endif %}
                 >
                     <input
                         type="radio"
@@ -144,6 +145,7 @@
                 <label
                     class="choice-item"
                     for="question-{{ question.id }}-option-{{ option.id }}"
+                    {% if option.filter_values %}data-filter-values="{{ option.filter_values|escape }}"{% endif %}
                 >
                     <input
                         type="checkbox"
