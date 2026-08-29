@@ -264,6 +264,7 @@ class FormQuestion(BaseModel):
         EMAIL = "EMAIL", _("Email address")
         PHONE = "PHONE", _("Phone number")
         NUMBER = "NUMBER", _("Number")
+        CALCULATED = "CALCULATED", _("Calculated number")
         DATE = "DATE", _("Date")
         DATETIME = "DATETIME", _("Date and time")
         SINGLE_CHOICE = "SINGLE_CHOICE", _("Single choice")
@@ -359,6 +360,24 @@ class FormQuestion(BaseModel):
         blank=True,
     )
 
+    calculation_expression = models.CharField(
+        _("calculation expression"), max_length=500, blank=True,
+        help_text=_("Use question references such as q12 + q13."),
+    )
+    calculation_decimal_places = models.PositiveSmallIntegerField(
+        _("calculation decimal places"), default=2, blank=True,
+    )
+    validation_expression = models.CharField(
+        _("validation expression"), max_length=500, blank=True,
+        help_text=_("Example: q12 <= q13 and q14 > 0."),
+    )
+    validation_message_en = models.CharField(
+        _("validation message in English"), max_length=300, blank=True,
+    )
+    validation_message_sw = models.CharField(
+        _("validation message in Kiswahili"), max_length=300, blank=True,
+    )
+
     condition_question = models.ForeignKey(
         "self",
         verbose_name=_("show when question"),
@@ -383,6 +402,15 @@ class FormQuestion(BaseModel):
 
     def clean(self):
         super().clean()
+        from .expressions import validate_question_expression
+        if self.question_type == self.QuestionType.CALCULATED and not self.calculation_expression:
+            raise ValidationError({"calculation_expression": _("Enter a calculation expression.")})
+        if self.question_type != self.QuestionType.CALCULATED and self.calculation_expression:
+            raise ValidationError({"calculation_expression": _("Only calculated questions may have a calculation expression.")})
+        validate_question_expression(self.calculation_expression, self, "calculation_expression")
+        validate_question_expression(self.validation_expression, self, "validation_expression")
+        if self.validation_expression and not self.validation_message_en:
+            raise ValidationError({"validation_message_en": _("Enter the message shown when validation fails.")})
         has_question = bool(self.condition_question_id)
         has_value = bool(self.condition_value)
         if has_question != has_value:
@@ -1647,6 +1675,7 @@ class FormAnswer(BaseModel):
             FormQuestion.QuestionType.EMAIL: {"text_value"},
             FormQuestion.QuestionType.PHONE: {"text_value"},
             FormQuestion.QuestionType.NUMBER: {"number_value"},
+            FormQuestion.QuestionType.CALCULATED: {"number_value"},
             FormQuestion.QuestionType.DATE: {"date_value"},
             FormQuestion.QuestionType.DATETIME: {"datetime_value"},
             FormQuestion.QuestionType.YES_NO: {"boolean_value"},

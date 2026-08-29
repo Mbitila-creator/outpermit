@@ -3,6 +3,7 @@ from io import BytesIO
 from io import StringIO
 from tempfile import NamedTemporaryFile
 from datetime import datetime, timedelta
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.core.management import call_command
@@ -39,6 +40,60 @@ from .services import (
     weuutz_event_sentence_html,
 )
 from .views import registration_identity_conflicts
+from .expressions import ExpressionError, evaluate_expression, question_reference_ids
+from .views import expression_answer_values
+
+
+class QuestionnaireExpressionTests(SimpleTestCase):
+    def test_arithmetic_boolean_and_references(self):
+        answers = {12: Decimal("4"), 13: Decimal("6"), 14: Decimal("3")}
+        self.assertEqual(evaluate_expression("q12 + q13 * 2", answers), Decimal("16"))
+        self.assertTrue(evaluate_expression("q12 <= q13 and q14 > 0", answers))
+        self.assertEqual(question_reference_ids("q12 + q13"), {12, 13})
+
+    def test_unsafe_or_unknown_syntax_is_rejected(self):
+        with self.assertRaises(ExpressionError):
+            evaluate_expression("__import__('os')", {})
+        with self.assertRaises(ExpressionError):
+            evaluate_expression("unknown + 1", {})
+
+
+class CalculatedAnswerTests(TestCase):
+    def setUp(self):
+        category = EventCategory.objects.create(name_en="Survey", name_sw="Dodoso")
+        event = Event.objects.create(
+            category=category, code="CALC-2027", title_en="Calculation",
+            title_sw="Hesabu", slug="calculation", starts_at=timezone.now(),
+            ends_at=timezone.now() + timedelta(days=1),
+        )
+        event_form = EventForm.objects.create(event=event, name_en="Form", name_sw="Fomu")
+        section = event_form.sections.create(title_en="Numbers", title_sw="Namba")
+        self.first = section.questions.create(
+            label_en="First", label_sw="Kwanza",
+            question_type=FormQuestion.QuestionType.NUMBER, display_order=1,
+        )
+        self.second = section.questions.create(
+            label_en="Second", label_sw="Pili",
+            question_type=FormQuestion.QuestionType.NUMBER, display_order=2,
+        )
+        self.total = section.questions.create(
+            label_en="Total", label_sw="Jumla",
+            question_type=FormQuestion.QuestionType.CALCULATED,
+            calculation_expression=f"q{self.first.pk} + q{self.second.pk}",
+            display_order=3,
+        )
+
+    def test_server_calculates_instead_of_trusting_posted_total(self):
+        request = RequestFactory().post("/", {
+            f"question_{self.first.pk}": "7.5",
+            f"question_{self.second.pk}": "2.5",
+            f"question_{self.total.pk}": "999",
+        })
+        values, unresolved = expression_answer_values(
+            request, [self.first, self.second, self.total]
+        )
+        self.assertFalse(unresolved)
+        self.assertEqual(values[self.total.pk], Decimal("10.00"))
 
 
 class AdvancedDisplayLogicTests(TestCase):
