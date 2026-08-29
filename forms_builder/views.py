@@ -716,6 +716,9 @@ def validate_question_answer(request, question, *, enforce_required=True, overri
         if option is None:
             return None, "Select a valid option."
 
+        if not choice_option_is_available(request, question, option):
+            return None, "This option is not available for the earlier answer selected."
+
         result["selected_options"] = [option]
 
     elif question_type == FormQuestion.QuestionType.MULTIPLE_CHOICE:
@@ -730,6 +733,9 @@ def validate_question_answer(request, question, *, enforce_required=True, overri
         if len(options) != len(set(raw_value)):
             return None, "One or more selected options are invalid."
 
+        if any(not choice_option_is_available(request, question, option) for option in options):
+            return None, "One or more selected options are not available for the earlier answer selected."
+
         result["selected_options"] = options
 
     elif question_type in {
@@ -742,6 +748,16 @@ def validate_question_answer(request, question, *, enforce_required=True, overri
         result["text_value"] = str(raw_value).strip()
 
     return result, None
+
+
+def choice_option_is_available(request, question, option):
+    """Enforce cascading-choice filters independently of browser JavaScript."""
+    if not question.choice_filter_question_id or not option.filter_value_list:
+        return True
+    controlling_values = request.POST.getlist(
+        f"question_{question.choice_filter_question_id}"
+    )
+    return bool(set(controlling_values) & set(option.filter_value_list))
 
 
 def expression_answer_values(request, questions):

@@ -5,6 +5,7 @@
     data-question-type="{{ question.question_type }}"
     data-required="{% if question.is_required %}true{% else %}false{% endif %}"
     data-question-label="{% if language_code == 'en' %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}"
+    {% if question.choice_filter_question_id %}data-choice-filter-question="{{ question.choice_filter_question_id }}"{% endif %}
     {% if question.calculation_expression %}data-calculation-expression="{{ question.calculation_expression|escape }}" data-decimal-places="{{ question.calculation_decimal_places }}"{% endif %}
     {% if question.validation_expression %}data-validation-expression="{{ question.validation_expression|escape }}" data-validation-message="{% if language_code == 'en' %}{{ question.validation_message_en|escape }}{% else %}{{ question.validation_message_sw|default:question.validation_message_en|escape }}{% endif %}"{% endif %}
     {% if question.display_logic_json %}

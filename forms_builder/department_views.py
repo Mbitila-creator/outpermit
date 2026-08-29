@@ -389,7 +389,7 @@ def option_edit(request, event_slug, form_id, question_id, option_id=None):
     option = get_object_or_404(
         QuestionOption, pk=option_id, question=question, is_active=True
     ) if option_id else QuestionOption(question=question)
-    form = OptionForm(request.POST or None, instance=option)
+    form = OptionForm(request.POST or None, instance=option, question=question)
     if request.method == "POST" and form.is_valid():
         option = form.save(commit=False)
         option.question = question
