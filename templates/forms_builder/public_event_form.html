@@ -216,7 +216,7 @@
                             class="form-official-logo"
                             alt="{% if request.LANGUAGE_CODE == 'en' %}{{ event.organizer_name_en|default:event.organizer_name_sw }}{% else %}{{ event.organizer_name_sw|default:event.organizer_name_en }}{% endif %}"
                         >
-                    {% elif event.category.is_conference %}
+                    {% else %}
                         <img
                             src="{% static 'logo/moest_logo.png' %}"
                             class="form-official-logo form-official-logo--ministry"
