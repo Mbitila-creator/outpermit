@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const submitButton = form.querySelector(".submit-button");
-    const allSteps = Array.from(form.querySelectorAll(".wizard-step"));
+    let allSteps = Array.from(form.querySelectorAll(".wizard-step"));
     const previousButton = form.querySelector(".wizard-previous");
     const nextButton = form.querySelector(".wizard-next");
     const progressTrack = form.querySelector(".wizard-progress-track");
@@ -49,11 +49,11 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Could not restore the saved evaluation draft.", error);
             return;
         }
-        Object.entries(draftAnswers).forEach(([questionId, storedValue]) => {
+        Object.entries(draftAnswers).forEach(([questionKey, storedValue]) => {
             const values = Array.isArray(storedValue)
                 ? storedValue.map(String)
                 : [String(storedValue)];
-            form.querySelectorAll(`[name="question_${questionId}"]`)
+            form.querySelectorAll(`[name="question_${questionKey}"]`)
                 .forEach((control) => {
                     if (control.type === "checkbox" || control.type === "radio") {
                         control.checked = values.includes(control.value);
@@ -63,8 +63,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
         });
     };
-
-    restoreDraftAnswers();
 
     allSteps.forEach((step) => {
         step.querySelectorAll("input, select, textarea").forEach((control) => {
@@ -81,19 +79,49 @@ document.addEventListener("DOMContentLoaded", () => {
         return control.value.trim() ? [control.value.trim()] : [];
     });
 
-    const calculateExpression = (expression) => {
-        const source = expression.replace(/q(\d+)/g, (_match, id) => {
-            const value = Number(answerValues(id)[0]);
-            if (!Number.isFinite(value)) throw new Error(`q${id} is empty`);
-            return String(value);
+    const updateDynamicLabels = () => {
+        form.querySelectorAll(".dynamic-label[data-label-template]").forEach((element) => {
+            element.textContent = element.dataset.labelTemplate.replace(
+                /\{\{\s*q(\d+)\s*\}\}/gi,
+                (_match, questionId) => answerValues(questionId).join(", ") || "…"
+            );
         });
-        const tokens = source.match(/\d+(?:\.\d+)?|[()+\-*/%]/g) || [];
-        if (tokens.join("") !== source.replace(/\s+/g, "")) throw new Error("Invalid expression");
+        form.querySelectorAll(".form-field[data-question-id]").forEach((field) => {
+            const label = field.querySelector(".dynamic-label")?.textContent.trim();
+            if (label) field.dataset.questionLabel = label;
+        });
+    };
+
+    const calculateExpression = (expression) => {
+        const source = expression.trim();
+        const tokens = source.match(/q\d+|COUNT|IF|>=|<=|==|!=|>|<|\d+(?:\.\d+)?|[(),+\-*/%]/gi) || [];
+        if (tokens.join("").toUpperCase() !== source.replace(/\s+/g, "").toUpperCase()) throw new Error("Invalid expression");
         let position = 0;
         const primary = () => {
             const token = tokens[position++];
+            if (/^q\d+$/i.test(token || "")) {
+                const values = answerValues(token.slice(1));
+                if (!values.length) throw new Error(`${token} is empty`);
+                return values.length > 1 ? values : values[0];
+            }
+            if (/^(COUNT|IF)$/i.test(token || "")) {
+                const functionName = token.toUpperCase();
+                if (tokens[position++] !== "(") throw new Error("Missing parenthesis");
+                const args = [];
+                if (tokens[position] !== ")") {
+                    do {
+                        args.push(comparison());
+                    } while (tokens[position] === "," && ++position);
+                }
+                if (tokens[position++] !== ")") throw new Error("Missing parenthesis");
+                if (functionName === "IF") {
+                    if (args.length !== 3) throw new Error("IF needs three arguments");
+                    return args[0] ? args[1] : args[2];
+                }
+                return args.reduce((count, value) => count + (Array.isArray(value) ? value.length : (value === "" ? 0 : 1)), 0);
+            }
             if (token === "(") {
-                const value = addition();
+                const value = comparison();
                 if (tokens[position++] !== ")") throw new Error("Missing parenthesis");
                 return value;
             }
@@ -107,21 +135,35 @@ document.addEventListener("DOMContentLoaded", () => {
             let value = primary();
             while (["*", "/", "%"].includes(tokens[position])) {
                 const operator = tokens[position++];
-                const right = primary();
+                const right = Number(primary());
+                value = Number(value);
                 value = operator === "*" ? value * right : operator === "/" ? value / right : value % right;
             }
             return value;
         };
         const addition = () => {
-            let value = multiplication();
+            let value = Number(multiplication());
             while (["+", "-"].includes(tokens[position])) {
                 const operator = tokens[position++];
-                const right = multiplication();
+                const right = Number(multiplication());
                 value = operator === "+" ? value + right : value - right;
             }
             return value;
         };
-        const result = addition();
+        const comparison = () => {
+            let value = addition();
+            const operator = tokens[position];
+            if (![">", ">=", "<", "<=", "==", "!="].includes(operator)) return value;
+            position += 1;
+            const right = addition();
+            if (operator === ">") return value > right;
+            if (operator === ">=") return value >= right;
+            if (operator === "<") return value < right;
+            if (operator === "<=") return value <= right;
+            if (operator === "==") return value === right;
+            return value !== right;
+        };
+        const result = comparison();
         if (position !== tokens.length || !Number.isFinite(result)) throw new Error("Invalid result");
         return result;
     };
@@ -266,6 +308,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const getVisibleSteps = () => allSteps.filter(conditionMatches);
 
     const applyConditionalState = () => {
+        const requiredMatches = (field) => {
+            if (!field.dataset.requiredLogic) {
+                return false;
+            }
+            try {
+                return logicMatches(JSON.parse(field.dataset.requiredLogic));
+            } catch (error) {
+                console.error("Invalid questionnaire required logic.", error);
+                return false;
+            }
+        };
         allSteps.forEach((step) => {
             const visible = conditionMatches(step);
             step.dataset.conditionVisible = visible ? "true" : "false";
@@ -291,6 +344,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     control.setCustomValidity("");
                 }
             });
+        });
+
+        form.querySelectorAll(".form-field").forEach((field) => {
+            const required = field.dataset.required === "true" || requiredMatches(field);
+            const visible = !field.hidden && field.closest(".form-step")?.dataset.conditionVisible !== "false";
+            field.querySelectorAll("input, select, textarea").forEach((control) => {
+                control.required = visible && required && control.type !== "checkbox";
+            });
+            field.dataset.effectiveRequired = required ? "true" : "false";
         });
     };
 
@@ -507,7 +569,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const step = steps[currentStep];
         const unansweredRequiredGroup = Array.from(
             step.querySelectorAll(
-                '.form-field[data-required="true"][data-question-type="MULTIPLE_CHOICE"]'
+                '.form-field[data-effective-required="true"][data-question-type="MULTIPLE_CHOICE"]'
             )
         ).find((field) => !field.querySelector("input:checked"));
 
@@ -574,8 +636,100 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         };
 
+        const renumberRepeatSteps = (sectionId) => {
+            const instances = allSteps.filter(
+                (step) => step.dataset.sectionId === sectionId
+            );
+            instances.forEach((step, repeatIndex) => {
+                step.dataset.repeatIndex = String(repeatIndex);
+                step.querySelectorAll("input, select, textarea").forEach((control) => {
+                    const baseName = control.name.replace(/__repeat_\d+$/, "");
+                    if (baseName.startsWith("question_")) {
+                        control.name = repeatIndex ? `${baseName}__repeat_${repeatIndex}` : baseName;
+                    }
+                });
+                const remove = step.querySelector(".repeat-remove");
+                if (remove) remove.hidden = repeatIndex === 0;
+                if (repeatIndex) step.querySelector(".repeat-add")?.setAttribute("hidden", "hidden");
+            });
+            const original = instances[0];
+            if (original) {
+                original.querySelector(".repeat-count").value = String(instances.length);
+                const add = original.querySelector(".repeat-add");
+                if (add) add.hidden = instances.length >= Number(original.dataset.maxRepeats || 10);
+            }
+        };
+
+        const addRepeatStep = (original) => {
+            const sectionId = original.dataset.sectionId;
+            const instances = allSteps.filter((step) => step.dataset.sectionId === sectionId);
+            if (instances.length >= Number(original.dataset.maxRepeats || 10)) return;
+            const clone = original.cloneNode(true);
+            clone.querySelector(".repeat-count")?.remove();
+            clone.querySelectorAll("input, select, textarea").forEach((control) => {
+                if (control.type === "checkbox" || control.type === "radio") control.checked = false;
+                else if (control.type !== "hidden") control.value = "";
+                control.setCustomValidity("");
+            });
+            const reviewStep = allSteps.find((step) => step.classList.contains("wizard-review-step"));
+            reviewStep.before(clone);
+            allSteps = Array.from(form.querySelectorAll(".wizard-step"));
+            renumberRepeatSteps(sectionId);
+            updateChoiceFilters();
+            updateCalculatedFields();
+            updateDynamicLabels();
+            applyConditionalState();
+            rebuildStepDots();
+        };
+
+        form.addEventListener("click", (event) => {
+            const add = event.target.closest(".repeat-add");
+            if (add) {
+                const current = add.closest(".wizard-step");
+                const original = allSteps.find(
+                    (step) => step.dataset.sectionId === current.dataset.sectionId
+                        && step.dataset.repeatIndex === "0"
+                );
+                if (original) addRepeatStep(original);
+                return;
+            }
+            const remove = event.target.closest(".repeat-remove");
+            if (remove) {
+                const step = remove.closest(".wizard-step");
+                const sectionId = step.dataset.sectionId;
+                const minimum = Number(step.dataset.minRepeats || 1);
+                const instances = allSteps.filter((item) => item.dataset.sectionId === sectionId);
+                if (instances.length <= minimum) return;
+                step.remove();
+                allSteps = Array.from(form.querySelectorAll(".wizard-step"));
+                renumberRepeatSteps(sectionId);
+                rebuildStepDots();
+                showStep(Math.min(currentStep, getVisibleSteps().length - 1), false);
+            }
+        });
+
+        allSteps.filter((step) => step.dataset.repeatable === "true").forEach((step) => {
+            const draftIndexes = Object.keys(
+                (() => {
+                    try { return JSON.parse(draftDataElement?.textContent || "{}"); }
+                    catch (_error) { return {}; }
+                })()
+            ).flatMap((key) => {
+                const match = key.match(/__repeat_(\d+)$/);
+                return match ? [Number(match[1])] : [];
+            });
+            const requiredCount = Math.max(
+                Number(step.dataset.minRepeats || 1),
+                draftIndexes.length ? Math.max(...draftIndexes) + 1 : 1,
+            );
+            for (let index = 1; index < requiredCount; index += 1) addRepeatStep(step);
+        });
+
+        restoreDraftAnswers();
+
         updateChoiceFilters();
         updateCalculatedFields();
+        updateDynamicLabels();
         applyConditionalState();
         rebuildStepDots();
 
@@ -589,6 +743,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 .forEach((control) => control.setCustomValidity(""));
             updateChoiceFilters();
             updateCalculatedFields();
+            updateDynamicLabels();
             const activeStep = getVisibleSteps()[currentStep];
             applyConditionalState();
             const updatedSteps = getVisibleSteps();
@@ -695,14 +850,15 @@ document.addEventListener("DOMContentLoaded", () => {
         let firstInvalidField = null;
 
         Object.entries(errors).forEach(
-            ([questionId, message]) => {
-                const fieldWrapper = form.querySelector(
-                    `[data-question-id="${questionId}"]`
+            ([questionKey, message]) => {
+                const match = questionKey.match(/^(\d+)(?:__repeat_(\d+))?$/);
+                const questionId = match ? match[1] : questionKey;
+                const repeatIndex = match?.[2] || "0";
+                const step = form.querySelector(
+                    `.wizard-step[data-repeat-index="${repeatIndex}"] [data-question-id="${questionId}"]`
                 );
-
-                const errorElement = document.getElementById(
-                    `error-question-${questionId}`
-                );
+                const fieldWrapper = step || form.querySelector(`[data-question-id="${questionId}"]`);
+                const errorElement = fieldWrapper?.querySelector(".field-error");
 
                 if (fieldWrapper) {
                     fieldWrapper.classList.add("has-error");

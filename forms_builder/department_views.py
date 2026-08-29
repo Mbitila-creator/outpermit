@@ -106,6 +106,7 @@ def questionnaire_builder(request, event_slug, form_id):
         "questions__options",
         "questions__condition_question__options",
         "questions__display_logic__rules__source_question__options",
+        "questions__required_logic__rules__source_question__options",
     ).order_by("display_order", "pk")
     return render(request, "forms_builder/management/builder.html", {
         "event": event, "questionnaire": questionnaire, "sections": sections,
@@ -118,7 +119,7 @@ def _logic_target(questionnaire, target_type, target_id):
         return get_object_or_404(
             FormSection, pk=target_id, event_form=questionnaire, is_active=True
         )
-    if target_type == "question":
+    if target_type in {"question", "required"}:
         return get_object_or_404(
             FormQuestion,
             pk=target_id,
@@ -152,13 +153,21 @@ def _logic_editor_url(event, questionnaire, target_type, target, group=None):
     return url
 
 
+def _root_logic_group(target, target_type, user):
+    return create_group_from_legacy(
+        target,
+        user,
+        purpose="required" if target_type == "required" else "visibility",
+    )
+
+
 @login_required
 @transaction.atomic
 def logic_editor(request, event_slug, form_id, target_type, target_id):
     event = _event(request, event_slug)
     questionnaire = _form(event, form_id)
     target = _logic_target(questionnaire, target_type, target_id)
-    root_group = create_group_from_legacy(target, request.user)
+    root_group = _root_logic_group(target, target_type, request.user)
     group = _selected_logic_group(root_group, request.GET.get("group"))
     form = LogicGroupForm(request.POST or None, instance=group)
     if request.method == "POST" and form.is_valid():
@@ -178,6 +187,7 @@ def logic_editor(request, event_slug, form_id, target_type, target_id):
         "logic_group": group,
         "root_group": root_group,
         "parent_group": group.parent_group,
+        "is_required_logic": target_type == "required",
         "form": form,
         "rules": group.rules.filter(is_active=True).select_related(
             "source_question", "comparison_question"
@@ -193,7 +203,7 @@ def logic_rule_edit(
     event = _event(request, event_slug)
     questionnaire = _form(event, form_id)
     target = _logic_target(questionnaire, target_type, target_id)
-    root_group = create_group_from_legacy(target, request.user)
+    root_group = _root_logic_group(target, target_type, request.user)
     if rule_id:
         rule = get_object_or_404(
             DisplayLogicRule,
@@ -234,7 +244,7 @@ def logic_rule_archive(request, event_slug, form_id, target_type, target_id, rul
     event = _event(request, event_slug)
     questionnaire = _form(event, form_id)
     target = _logic_target(questionnaire, target_type, target_id)
-    root_group = create_group_from_legacy(target, request.user)
+    root_group = _root_logic_group(target, target_type, request.user)
     if request.method != "POST":
         raise PermissionDenied
     rule = get_object_or_404(
@@ -259,7 +269,7 @@ def logic_group_create(request, event_slug, form_id, target_type, target_id):
     event = _event(request, event_slug)
     questionnaire = _form(event, form_id)
     target = _logic_target(questionnaire, target_type, target_id)
-    root_group = create_group_from_legacy(target, request.user)
+    root_group = _root_logic_group(target, target_type, request.user)
     parent = _selected_logic_group(root_group, request.GET.get("parent"))
     nested = DisplayLogicGroup(
         event_form=questionnaire,
@@ -292,7 +302,7 @@ def logic_group_archive(request, event_slug, form_id, target_type, target_id, gr
     event = _event(request, event_slug)
     questionnaire = _form(event, form_id)
     target = _logic_target(questionnaire, target_type, target_id)
-    root_group = create_group_from_legacy(target, request.user)
+    root_group = _root_logic_group(target, target_type, request.user)
     group = _selected_logic_group(root_group, group_id)
     if request.method != "POST" or not group.parent_group_id:
         raise PermissionDenied

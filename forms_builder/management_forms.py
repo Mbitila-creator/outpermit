@@ -37,6 +37,7 @@ class QuestionnaireForm(StyledModelForm):
             "opens_at", "closes_at", "requires_login",
             "requires_participant_registration", "allow_multiple_submissions",
             "show_event_summary",
+            "advanced_expression_mode",
         )
         widgets = {
             "introduction_en": forms.Textarea(attrs={"rows": 3}),
@@ -115,6 +116,8 @@ class SectionForm(ConditionalManagementForm):
         model = FormSection
         fields = (
             "title_en", "title_sw", "description_en", "description_sw",
+            "is_repeatable", "minimum_repeats", "maximum_repeats",
+            "repeat_label_en", "repeat_label_sw",
             "condition_question", "condition_value",
         )
         widgets = {
@@ -126,9 +129,13 @@ class SectionForm(ConditionalManagementForm):
         super().__init__(*args, event_form=event_form, **kwargs)
         self.fields["condition_question"].widget = forms.HiddenInput()
         self.fields["condition_value"].widget = forms.HiddenInput()
+        self.fields["minimum_repeats"].required = False
+        self.fields["maximum_repeats"].required = False
 
     def clean(self):
         cleaned = super().clean()
+        cleaned["minimum_repeats"] = cleaned.get("minimum_repeats") or 1
+        cleaned["maximum_repeats"] = cleaned.get("maximum_repeats") or 10
         if cleaned.get("calculation_decimal_places") is None:
             cleaned["calculation_decimal_places"] = 2
         controlling = cleaned.get("condition_question")
@@ -176,6 +183,22 @@ class QuestionForm(ConditionalManagementForm):
         self.fields["choice_filter_question"].queryset = preceding
         self.fields["choice_filter_question"].required = False
         self.fields["choice_filter_question"].empty_label = "Do not filter choices"
+        expression_fields = (
+            "calculation_expression", "calculation_decimal_places",
+            "validation_expression", "validation_message_en", "validation_message_sw",
+        )
+        if not section.event_form.advanced_expression_mode:
+            for field_name in expression_fields:
+                self.fields.pop(field_name, None)
+        else:
+            self.fields["calculation_expression"].help_text = (
+                "Expert mode: use q12 references, arithmetic, COUNT(...), and "
+                "IF(condition, true_value, false_value)."
+            )
+            self.fields["validation_expression"].help_text = (
+                "Expert mode: a safe expression that must evaluate to true. "
+                "Python/JavaScript calls are blocked."
+            )
 
     def clean(self):
         cleaned = super().clean()

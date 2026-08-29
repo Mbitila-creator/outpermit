@@ -114,6 +114,15 @@ class EventForm(BaseModel):
         default=False,
     )
 
+    advanced_expression_mode = models.BooleanField(
+        _("enable advanced expression mode"),
+        default=False,
+        help_text=_(
+            "For expert builders only. Enables safe raw calculation and validation "
+            "expressions; arbitrary Python or JavaScript is never executed."
+        ),
+    )
+
     requires_participant_registration = models.BooleanField(
         _("requires participant registration"),
         default=False,
@@ -183,6 +192,16 @@ class FormSection(BaseModel):
         default=0,
     )
 
+    is_repeatable = models.BooleanField(
+        _("repeatable section"),
+        default=False,
+        help_text=_("Allow respondents to add multiple entries for this section."),
+    )
+    minimum_repeats = models.PositiveSmallIntegerField(_("minimum entries"), default=1)
+    maximum_repeats = models.PositiveSmallIntegerField(_("maximum entries"), default=10)
+    repeat_label_en = models.CharField(_("entry label in English"), max_length=80, blank=True)
+    repeat_label_sw = models.CharField(_("entry label in Kiswahili"), max_length=80, blank=True)
+
     condition_question = models.ForeignKey(
         "FormQuestion",
         verbose_name=_("show when question"),
@@ -211,6 +230,12 @@ class FormSection(BaseModel):
 
     def clean(self):
         super().clean()
+        if self.minimum_repeats < 1:
+            raise ValidationError({"minimum_repeats": _("At least one entry is required.")})
+        if self.maximum_repeats < self.minimum_repeats:
+            raise ValidationError({"maximum_repeats": _("Maximum entries cannot be below minimum entries.")})
+        if self.maximum_repeats > 50:
+            raise ValidationError({"maximum_repeats": _("Maximum entries cannot exceed 50.")})
         has_question = bool(self.condition_question_id)
         has_value = bool(self.condition_value)
 
@@ -589,6 +614,13 @@ class DisplayLogicGroup(BaseModel):
         null=True,
         blank=True,
     )
+    target_required_question = models.OneToOneField(
+        FormQuestion,
+        related_name="required_logic",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
     match_type = models.CharField(
         max_length=3,
         choices=MatchType.choices,
@@ -605,16 +637,25 @@ class DisplayLogicGroup(BaseModel):
                         parent_group__isnull=True,
                         target_section__isnull=False,
                         target_question__isnull=True,
+                        target_required_question__isnull=True,
                     )
                     | models.Q(
                         parent_group__isnull=True,
                         target_section__isnull=True,
                         target_question__isnull=False,
+                        target_required_question__isnull=True,
+                    )
+                    | models.Q(
+                        parent_group__isnull=True,
+                        target_section__isnull=True,
+                        target_question__isnull=True,
+                        target_required_question__isnull=False,
                     )
                     | models.Q(
                         parent_group__isnull=False,
                         target_section__isnull=True,
                         target_question__isnull=True,
+                        target_required_question__isnull=True,
                     )
                 ),
                 name="logic_group_is_root_target_or_nested",
@@ -623,7 +664,11 @@ class DisplayLogicGroup(BaseModel):
 
     def clean(self):
         super().clean()
-        targets = int(bool(self.target_section_id)) + int(bool(self.target_question_id))
+        targets = sum((
+            int(bool(self.target_section_id)),
+            int(bool(self.target_question_id)),
+            int(bool(self.target_required_question_id)),
+        ))
         if self.parent_group_id:
             if targets:
                 raise ValidationError("A nested logic group cannot have its own target.")
@@ -632,12 +677,16 @@ class DisplayLogicGroup(BaseModel):
         else:
             if targets != 1:
                 raise ValidationError(
-                    "A root logic group must control exactly one section or question."
+                    "A root logic group must control exactly one section, question, or required state."
                 )
             target_form_id = (
                 self.target_section.event_form_id
                 if self.target_section_id
-                else self.target_question.section.event_form_id
+                else (
+                    self.target_question.section.event_form_id
+                    if self.target_question_id
+                    else self.target_required_question.section.event_form_id
+                )
             )
             if self.event_form_id and target_form_id != self.event_form_id:
                 raise ValidationError("The target must belong to the logic group's form.")
@@ -646,7 +695,7 @@ class DisplayLogicGroup(BaseModel):
     def target(self):
         if self.parent_group_id:
             return self.root_group.target
-        return self.target_section or self.target_question
+        return self.target_section or self.target_question or self.target_required_question
 
     @property
     def root_group(self):
@@ -1628,6 +1677,7 @@ class FormAnswer(BaseModel):
         related_name="answers",
         on_delete=models.PROTECT,
     )
+    repeat_index = models.PositiveSmallIntegerField(_("repeat entry number"), default=0)
 
     text_value = models.TextField(
         _("text value"),
@@ -1681,7 +1731,7 @@ class FormAnswer(BaseModel):
 
         constraints = [
             models.UniqueConstraint(
-                fields=["submission", "question"],
+                fields=["submission", "question", "repeat_index"],
                 name="unique_answer_per_submission_question",
             ),
         ] + [
