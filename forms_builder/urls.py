@@ -68,6 +68,21 @@ urlpatterns = [
         name="questionnaire_print",
     ),
     path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/form-qr/",
+        department_views.questionnaire_qr,
+        name="questionnaire_qr",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/form-qr/image.png",
+        department_views.questionnaire_qr_image,
+        name="questionnaire_qr_image",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/form-qr/print/",
+        department_views.questionnaire_qr_print,
+        name="questionnaire_qr_print",
+    ),
+    path(
         "manage/<slug:event_slug>/questionnaires/<int:form_id>/publish/",
         department_views.questionnaire_publish,
         name="questionnaire_publish",

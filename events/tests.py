@@ -261,6 +261,40 @@ class DepartmentEventAccessTests(TestCase):
         ))
         self.assertContains(list_response, "Participant evaluation")
         self.assertContains(list_response, "1 section")
+        self.assertContains(list_response, "Form QR code")
+        qr_page_response = self.client.get(reverse(
+            "forms_builder:questionnaire_qr",
+            args=[self.dsti_event.slug, questionnaire.pk],
+        ))
+        public_form_url = reverse(
+            "forms_builder:public_event_form",
+            args=[self.dsti_event.slug, questionnaire.slug],
+        )
+        self.assertContains(qr_page_response, public_form_url)
+        self.assertNotContains(qr_page_response, f"{public_form_url}?preview=1")
+        self.assertContains(qr_page_response, "Open public form")
+        self.assertContains(qr_page_response, "View QR code")
+        self.assertContains(qr_page_response, "Download QR code")
+        self.assertContains(qr_page_response, "Print QR code")
+        qr_image_response = self.client.get(reverse(
+            "forms_builder:questionnaire_qr_image",
+            args=[self.dsti_event.slug, questionnaire.pk],
+        ))
+        self.assertEqual(qr_image_response.status_code, 200)
+        self.assertEqual(qr_image_response["Content-Type"], "image/png")
+        qr_download_response = self.client.get(
+            reverse(
+                "forms_builder:questionnaire_qr_image",
+                args=[self.dsti_event.slug, questionnaire.pk],
+            ),
+            {"download": "1"},
+        )
+        self.assertIn("attachment", qr_download_response["Content-Disposition"])
+        qr_print_response = self.client.get(reverse(
+            "forms_builder:questionnaire_qr_print",
+            args=[self.dsti_event.slug, questionnaire.pk],
+        ))
+        self.assertContains(qr_print_response, "Print / Save as PDF")
         builder_response = self.client.get(reverse(
             "forms_builder:questionnaire_builder",
             args=[self.dsti_event.slug, questionnaire.pk],

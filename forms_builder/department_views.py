@@ -165,6 +165,59 @@ def questionnaire_print(request, event_slug, form_id):
     })
 
 
+def _questionnaire_public_url(request, questionnaire):
+    path = reverse("forms_builder:public_event_form", kwargs={
+        "event_slug": questionnaire.event.slug,
+        "form_slug": questionnaire.slug,
+    })
+    return (
+        f"{settings.PUBLIC_BASE_URL}{path}"
+        if settings.PUBLIC_BASE_URL
+        else request.build_absolute_uri(path)
+    )
+
+
+@login_required
+def questionnaire_qr(request, event_slug, form_id):
+    event = _event(request, event_slug)
+    questionnaire = _form(event, form_id)
+    return render(request, "forms_builder/management/questionnaire_qr.html", {
+        "event": event,
+        "questionnaire": questionnaire,
+        "public_form_url": _questionnaire_public_url(request, questionnaire),
+    })
+
+
+@login_required
+def questionnaire_qr_image(request, event_slug, form_id):
+    event = _event(request, event_slug)
+    questionnaire = _form(event, form_id)
+    response = HttpResponse(
+        generate_qr_png(
+            _questionnaire_public_url(request, questionnaire),
+            logo_path=certificate_qr_logo_path(event),
+        ),
+        content_type="image/png",
+    )
+    if request.GET.get("download") == "1":
+        response["Content-Disposition"] = (
+            f'attachment; filename="{questionnaire.slug}-form-qr.png"'
+        )
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@login_required
+def questionnaire_qr_print(request, event_slug, form_id):
+    event = _event(request, event_slug)
+    questionnaire = _form(event, form_id)
+    return render(request, "forms_builder/management/questionnaire_qr_print.html", {
+        "event": event,
+        "questionnaire": questionnaire,
+        "public_form_url": _questionnaire_public_url(request, questionnaire),
+    })
+
+
 @login_required
 def event_submission_list(request, event_slug):
     event = _event(request, event_slug)
