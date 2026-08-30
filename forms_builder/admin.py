@@ -62,6 +62,29 @@ class AuditAdminMixin:
         super().save_model(request, obj, form, change)
 
 
+class SubmissionFormFilter(admin.SimpleListFilter):
+    """Form filter that narrows its choices when an event filter is selected."""
+
+    title = _("form")
+    parameter_name = "form_id"
+
+    def lookups(self, request, model_admin):
+        forms = EventForm.objects.select_related("event")
+        event_id = (
+            request.GET.get("event_form__event__id__exact")
+            or request.GET.get("event_form__event")
+        )
+        if event_id and str(event_id).isdigit():
+            forms = forms.filter(event_id=event_id)
+        return [
+            (form.pk, f"{form.event.code} — {form.name_en}")
+            for form in forms.order_by("event__code", "name_en")
+        ]
+
+    def queryset(self, request, queryset):
+        return queryset.filter(event_form_id=self.value()) if self.value() else queryset
+
+
 @admin.register(QuantityPricingRule)
 class QuantityPricingRuleAdmin(AuditAdminMixin, admin.ModelAdmin):
     list_display = (
@@ -413,7 +436,7 @@ class EventFormAdmin(AuditAdminMixin, admin.ModelAdmin):
         "form_type",
         "is_published",
         "registration_tools",
-        "evaluation_report_tools",
+        "submission_tools",
         "requires_login",
         "is_active",
     )
@@ -478,15 +501,19 @@ class EventFormAdmin(AuditAdminMixin, admin.ModelAdmin):
             download_url,
         )
 
-    @admin.display(description="Evaluation report")
-    def evaluation_report_tools(self, obj):
-        if obj.form_type != EventForm.FormType.EVALUATION:
-            return "Not applicable"
-        report_url = reverse("forms_builder:evaluation_reports")
+    @admin.display(description="Submissions")
+    def submission_tools(self, obj):
+        submission_url = reverse("admin:forms_builder_formsubmission_changelist")
+        if obj.form_type == EventForm.FormType.EVALUATION:
+            report_url = reverse("forms_builder:evaluation_reports")
+            return format_html(
+                '<a href="{}?form_id={}">Find submissions</a>'
+                ' &nbsp;|&nbsp; <a href="{}?form={}">Evaluation report</a>',
+                submission_url, obj.pk, report_url, obj.pk,
+            )
         return format_html(
-            '<a href="{}?form={}">View responses</a>',
-            report_url,
-            obj.pk,
+            '<a href="{}?form_id={}">Find submissions</a>',
+            submission_url, obj.pk,
         )
 
     def get_urls(self):
@@ -658,7 +685,8 @@ class FormSubmissionAdmin(admin.ModelAdmin):
 
     list_filter = (
         "event_form__event",
-        "event_form",
+        SubmissionFormFilter,
+        "event_form__form_type",
         "language",
         "is_complete",
         "review_status",
@@ -672,6 +700,17 @@ class FormSubmissionAdmin(admin.ModelAdmin):
         "event_form__event__code",
         "event_form__event__title_sw",
         "event_form__event__title_en",
+        "event_form__name_sw",
+        "event_form__name_en",
+        "badge_name",
+        "badge_organization",
+        "badge_title",
+        "submitted_by__username",
+        "submitted_by__first_name",
+        "submitted_by__last_name",
+        "answers__text_value",
+        "answers__selected_options__label_sw",
+        "answers__selected_options__label_en",
     )
 
     readonly_fields = (

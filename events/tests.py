@@ -24,6 +24,7 @@ from .models import Event, EventCategory, EventTimetable, Venue
 from forms_builder.models import (
     CertificateRecord,
     EventForm,
+    FormAnswer,
     FormQuestion,
     FormSection,
     FormSubmission,
@@ -177,6 +178,38 @@ class DepartmentEventAccessTests(TestCase):
             {"label_en": "Yes", "label_sw": "Ndiyo", "value": "YES"},
         )
         self.assertTrue(question.options.filter(value="YES").exists())
+
+        submission = FormSubmission.objects.create(
+            event_form=questionnaire,
+            submitter_email="tracked@example.com",
+            badge_name="Tracked Participant",
+            is_complete=True,
+        )
+        tracking_question = section.questions.create(
+            label_en="Tracking note",
+            label_sw="Dokezo la ufuatiliaji",
+            question_type=FormQuestion.QuestionType.SHORT_TEXT,
+            display_order=2,
+        )
+        FormAnswer.objects.create(
+            submission=submission,
+            question=tracking_question,
+            text_value="Distinctive tracked answer",
+        )
+        submission_list_url = reverse(
+            "forms_builder:event_submission_list", args=[self.dsti_event.slug]
+        )
+        tracker_response = self.client.get(
+            submission_list_url,
+            {"form": questionnaire.pk, "q": "Distinctive tracked"},
+        )
+        self.assertContains(tracker_response, submission.reference_number)
+        self.assertContains(tracker_response, "Tracked Participant")
+        detail_response = self.client.get(reverse(
+            "forms_builder:event_submission_detail",
+            args=[self.dsti_event.slug, submission.pk],
+        ))
+        self.assertContains(detail_response, "Distinctive tracked answer")
 
         response = self.client.post(reverse(
             "forms_builder:questionnaire_publish",

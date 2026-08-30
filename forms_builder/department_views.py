@@ -3,8 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, Max, Q
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.dateparse import parse_date
 
 from events.access import events_visible_to
 from events.department_views import can_manage_department_event
@@ -24,6 +26,7 @@ from .models import (
     EventForm,
     FormQuestion,
     FormSection,
+    FormSubmission,
     QuestionOption,
 )
 
@@ -130,6 +133,92 @@ def questionnaire_print(request, event_slug, form_id):
         "event": event,
         "questionnaire": questionnaire,
         "sections": sections,
+    })
+
+
+@login_required
+def event_submission_list(request, event_slug):
+    event = _event(request, event_slug)
+    forms = event.forms.filter(is_active=True).order_by("form_type", "name_en")
+    submissions = FormSubmission.objects.filter(
+        event_form__event=event,
+        is_active=True,
+    ).select_related("event_form", "submitted_by").order_by("-created_at")
+
+    selected_form = request.GET.get("form", "").strip()
+    if selected_form.isdigit():
+        submissions = submissions.filter(event_form_id=selected_form)
+    status = request.GET.get("status", "").strip()
+    if status in FormSubmission.ReviewStatus.values:
+        submissions = submissions.filter(review_status=status)
+    completion = request.GET.get("completion", "").strip()
+    if completion in {"complete", "draft"}:
+        submissions = submissions.filter(is_complete=completion == "complete")
+    date_from = parse_date(request.GET.get("date_from", ""))
+    date_to = parse_date(request.GET.get("date_to", ""))
+    if date_from:
+        submissions = submissions.filter(created_at__date__gte=date_from)
+    if date_to:
+        submissions = submissions.filter(created_at__date__lte=date_to)
+    query = request.GET.get("q", "").strip()
+    if query:
+        submissions = submissions.filter(Q(
+            reference_number__icontains=query,
+        ) | Q(
+            submitter_email__icontains=query,
+        ) | Q(
+            submitter_phone__icontains=query,
+        ) | Q(
+            badge_name__icontains=query,
+        ) | Q(
+            badge_organization__icontains=query,
+        ) | Q(
+            answers__text_value__icontains=query,
+        ) | Q(
+            answers__selected_options__label_en__icontains=query,
+        ) | Q(
+            answers__selected_options__label_sw__icontains=query,
+        )).distinct()
+
+    page = Paginator(submissions, 50).get_page(request.GET.get("page"))
+    preserved_query = request.GET.copy()
+    preserved_query.pop("page", None)
+    return render(request, "forms_builder/management/submission_list.html", {
+        "event": event,
+        "forms": forms,
+        "page": page,
+        "selected_form": selected_form,
+        "selected_status": status,
+        "selected_completion": completion,
+        "query": query,
+        "date_from": request.GET.get("date_from", ""),
+        "date_to": request.GET.get("date_to", ""),
+        "preserved_query": preserved_query.urlencode(),
+    })
+
+
+@login_required
+def event_submission_detail(request, event_slug, submission_id):
+    event = _event(request, event_slug)
+    submission = get_object_or_404(
+        FormSubmission.objects.select_related(
+            "event_form", "submitted_by", "reviewed_by"
+        ).prefetch_related("answers__question__section", "answers__selected_options"),
+        pk=submission_id,
+        event_form__event=event,
+        is_active=True,
+    )
+    from .views import localized_answer_value
+    answers = [{
+        "answer": answer,
+        "value": localized_answer_value(answer, request.LANGUAGE_CODE),
+    } for answer in submission.answers.all().order_by(
+        "question__section__display_order", "question__display_order", "repeat_index"
+    )]
+    return render(request, "forms_builder/management/submission_detail.html", {
+        "event": event,
+        "submission": submission,
+        "answers": answers,
     })
 
 

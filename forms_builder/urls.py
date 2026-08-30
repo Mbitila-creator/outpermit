@@ -13,6 +13,16 @@ urlpatterns = [
         name="questionnaire_list",
     ),
     path(
+        "manage/<slug:event_slug>/submissions/",
+        department_views.event_submission_list,
+        name="event_submission_list",
+    ),
+    path(
+        "manage/<slug:event_slug>/submissions/<int:submission_id>/",
+        department_views.event_submission_detail,
+        name="event_submission_detail",
+    ),
+    path(
         "manage/<slug:event_slug>/questionnaires/new/",
         department_views.questionnaire_create,
         name="questionnaire_create",
