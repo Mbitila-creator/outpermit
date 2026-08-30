@@ -347,6 +347,9 @@
                             {% if section.display_logic_json %}
                                 data-display-logic="{{ section.display_logic_json|escape }}"
                             {% endif %}
+                            {% if event_form.advanced_expression_mode and section.visibility_expression %}
+                                data-visibility-expression="{{ section.visibility_expression|escape }}"
+                            {% endif %}
                         >
                             <div class="section-header">
                                 <p class="section-eyebrow"></p>
@@ -397,6 +400,11 @@
                                                         data-display-logic="{{ question.display_logic_json|escape }}"
                                                         hidden
                                                     {% endif %}
+                                                    {% if event_form.advanced_expression_mode and question.visibility_expression %}
+                                                        data-visibility-expression="{{ question.visibility_expression|escape }}"
+                                                        hidden
+                                                    {% endif %}
+                                                    {% if event_form.advanced_expression_mode and question.required_expression %}data-required-expression="{{ question.required_expression|escape }}"{% endif %}
                                                 >
                                                     <th scope="row">
                                                         {% if language_code == "en" %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}

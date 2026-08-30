@@ -130,6 +130,28 @@ def validate_question_expression(expression, question, field_name):
         invalid = references - valid_ids
         if invalid:
             raise ValidationError({field_name: f"Unknown question reference(s): {sorted(invalid)}."})
+        if field_name in {"visibility_expression", "required_expression"}:
+            own_position = (
+                question.section.display_order,
+                question.display_order,
+                question.pk or 10**9,
+            )
+            later = []
+            referenced = question.section.event_form.sections.filter(
+                questions__id__in=references
+            ).values_list(
+                "display_order", "questions__display_order", "questions__id"
+            )
+            for section_order, question_order, question_id in referenced:
+                if (section_order, question_order, question_id) >= own_position:
+                    later.append(question_id)
+            if later:
+                raise ValidationError({
+                    field_name: (
+                        "Visibility and required expressions may reference only "
+                        f"earlier questions: {sorted(later)}."
+                    )
+                })
     if field_name == "calculation_expression" and question.pk and question.section_id:
         dependencies = {}
         queryset = question.section.event_form.sections.values_list(
@@ -153,3 +175,34 @@ def validate_question_expression(expression, question, field_name):
 
         if any(reaches_origin(item, set()) for item in references):
             raise ValidationError({field_name: "This calculation would create a circular dependency."})
+
+
+def validate_section_expression(expression, section):
+    if not expression:
+        return
+    field_name = "visibility_expression"
+    try:
+        references = question_reference_ids(expression)
+    except ExpressionError as exc:
+        raise ValidationError({field_name: str(exc)}) from exc
+    if not section.event_form_id:
+        return
+    referenced = section.event_form.sections.filter(
+        questions__id__in=references
+    ).values_list("display_order", "questions__id")
+    found = set()
+    invalid_order = []
+    for section_order, question_id in referenced:
+        found.add(question_id)
+        if section_order >= section.display_order:
+            invalid_order.append(question_id)
+    unknown = references - found
+    if unknown:
+        raise ValidationError({field_name: f"Unknown question reference(s): {sorted(unknown)}."})
+    if invalid_order:
+        raise ValidationError({
+            field_name: (
+                "A section visibility expression may reference only questions "
+                f"in earlier sections: {sorted(invalid_order)}."
+            )
+        })

@@ -5,6 +5,7 @@
     data-question-type="{{ question.question_type }}"
     data-required="{% if question.is_required %}true{% else %}false{% endif %}"
     {% if question.required_logic_json %}data-required-logic="{{ question.required_logic_json|escape }}"{% endif %}
+    {% if event_form.advanced_expression_mode and question.required_expression %}data-required-expression="{{ question.required_expression|escape }}"{% endif %}
     {% if question.validation_logic_json %}data-validation-logic="{{ question.validation_logic_json|escape }}"{% endif %}
     data-question-label="{% if language_code == 'en' %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}"
     data-placeholder-template="{% if language_code == 'en' %}{{ question.placeholder_en|escape }}{% else %}{{ question.placeholder_sw|escape }}{% endif %}"
@@ -14,6 +15,10 @@
     {% if question.validation_message_en or question.validation_message_sw %}data-validation-message="{% if language_code == 'en' %}{{ question.validation_message_en|escape }}{% else %}{{ question.validation_message_sw|default:question.validation_message_en|escape }}{% endif %}"{% endif %}
     {% if question.display_logic_json %}
         data-display-logic="{{ question.display_logic_json|escape }}"
+        hidden
+    {% endif %}
+    {% if event_form.advanced_expression_mode and question.visibility_expression %}
+        data-visibility-expression="{{ question.visibility_expression|escape }}"
         hidden
     {% endif %}
 >

@@ -111,33 +111,64 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const calculateExpression = (expression, context = null) => {
         const source = expression.trim();
-        const tokens = source.match(/q\d+|COUNT|SUM|IF|>=|<=|==|!=|>|<|\d+(?:\.\d+)?|[(),+\-*/%]/gi) || [];
-        if (tokens.join("").toUpperCase() !== source.replace(/\s+/g, "").toUpperCase()) throw new Error("Invalid expression");
+        const tokens = [];
+        const tokenPattern = /\s*(q\d+|COUNT|SUM|IF|AND|OR|NOT|TRUE|FALSE|>=|<=|==|!=|>|<|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|\d+(?:\.\d+)?|[(),+\-*/%])/igy;
+        let offset = 0;
+        while (offset < source.length) {
+            tokenPattern.lastIndex = offset;
+            const match = tokenPattern.exec(source);
+            if (!match || match.index !== offset) throw new Error("Invalid expression");
+            tokens.push(match[1]);
+            offset = tokenPattern.lastIndex;
+        }
         let position = 0;
         const primary = (evaluate = true) => {
             const token = tokens[position++];
+            if (/^(['"]).*\1$/s.test(token || "")) {
+                return evaluate ? token.slice(1, -1).replace(/\\(['"\\])/g, "$1") : "";
+            }
+            if (/^(TRUE|FALSE)$/i.test(token || "")) return evaluate && token.toUpperCase() === "TRUE";
             if (/^q\d+$/i.test(token || "")) {
                 if (!evaluate) return 0;
-                const values = answerValues(token.slice(1), context);
+                const questionId = token.slice(1);
+                const values = answerValues(questionId, context);
                 if (!values.length) throw new Error(`${token} is empty`);
-                return values.length > 1 ? values : values[0];
+                if (values.length > 1) return values;
+                const questionType = form.querySelector(
+                    `.form-field[data-question-id="${questionId}"]`
+                )?.dataset.questionType;
+                if (["NUMBER", "CALCULATED"].includes(questionType)) {
+                    const number = Number(values[0]);
+                    if (!Number.isFinite(number)) throw new Error(`${token} is not numeric`);
+                    return number;
+                }
+                if (questionType === "YES_NO") {
+                    return ["yes", "true", "1", "ndiyo"].includes(values[0].toLowerCase());
+                }
+                return values[0];
             }
             if (/^(COUNT|SUM|IF)$/i.test(token || "")) {
                 const functionName = token.toUpperCase();
                 if (tokens[position++] !== "(") throw new Error("Missing parenthesis");
                 if (functionName === "IF") {
-                    const condition = comparison(evaluate);
+                    const condition = booleanOr(evaluate);
                     if (tokens[position++] !== ",") throw new Error("IF needs three arguments");
-                    const trueValue = comparison(evaluate && Boolean(condition));
+                    const trueValue = booleanOr(evaluate && Boolean(condition));
                     if (tokens[position++] !== ",") throw new Error("IF needs three arguments");
-                    const falseValue = comparison(evaluate && !Boolean(condition));
+                    const falseValue = booleanOr(evaluate && !Boolean(condition));
                     if (tokens[position++] !== ")") throw new Error("Missing parenthesis");
                     return evaluate ? (condition ? trueValue : falseValue) : 0;
                 }
                 const args = [];
                 if (tokens[position] !== ")") {
                     do {
-                        args.push(comparison(evaluate));
+                        if (/^q\d+$/i.test(tokens[position] || "") && [",", ")"].includes(tokens[position + 1])) {
+                            const questionId = tokens[position++].slice(1);
+                            const values = evaluate ? answerValues(questionId, context) : [];
+                            args.push(values.length > 1 ? values : (values[0] || ""));
+                        } else {
+                            args.push(booleanOr(evaluate));
+                        }
                     } while (tokens[position] === "," && ++position);
                 }
                 if (tokens[position++] !== ")") throw new Error("Missing parenthesis");
@@ -149,7 +180,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return args.reduce((count, value) => count + (Array.isArray(value) ? value.length : (value === "" ? 0 : 1)), 0);
             }
             if (token === "(") {
-                const value = comparison(evaluate);
+                const value = booleanOr(evaluate);
                 if (tokens[position++] !== ")") throw new Error("Missing parenthesis");
                 return value;
             }
@@ -170,11 +201,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return value;
         };
         const addition = (evaluate = true) => {
-            let value = Number(multiplication(evaluate));
+            let value = multiplication(evaluate);
             while (["+", "-"].includes(tokens[position])) {
                 const operator = tokens[position++];
                 const right = Number(multiplication(evaluate));
-                value = operator === "+" ? value + right : value - right;
+                value = operator === "+" ? Number(value) + right : Number(value) - right;
             }
             return value;
         };
@@ -184,15 +215,43 @@ document.addEventListener("DOMContentLoaded", () => {
             if (![">", ">=", "<", "<=", "==", "!="].includes(operator)) return value;
             position += 1;
             const right = addition(evaluate);
-            if (operator === ">") return value > right;
-            if (operator === ">=") return value >= right;
-            if (operator === "<") return value < right;
-            if (operator === "<=") return value <= right;
             if (operator === "==") return value === right;
-            return value !== right;
+            if (operator === "!=") return value !== right;
+            value = Number(value);
+            const numericRight = Number(right);
+            if (!Number.isFinite(value) || !Number.isFinite(numericRight)) throw new Error("Numeric comparison required");
+            if (operator === ">") return value > numericRight;
+            if (operator === ">=") return value >= numericRight;
+            if (operator === "<") return value < numericRight;
+            return value <= numericRight;
         };
-        const result = comparison();
-        if (position !== tokens.length || !Number.isFinite(result)) throw new Error("Invalid result");
+        const booleanNot = (evaluate = true) => {
+            if (/^NOT$/i.test(tokens[position] || "")) {
+                position += 1;
+                return !Boolean(booleanNot(evaluate));
+            }
+            return comparison(evaluate);
+        };
+        const booleanAnd = (evaluate = true) => {
+            let value = booleanNot(evaluate);
+            while (/^AND$/i.test(tokens[position] || "")) {
+                position += 1;
+                const right = booleanNot(evaluate && Boolean(value));
+                value = Boolean(value) && Boolean(right);
+            }
+            return value;
+        };
+        const booleanOr = (evaluate = true) => {
+            let value = booleanAnd(evaluate);
+            while (/^OR$/i.test(tokens[position] || "")) {
+                position += 1;
+                const right = booleanAnd(evaluate && !Boolean(value));
+                value = Boolean(value) || Boolean(right);
+            }
+            return value;
+        };
+        const result = booleanOr();
+        if (position !== tokens.length) throw new Error("Invalid result");
         return result;
     };
 
@@ -320,6 +379,13 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const conditionMatches = (element) => {
+        if (element.dataset.visibilityExpression) {
+            try {
+                return Boolean(calculateExpression(element.dataset.visibilityExpression, element));
+            } catch (_error) {
+                return false;
+            }
+        }
         if (!element.dataset.displayLogic) {
             return true;
         }
@@ -337,6 +403,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const applyConditionalState = () => {
         const requiredMatches = (field) => {
+            if (field.dataset.requiredExpression) {
+                try {
+                    return Boolean(calculateExpression(field.dataset.requiredExpression, field));
+                } catch (_error) {
+                    return false;
+                }
+            }
             if (!field.dataset.requiredLogic) {
                 return false;
             }
@@ -361,7 +434,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        form.querySelectorAll(".form-field[data-display-logic]").forEach((field) => {
+        form.querySelectorAll(".form-field[data-display-logic], .form-field[data-visibility-expression]").forEach((field) => {
             const visible = conditionMatches(field);
             field.hidden = !visible;
             field.querySelectorAll("input, select, textarea").forEach((control) => {

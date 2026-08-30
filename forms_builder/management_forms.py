@@ -29,6 +29,19 @@ class StyledModelForm(forms.ModelForm):
             field.widget.attrs.setdefault("class", "builder-input")
 
 
+def _has_visual_logic(instance, relation_name):
+    if not instance.pk:
+        return False
+    try:
+        group = getattr(instance, relation_name)
+    except DisplayLogicGroup.DoesNotExist:
+        return False
+    return (
+        group.rules.filter(is_active=True).exists()
+        or group.child_groups.filter(is_active=True).exists()
+    )
+
+
 class QuestionnaireForm(StyledModelForm):
     class Meta:
         model = EventForm
@@ -149,6 +162,7 @@ class SectionForm(ConditionalManagementForm):
             "title_en", "title_sw", "description_en", "description_sw",
             "is_repeatable", "minimum_repeats", "maximum_repeats",
             "repeat_label_en", "repeat_label_sw",
+            "visibility_expression",
             "condition_question", "condition_value",
         )
         widgets = {
@@ -162,6 +176,13 @@ class SectionForm(ConditionalManagementForm):
         self.fields["condition_value"].widget = forms.HiddenInput()
         self.fields["minimum_repeats"].required = False
         self.fields["maximum_repeats"].required = False
+        if not event_form.advanced_expression_mode:
+            self.fields.pop("visibility_expression", None)
+        else:
+            self.fields["visibility_expression"].help_text = (
+                "Expert mode: a safe expression controlling this section. "
+                "It cannot be combined with visual visibility rules."
+            )
 
     def clean(self):
         cleaned = super().clean()
@@ -170,6 +191,15 @@ class SectionForm(ConditionalManagementForm):
         if cleaned.get("calculation_decimal_places") is None:
             cleaned["calculation_decimal_places"] = 2
         controlling = cleaned.get("condition_question")
+        expression = cleaned.get("visibility_expression")
+        if expression and (
+            controlling
+            or _has_visual_logic(self.instance, "display_logic")
+        ):
+            self.add_error(
+                "visibility_expression",
+                "Remove the visual visibility rules before using an advanced expression.",
+            )
         if controlling and self.instance.pk:
             if controlling.section.display_order >= self.instance.display_order:
                 self.add_error(
@@ -195,6 +225,7 @@ class QuestionForm(ConditionalManagementForm):
             "calculation_expression", "calculation_decimal_places",
             "validation_expression", "validation_message_en",
             "validation_message_sw",
+            "visibility_expression", "required_expression",
             "choice_filter_question",
             "condition_question", "condition_value",
         )
@@ -217,6 +248,7 @@ class QuestionForm(ConditionalManagementForm):
         expression_fields = (
             "calculation_expression", "calculation_decimal_places",
             "validation_expression",
+            "visibility_expression", "required_expression",
         )
         if not section.event_form.advanced_expression_mode:
             for field_name in expression_fields:
@@ -230,10 +262,35 @@ class QuestionForm(ConditionalManagementForm):
                 "Expert mode: a safe expression that must evaluate to true. "
                 "Python/JavaScript calls are blocked."
             )
+            self.fields["visibility_expression"].help_text = (
+                "Expert mode: controls whether this question is shown. "
+                "It cannot be combined with visual visibility rules."
+            )
+            self.fields["required_expression"].help_text = (
+                "Expert mode: controls when this question is required. "
+                "It cannot be combined with visual Required when rules."
+            )
 
     def clean(self):
         cleaned = super().clean()
         controlling = cleaned.get("condition_question")
+        visibility_expression = cleaned.get("visibility_expression")
+        required_expression = cleaned.get("required_expression")
+        if visibility_expression and (
+            controlling
+            or _has_visual_logic(self.instance, "display_logic")
+        ):
+            self.add_error(
+                "visibility_expression",
+                "Remove the visual visibility rules before using an advanced expression.",
+            )
+        if required_expression and (
+            _has_visual_logic(self.instance, "required_logic")
+        ):
+            self.add_error(
+                "required_expression",
+                "Remove the visual Required when rules before using an advanced expression.",
+            )
         if controlling:
             controlling_position = (
                 controlling.section.display_order,

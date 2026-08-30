@@ -212,6 +212,11 @@ class FormSection(BaseModel):
     repeat_label_en = models.CharField(_("entry label in English"), max_length=80, blank=True)
     repeat_label_sw = models.CharField(_("entry label in Kiswahili"), max_length=80, blank=True)
 
+    visibility_expression = models.CharField(
+        _("advanced visibility expression"), max_length=500, blank=True,
+        help_text=_("Expert mode example: q12 == 'YES' and q15 >= 18."),
+    )
+
     condition_question = models.ForeignKey(
         "FormQuestion",
         verbose_name=_("show when question"),
@@ -240,6 +245,8 @@ class FormSection(BaseModel):
 
     def clean(self):
         super().clean()
+        from .expressions import validate_section_expression
+        validate_section_expression(self.visibility_expression, self)
         if self.minimum_repeats < 1:
             raise ValidationError({"minimum_repeats": _("At least one entry is required.")})
         if self.maximum_repeats < self.minimum_repeats:
@@ -406,6 +413,14 @@ class FormQuestion(BaseModel):
         _("validation expression"), max_length=500, blank=True,
         help_text=_("Example: q12 <= q13 and q14 > 0."),
     )
+    visibility_expression = models.CharField(
+        _("advanced visibility expression"), max_length=500, blank=True,
+        help_text=_("Expert mode example: q12 == 'YES' and q15 >= 18."),
+    )
+    required_expression = models.CharField(
+        _("advanced required expression"), max_length=500, blank=True,
+        help_text=_("Expert mode example: q12 == 'YES' and COUNT(q15) > 0."),
+    )
     validation_message_en = models.CharField(
         _("validation message in English"), max_length=300, blank=True,
     )
@@ -456,6 +471,8 @@ class FormQuestion(BaseModel):
             raise ValidationError({"calculation_expression": _("Only calculated questions may have a calculation expression.")})
         validate_question_expression(self.calculation_expression, self, "calculation_expression")
         validate_question_expression(self.validation_expression, self, "validation_expression")
+        validate_question_expression(self.visibility_expression, self, "visibility_expression")
+        validate_question_expression(self.required_expression, self, "required_expression")
         if self.validation_expression and not self.validation_message_en:
             raise ValidationError({"validation_message_en": _("Enter the message shown when validation fails.")})
         if self.choice_filter_question_id:

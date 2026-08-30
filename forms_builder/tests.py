@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.core.exceptions import ValidationError
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.messages.middleware import MessageMiddleware
@@ -69,6 +70,64 @@ class QuestionnaireExpressionTests(SimpleTestCase):
 
 
 class ConditionalRequiredTests(TestCase):
+    def test_advanced_visibility_and_required_expressions_match_server_answers(self):
+        category = EventCategory.objects.create(name_en="Expert", name_sw="Mtaalamu")
+        event = Event.objects.create(
+            category=category, code="EXP-2027", title_en="Expert", title_sw="Mtaalamu",
+            starts_at=timezone.now(), ends_at=timezone.now() + timedelta(days=1),
+        )
+        event_form = EventForm.objects.create(
+            event=event, name_en="Expert form", name_sw="Fomu ya mtaalamu",
+            advanced_expression_mode=True,
+        )
+        first_section = event_form.sections.create(
+            title_en="First", title_sw="Kwanza", display_order=1,
+        )
+        source = first_section.questions.create(
+            label_en="Record type", label_sw="Aina ya rekodi",
+            question_type=FormQuestion.QuestionType.DROPDOWN, display_order=1,
+        )
+        source.options.create(value="SPECIAL", label_en="Special", label_sw="Maalum")
+        target = first_section.questions.create(
+            label_en="Details", label_sw="Maelezo",
+            question_type=FormQuestion.QuestionType.SHORT_TEXT, display_order=2,
+            visibility_expression=f"q{source.pk} == 'SPECIAL'",
+            required_expression=f"q{source.pk} == 'SPECIAL'",
+        )
+        target.full_clean()
+        later_section = event_form.sections.create(
+            title_en="Later", title_sw="Baadaye", display_order=2,
+            visibility_expression=f"q{source.pk} == 'SPECIAL'",
+        )
+        later_section.full_clean()
+
+        matching = RequestFactory().post("/", {f"question_{source.pk}": "SPECIAL"})
+        other = RequestFactory().post("/", {f"question_{source.pk}": "OTHER"})
+        self.assertTrue(target_is_visible(matching, target))
+        self.assertFalse(target_is_visible(other, target))
+        self.assertTrue(question_is_required(matching, target))
+        self.assertFalse(question_is_required(other, target))
+        self.assertTrue(target_is_visible(matching, later_section))
+        self.assertFalse(target_is_visible(other, later_section))
+
+    def test_advanced_condition_cannot_reference_a_later_question(self):
+        category = EventCategory.objects.create(name_en="Order", name_sw="Mpangilio")
+        event = Event.objects.create(
+            category=category, code="ORDER-2027", title_en="Order", title_sw="Mpangilio",
+            starts_at=timezone.now(), ends_at=timezone.now() + timedelta(days=1),
+        )
+        event_form = EventForm.objects.create(event=event, name_en="Form", name_sw="Fomu")
+        section = event_form.sections.create(title_en="Section", title_sw="Sehemu")
+        target = section.questions.create(
+            label_en="Target", label_sw="Lengwa", display_order=1,
+        )
+        later = section.questions.create(
+            label_en="Later", label_sw="Baadaye", display_order=2,
+        )
+        target.visibility_expression = f"q{later.pk} == 'YES'"
+        with self.assertRaisesMessage(ValidationError, "earlier questions"):
+            target.full_clean()
+
     def test_required_group_is_enforced_only_when_rules_match(self):
         category = EventCategory.objects.create(name_en="Survey", name_sw="Dodoso")
         event = Event.objects.create(

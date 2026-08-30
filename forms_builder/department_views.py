@@ -770,6 +770,22 @@ def logic_editor(request, event_slug, form_id, target_type, target_id):
     event = _event(request, event_slug)
     questionnaire = _form(event, form_id)
     target = _logic_target(questionnaire, target_type, target_id)
+    expert_expression = (
+        target.required_expression
+        if target_type == "required"
+        else target.visibility_expression
+        if target_type in {"section", "question"}
+        else ""
+    )
+    if expert_expression:
+        messages.error(
+            request,
+            "This target uses an advanced expression. Remove it in Edit settings "
+            "before creating visual rules.",
+        )
+        return redirect(
+            "forms_builder:questionnaire_builder", event.slug, questionnaire.pk
+        )
     root_group = _root_logic_group(target, target_type, request.user)
     group = _selected_logic_group(root_group, request.GET.get("group"))
     form = LogicGroupForm(request.POST or None, instance=group)

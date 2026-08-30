@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 from django.core.exceptions import ValidationError
 
 from .models import DisplayLogicGroup, DisplayLogicRule, FormQuestion, FormSection
+from .expressions import ExpressionError, evaluate_expression, question_reference_ids
 
 
 NO_VALUE_OPERATORS = {
@@ -21,6 +22,40 @@ def request_answer_values(request, question_id):
     return [value.strip() for value in request.POST.getlist(
         f"question_{question_id}"
     ) if value.strip()]
+
+
+def request_expression_values(request, expression):
+    answers = {}
+    reference_ids = question_reference_ids(expression)
+    question_types = dict(FormQuestion.objects.filter(
+        pk__in=reference_ids
+    ).values_list("pk", "question_type"))
+    for question_id in reference_ids:
+        values = request_answer_values(request, question_id)
+        value = values[0] if len(values) == 1 else values
+        question_type = question_types.get(question_id)
+        if len(values) == 1 and question_type in {
+            FormQuestion.QuestionType.NUMBER,
+            FormQuestion.QuestionType.CALCULATED,
+        }:
+            try:
+                value = Decimal(values[0])
+            except InvalidOperation:
+                pass
+        elif len(values) == 1 and question_type == FormQuestion.QuestionType.YES_NO:
+            value = values[0].casefold() in {"yes", "true", "1", "ndiyo"}
+        answers[question_id] = value
+    return answers
+
+
+def request_expression_matches(request, expression):
+    try:
+        return bool(evaluate_expression(
+            expression,
+            request_expression_values(request, expression),
+        ))
+    except ExpressionError:
+        return False
 
 
 def rule_matches_values(rule, values, comparison_values=None):
@@ -132,6 +167,9 @@ def logic_group_matches(group, answer_values):
 
 
 def target_is_visible(request, target):
+    event_form = target.event_form if isinstance(target, FormSection) else target.section.event_form
+    if event_form.advanced_expression_mode and target.visibility_expression:
+        return request_expression_matches(request, target.visibility_expression)
     try:
         group = target.display_logic
     except DisplayLogicGroup.DoesNotExist:
@@ -149,6 +187,8 @@ def target_is_visible(request, target):
 def question_is_required(request, question):
     if question.is_required:
         return True
+    if question.section.event_form.advanced_expression_mode and question.required_expression:
+        return request_expression_matches(request, question.required_expression)
     try:
         group = question.required_logic
     except DisplayLogicGroup.DoesNotExist:
