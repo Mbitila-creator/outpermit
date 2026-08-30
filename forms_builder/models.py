@@ -123,6 +123,16 @@ class EventForm(BaseModel):
         ),
     )
 
+    qr_record_enabled = models.BooleanField(
+        _("enable individual QR records"),
+        default=False,
+        help_text=_(
+            "Allow administrators to create public QR verification cards from "
+            "completed submissions to this form. Submitted answers will be visible "
+            "to anyone who scans the QR code."
+        ),
+    )
+
     requires_participant_registration = models.BooleanField(
         _("requires participant registration"),
         default=False,

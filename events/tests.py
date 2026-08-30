@@ -1183,3 +1183,71 @@ class DepartmentEventAccessTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, dsti_special.code)
         self.assertNotContains(response, self.dhe_event.code)
+
+        dsti_detail = self.client.get(reverse(
+            "events:department_event_detail", args=[dsti_special.slug]
+        ))
+        self.assertContains(dsti_detail, "DSTI researcher QR records")
+        self.assertContains(dsti_detail, "Individual QR records")
+
+        dhe_special = Event.objects.create(
+            owning_department=self.dhe,
+            category=special_category,
+            code="DHE-SPECIAL",
+            title_sw="Tukio la DHE",
+            title_en="DHE Special Event",
+            starts_at=timezone.now(),
+            ends_at=timezone.now() + timedelta(days=1),
+        )
+        dhe_user = self._staff("dhe-event-admin", self.dhe)
+        dhe_user.profile.role = "EVENT_ADMIN"
+        dhe_user.profile.save(update_fields=["role"])
+        self.client.force_login(dhe_user)
+        dhe_detail = self.client.get(reverse(
+            "events:department_event_detail", args=[dhe_special.slug]
+        ))
+        self.assertContains(dhe_detail, "Individual QR records")
+        self.assertNotContains(dhe_detail, "DSTI researcher QR records")
+        self.assertNotContains(dhe_detail, "Manage researchers, publications")
+
+    def test_custom_individual_qr_records_require_explicit_form_opt_in(self):
+        user = self._staff("custom-qr-admin", self.dhe)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+        qr_form = EventForm.objects.create(
+            event=self.dhe_event,
+            name_en="Custom individual record",
+            name_sw="Rekodi binafsi maalum",
+            qr_record_enabled=True,
+        )
+        submission = FormSubmission.objects.create(
+            event_form=qr_form,
+            badge_name="Custom Person",
+            badge_organization="Custom Department",
+            is_complete=True,
+        )
+
+        list_response = self.client.get(reverse(
+            "forms_builder:individual_qr_record_list",
+            args=[self.dhe_event.slug],
+        ))
+        self.assertContains(list_response, "Custom individual record")
+        self.assertContains(list_response, "Custom Person")
+        record_url = reverse(
+            "forms_builder:individual_qr_record",
+            args=[submission.participant_token],
+        )
+        self.client.logout()
+        record_response = self.client.get(record_url)
+        self.assertContains(record_response, "Custom Person")
+        qr_response = self.client.get(reverse(
+            "forms_builder:individual_qr_record_qr",
+            args=[submission.participant_token],
+        ))
+        self.assertEqual(qr_response.status_code, 200)
+        self.assertEqual(qr_response["Content-Type"], "image/png")
+
+        qr_form.qr_record_enabled = False
+        qr_form.save(update_fields=["qr_record_enabled", "updated_at"])
+        self.assertEqual(self.client.get(record_url).status_code, 404)

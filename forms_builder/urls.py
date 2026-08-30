@@ -18,6 +18,16 @@ urlpatterns = [
         name="event_submission_list",
     ),
     path(
+        "manage/<slug:event_slug>/individual-qr-records/",
+        department_views.individual_qr_record_list,
+        name="individual_qr_record_list",
+    ),
+    path(
+        "manage/<slug:event_slug>/individual-qr-records/<int:form_id>/print/",
+        department_views.individual_qr_record_print,
+        name="individual_qr_record_print",
+    ),
+    path(
         "manage/<slug:event_slug>/submissions/<int:submission_id>/",
         department_views.event_submission_detail,
         name="event_submission_detail",
@@ -131,6 +141,16 @@ urlpatterns = [
         "participants/<uuid:participant_token>/",
         views.participant_portal,
         name="participant_portal",
+    ),
+    path(
+        "individual-records/<uuid:participant_token>/",
+        department_views.individual_qr_record,
+        name="individual_qr_record",
+    ),
+    path(
+        "individual-records/<uuid:participant_token>/qr.png",
+        department_views.individual_qr_record_qr,
+        name="individual_qr_record_qr",
     ),
     path(
         "events/<slug:event_slug>/booths/",

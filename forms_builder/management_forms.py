@@ -37,7 +37,7 @@ class QuestionnaireForm(StyledModelForm):
             "introduction_sw", "success_message_en", "success_message_sw",
             "opens_at", "closes_at", "requires_login",
             "requires_participant_registration", "allow_multiple_submissions",
-            "show_event_summary",
+            "show_event_summary", "qr_record_enabled",
             "advanced_expression_mode",
         )
         widgets = {

@@ -95,6 +95,10 @@ def department_event_detail(request, event_slug):
         "event": event,
         "registration_form": registration_form,
         "evaluation_form": evaluation_form,
+        "show_dsti_researcher_records": (
+            event.category.is_special_event
+            and event.owning_department.code.strip().upper() == "DSTI"
+        ),
         "can_manage": can_manage,
         "can_manage_registrations": can_manage or has_event_role(
             request.user, {EventRole.REGISTRATION_OFFICER}

@@ -1,10 +1,12 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
+from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.dateparse import parse_date
 from django.utils import timezone
@@ -31,6 +33,7 @@ from .models import (
     FormSubmission,
     QuestionOption,
 )
+from .services import certificate_qr_logo_path, generate_qr_png
 
 
 def _event(request, event_slug):
@@ -306,6 +309,112 @@ def event_submission_delete(request, event_slug, submission_id):
         "event": event,
         "submission": submission,
     })
+
+
+@login_required
+def individual_qr_record_list(request, event_slug):
+    event = _event(request, event_slug)
+    forms = event.forms.filter(
+        is_active=True,
+        qr_record_enabled=True,
+    ).order_by("form_type", "name_en")
+    selected_form_id = request.GET.get("form", "").strip()
+    selected_form = forms.filter(pk=selected_form_id).first() if selected_form_id.isdigit() else forms.first()
+    submissions = FormSubmission.objects.none()
+    query = request.GET.get("q", "").strip()
+    if selected_form:
+        submissions = selected_form.submissions.filter(
+            is_active=True,
+            is_complete=True,
+        ).order_by("badge_name", "reference_number")
+        if query:
+            submissions = submissions.filter(Q(
+                reference_number__icontains=query,
+            ) | Q(
+                badge_name__icontains=query,
+            ) | Q(
+                badge_organization__icontains=query,
+            ) | Q(
+                answers__text_value__icontains=query,
+            )).distinct()
+    page = Paginator(submissions, 50).get_page(request.GET.get("page"))
+    return render(request, "forms_builder/management/individual_qr_record_list.html", {
+        "event": event,
+        "forms": forms,
+        "selected_form": selected_form,
+        "page": page,
+        "query": query,
+    })
+
+
+@login_required
+def individual_qr_record_print(request, event_slug, form_id):
+    event = _event(request, event_slug)
+    questionnaire = get_object_or_404(
+        EventForm,
+        pk=form_id,
+        event=event,
+        is_active=True,
+        qr_record_enabled=True,
+    )
+    submissions = questionnaire.submissions.filter(
+        is_active=True,
+        is_complete=True,
+    ).order_by("badge_name", "reference_number")
+    return render(request, "forms_builder/management/individual_qr_record_print.html", {
+        "event": event,
+        "questionnaire": questionnaire,
+        "submissions": submissions,
+    })
+
+
+def individual_qr_record(request, participant_token):
+    submission = get_object_or_404(
+        FormSubmission.objects.select_related(
+            "event_form", "event_form__event", "event_form__event__owning_department"
+        ).prefetch_related("answers__question__section", "answers__selected_options"),
+        participant_token=participant_token,
+        is_active=True,
+        is_complete=True,
+        event_form__is_active=True,
+        event_form__qr_record_enabled=True,
+        event_form__event__is_active=True,
+    )
+    from .views import localized_answer_value
+    answers = [{
+        "answer": answer,
+        "value": localized_answer_value(answer, request.LANGUAGE_CODE),
+    } for answer in submission.answers.all().order_by(
+        "question__section__display_order", "question__display_order", "repeat_index"
+    )]
+    return render(request, "forms_builder/individual_qr_record.html", {
+        "submission": submission,
+        "event": submission.event_form.event,
+        "answers": answers,
+    })
+
+
+def individual_qr_record_qr(request, participant_token):
+    submission = get_object_or_404(
+        FormSubmission.objects.select_related("event_form__event"),
+        participant_token=participant_token,
+        is_active=True,
+        is_complete=True,
+        event_form__is_active=True,
+        event_form__qr_record_enabled=True,
+        event_form__event__is_active=True,
+    )
+    path = reverse(
+        "forms_builder:individual_qr_record",
+        kwargs={"participant_token": submission.participant_token},
+    )
+    url = f"{settings.PUBLIC_BASE_URL}{path}" if settings.PUBLIC_BASE_URL else request.build_absolute_uri(path)
+    response = HttpResponse(
+        generate_qr_png(url, logo_path=certificate_qr_logo_path(submission.event_form.event)),
+        content_type="image/png",
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 def _logic_target(questionnaire, target_type, target_id):
