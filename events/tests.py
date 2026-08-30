@@ -14,6 +14,7 @@ from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
 from pypdf import PdfReader
+from openpyxl import load_workbook
 
 from core.models import Council, Country, Region
 from permits.models import Department
@@ -388,6 +389,98 @@ class DepartmentEventAccessTests(TestCase):
         self.assertContains(response, "Draft registration")
         self.client.logout()
         self.assertEqual(self.client.get(preview_url).status_code, 404)
+
+    def test_event_administrator_imports_form_aware_excel_records_atomically(self):
+        user = self._staff("excel-form-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+        questionnaire = EventForm.objects.create(
+            event=self.dsti_event,
+            name_en="Excel individual records",
+            name_sw="Rekodi za Excel",
+            qr_record_enabled=True,
+        )
+        section = FormSection.objects.create(
+            event_form=questionnaire,
+            title_en="Individual",
+            title_sw="Mtu binafsi",
+        )
+        name_question = FormQuestion.objects.create(
+            section=section,
+            label_en="Full name",
+            label_sw="Jina kamili",
+            question_type=FormQuestion.QuestionType.SHORT_TEXT,
+            display_order=1,
+        )
+        category_question = FormQuestion.objects.create(
+            section=section,
+            label_en="Category",
+            label_sw="Aina",
+            question_type=FormQuestion.QuestionType.DROPDOWN,
+            display_order=2,
+        )
+        gold = QuestionOption.objects.create(
+            question=category_question,
+            value="GOLD",
+            label_en="Gold",
+            label_sw="Dhahabu",
+        )
+        template_url = reverse(
+            "forms_builder:questionnaire_excel_template",
+            args=[self.dsti_event.slug, questionnaire.pk],
+        )
+        template_response = self.client.get(template_url)
+        self.assertEqual(template_response.status_code, 200)
+        self.assertIn("spreadsheetml", template_response["Content-Type"])
+        workbook = load_workbook(BytesIO(template_response.content))
+        self.assertIn("Records", workbook.sheetnames)
+        self.assertIn("Choices", workbook.sheetnames)
+        sheet = workbook["Records"]
+        headers = {cell.value: cell.column for cell in sheet[1]}
+        sheet.cell(2, headers["Badge name"], "Imported Individual")
+        sheet.cell(2, headers[f"Full name [q{name_question.pk}]"], "Imported Individual")
+        sheet.cell(2, headers[f"Category [q{category_question.pk}]"], "GOLD")
+        sheet.cell(3, headers["Badge name"], "Invalid Individual")
+        sheet.cell(3, headers[f"Category [q{category_question.pk}]"], "UNKNOWN")
+        invalid_file = BytesIO()
+        workbook.save(invalid_file)
+        import_url = reverse(
+            "forms_builder:questionnaire_excel_import",
+            args=[self.dsti_event.slug, questionnaire.pk],
+        )
+        invalid_response = self.client.post(import_url, {
+            "excel_file": SimpleUploadedFile(
+                "records.xlsx", invalid_file.getvalue(),
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
+        })
+        self.assertContains(invalid_response, "Row 3")
+        self.assertEqual(questionnaire.submissions.count(), 0)
+
+        sheet.delete_rows(3)
+        valid_file = BytesIO()
+        workbook.save(valid_file)
+        response = self.client.post(import_url, {
+            "excel_file": SimpleUploadedFile(
+                "records.xlsx", valid_file.getvalue(),
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
+        })
+        self.assertRedirects(response, reverse(
+            "forms_builder:event_submission_list", args=[self.dsti_event.slug]
+        ))
+        submission = questionnaire.submissions.get()
+        self.assertTrue(submission.is_complete)
+        self.assertEqual(submission.badge_name, "Imported Individual")
+        self.assertEqual(
+            submission.answers.get(question=name_question).text_value,
+            "Imported Individual",
+        )
+        self.assertEqual(
+            list(submission.answers.get(question=category_question).selected_options.all()),
+            [gold],
+        )
 
     def test_builder_configures_question_skip_logic_with_readable_answer(self):
         user = self._staff("logic-admin", self.dsti)

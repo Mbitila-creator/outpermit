@@ -72,6 +72,21 @@ class SubmissionManagementForm(StyledModelForm):
         }
 
 
+class QuestionnaireExcelImportForm(forms.Form):
+    excel_file = forms.FileField(
+        label="Completed Excel template",
+        help_text="Upload the .xlsx template generated for this form.",
+    )
+
+    def clean_excel_file(self):
+        uploaded = self.cleaned_data["excel_file"]
+        if not uploaded.name.lower().endswith(".xlsx"):
+            raise ValidationError("Upload an Excel .xlsx file.")
+        if uploaded.size > 10 * 1024 * 1024:
+            raise ValidationError("The Excel file cannot exceed 10 MB.")
+        return uploaded
+
+
 class ConditionalManagementForm(StyledModelForm):
     condition_value = forms.ChoiceField(
         required=False,

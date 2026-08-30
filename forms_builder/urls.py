@@ -83,6 +83,16 @@ urlpatterns = [
         name="questionnaire_qr_print",
     ),
     path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/excel-import/",
+        department_views.questionnaire_excel_import,
+        name="questionnaire_excel_import",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/excel-template.xlsx",
+        department_views.questionnaire_excel_template,
+        name="questionnaire_excel_template",
+    ),
+    path(
         "manage/<slug:event_slug>/questionnaires/<int:form_id>/publish/",
         department_views.questionnaire_publish,
         name="questionnaire_publish",

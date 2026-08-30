@@ -10,6 +10,12 @@ from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.dateparse import parse_date
 from django.utils import timezone
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
+from io import BytesIO
+
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font, PatternFill
 
 from events.access import events_visible_to
 from events.department_views import can_manage_department_event
@@ -21,6 +27,7 @@ from .management_forms import (
     OptionForm,
     QuestionnaireForm,
     QuestionForm,
+    QuestionnaireExcelImportForm,
     SectionForm,
     SubmissionManagementForm,
 )
@@ -28,12 +35,14 @@ from .models import (
     DisplayLogicGroup,
     DisplayLogicRule,
     EventForm,
+    FormAnswer,
     FormQuestion,
     FormSection,
     FormSubmission,
     QuestionOption,
 )
 from .services import certificate_qr_logo_path, generate_qr_png
+from .services import sync_badge_identity_from_answers
 
 
 def _event(request, event_slug):
@@ -215,6 +224,244 @@ def questionnaire_qr_print(request, event_slug, form_id):
         "event": event,
         "questionnaire": questionnaire,
         "public_form_url": _questionnaire_public_url(request, questionnaire),
+    })
+
+
+EXCEL_STANDARD_COLUMNS = (
+    ("Badge name", "badge_name"),
+    ("Organization", "badge_organization"),
+    ("Title or role", "badge_title"),
+    ("Email", "submitter_email"),
+    ("Phone", "submitter_phone"),
+)
+
+
+def _excel_questions(questionnaire):
+    unsupported = {
+        FormQuestion.QuestionType.CALCULATED,
+        FormQuestion.QuestionType.FILE,
+        FormQuestion.QuestionType.IMAGE,
+    }
+    return list(FormQuestion.objects.filter(
+        section__event_form=questionnaire,
+        section__is_active=True,
+        is_active=True,
+    ).exclude(question_type__in=unsupported).select_related("section").prefetch_related(
+        "options"
+    ).order_by("section__display_order", "display_order", "pk"))
+
+
+@login_required
+def questionnaire_excel_template(request, event_slug, form_id):
+    event = _event(request, event_slug)
+    questionnaire = _form(event, form_id)
+    questions = _excel_questions(questionnaire)
+    workbook = Workbook()
+    records = workbook.active
+    records.title = "Records"
+    headers = [label for label, _name in EXCEL_STANDARD_COLUMNS] + [
+        f"{question.label_en} [q{question.pk}]" for question in questions
+    ]
+    records.append(headers)
+    for cell in records[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="0B3A69")
+    records.freeze_panes = "A2"
+    records.auto_filter.ref = records.dimensions
+    for index, header in enumerate(headers, 1):
+        records.column_dimensions[records.cell(1, index).column_letter].width = min(
+            max(len(header) + 2, 18), 48
+        )
+
+    choices = workbook.create_sheet("Choices")
+    choices.append(["Question column", "Stored value", "English label", "Kiswahili label"])
+    for cell in choices[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="087F73")
+    for question in questions:
+        for option in question.options.all():
+            if option.is_active:
+                choices.append([
+                    f"q{question.pk}", option.value, option.label_en, option.label_sw,
+                ])
+    choices.append(["YES/NO fields", "yes or no", "Yes or No", "Ndiyo au Hapana"])
+    instructions = workbook.create_sheet("Instructions")
+    instructions.append(["Excel import instructions"])
+    instructions.append(["Enter one individual per row on the Records sheet."])
+    instructions.append(["Do not rename or delete column headings containing [q<number>]."])
+    instructions.append(["For choices, use the Stored value shown on the Choices sheet."])
+    instructions.append(["For multiple choices, separate stored values with semicolons (;)."])
+    instructions.append(["Dates: YYYY-MM-DD. Date-times: YYYY-MM-DD HH:MM."])
+    instructions.append(["Each import creates new completed submissions; it does not update existing rows."])
+    output = BytesIO()
+    workbook.save(output)
+    response = HttpResponse(
+        output.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = (
+        f'attachment; filename="{questionnaire.slug}-import-template.xlsx"'
+    )
+    return response
+
+
+def _excel_choice(question, raw_value, multiple=False):
+    requested = [part.strip() for part in str(raw_value).split(";")] if multiple else [str(raw_value).strip()]
+    options = [option for option in question.options.all() if option.is_active]
+    lookup = {}
+    for option in options:
+        for value in (option.value, option.label_en, option.label_sw):
+            lookup[str(value).strip().casefold()] = option
+    selected = []
+    for value in requested:
+        option = lookup.get(value.casefold())
+        if option is None:
+            raise ValueError(f'Unknown choice "{value}".')
+        if option not in selected:
+            selected.append(option)
+    return selected
+
+
+def _excel_answer_values(question, raw_value):
+    result = {}
+    selected = []
+    question_type = question.question_type
+    if question_type in {
+        FormQuestion.QuestionType.SHORT_TEXT,
+        FormQuestion.QuestionType.LONG_TEXT,
+        FormQuestion.QuestionType.EMAIL,
+        FormQuestion.QuestionType.PHONE,
+    }:
+        value = str(raw_value).strip()
+        if question_type == FormQuestion.QuestionType.EMAIL and "@" not in value:
+            raise ValueError("Enter a valid email address.")
+        result["text_value"] = value
+    elif question_type == FormQuestion.QuestionType.NUMBER:
+        try:
+            result["number_value"] = Decimal(str(raw_value))
+        except (InvalidOperation, TypeError, ValueError):
+            raise ValueError("Enter a valid number.")
+    elif question_type == FormQuestion.QuestionType.DATE:
+        if isinstance(raw_value, datetime):
+            result["date_value"] = raw_value.date()
+        elif isinstance(raw_value, date):
+            result["date_value"] = raw_value
+        else:
+            parsed = parse_date(str(raw_value).strip())
+            if parsed is None:
+                raise ValueError("Use date format YYYY-MM-DD.")
+            result["date_value"] = parsed
+    elif question_type == FormQuestion.QuestionType.DATETIME:
+        if isinstance(raw_value, datetime):
+            parsed = raw_value
+        else:
+            parsed = datetime.fromisoformat(str(raw_value).strip())
+        result["datetime_value"] = timezone.make_aware(parsed) if timezone.is_naive(parsed) else parsed
+    elif question_type == FormQuestion.QuestionType.YES_NO:
+        normalized = str(raw_value).strip().casefold()
+        if normalized not in {"yes", "no", "ndiyo", "hapana", "true", "false", "1", "0"}:
+            raise ValueError("Use Yes or No.")
+        result["boolean_value"] = normalized in {"yes", "ndiyo", "true", "1"}
+    elif question_type in {
+        FormQuestion.QuestionType.SINGLE_CHOICE,
+        FormQuestion.QuestionType.DROPDOWN,
+    }:
+        selected = _excel_choice(question, raw_value)
+    elif question_type == FormQuestion.QuestionType.MULTIPLE_CHOICE:
+        selected = _excel_choice(question, raw_value, multiple=True)
+    return result, selected
+
+
+@login_required
+@transaction.atomic
+def questionnaire_excel_import(request, event_slug, form_id):
+    event = _event(request, event_slug)
+    questionnaire = _form(event, form_id)
+    questions = _excel_questions(questionnaire)
+    form = QuestionnaireExcelImportForm(request.POST or None, request.FILES or None)
+    row_errors = []
+    if request.method == "POST" and form.is_valid():
+        try:
+            workbook = load_workbook(form.cleaned_data["excel_file"], data_only=True)
+        except Exception:
+            form.add_error("excel_file", "This Excel workbook could not be read.")
+        else:
+            if "Records" not in workbook.sheetnames:
+                form.add_error("excel_file", 'The workbook must contain a "Records" sheet.')
+            else:
+                sheet = workbook["Records"]
+                headers = [str(cell.value or "").strip() for cell in sheet[1]]
+                standard_lookup = {label: name for label, name in EXCEL_STANDARD_COLUMNS}
+                question_lookup = {f"q{question.pk}": question for question in questions}
+                mapped = []
+                for header in headers:
+                    if header in standard_lookup:
+                        mapped.append(("standard", standard_lookup[header]))
+                    else:
+                        marker = header.rsplit("[", 1)[-1].rstrip("]") if "[" in header else ""
+                        mapped.append(("question", question_lookup.get(marker)))
+                if not any(kind == "question" and value for kind, value in mapped):
+                    form.add_error("excel_file", "No matching form-question columns were found. Download a fresh template.")
+                else:
+                    parsed_rows = []
+                    for row_number, cells in enumerate(sheet.iter_rows(min_row=2, values_only=True), 2):
+                        if not any(value not in (None, "") for value in cells):
+                            continue
+                        standard = {}
+                        answers = []
+                        errors = []
+                        for raw_value, (kind, target) in zip(cells, mapped):
+                            if raw_value in (None, "") or target is None:
+                                continue
+                            if kind == "standard":
+                                standard[target] = str(raw_value).strip()
+                                continue
+                            try:
+                                values, selected = _excel_answer_values(target, raw_value)
+                                answers.append((target, values, selected))
+                            except (TypeError, ValueError) as exc:
+                                errors.append(f"{target.label_en}: {exc}")
+                        if not standard and not answers:
+                            errors.append("The row contains no importable values.")
+                        if errors:
+                            row_errors.append((row_number, errors))
+                        else:
+                            parsed_rows.append((standard, answers))
+                    if not parsed_rows and not row_errors:
+                        form.add_error("excel_file", "The Records sheet contains no data rows.")
+                    elif not row_errors:
+                        for standard, answers in parsed_rows:
+                            submission = FormSubmission.objects.create(
+                                event_form=questionnaire,
+                                submitted_by=request.user,
+                                created_by=request.user,
+                                updated_by=request.user,
+                                is_complete=True,
+                                language="en",
+                                **standard,
+                            )
+                            for question, values, selected in answers:
+                                answer = FormAnswer.objects.create(
+                                    submission=submission,
+                                    question=question,
+                                    created_by=request.user,
+                                    updated_by=request.user,
+                                    **values,
+                                )
+                                if selected:
+                                    answer.selected_options.set(selected)
+                            sync_badge_identity_from_answers(submission)
+                        messages.success(request, f"Imported {len(parsed_rows)} completed record(s) from Excel.")
+                        return redirect(
+                            "forms_builder:event_submission_list", event.slug
+                        )
+    if row_errors:
+        transaction.set_rollback(True)
+    return render(request, "forms_builder/management/questionnaire_excel_import.html", {
+        "event": event,
+        "questionnaire": questionnaire,
+        "form": form,
+        "row_errors": row_errors,
     })
 
 
