@@ -15,6 +15,7 @@ from .models import (
     EventForm,
     FormQuestion,
     FormSection,
+    FormSubmission,
     QuestionOption,
 )
 
@@ -54,6 +55,21 @@ class QuestionnaireForm(StyledModelForm):
         if opens_at and closes_at and closes_at <= opens_at:
             self.add_error("closes_at", "The closing time must be after the opening time.")
         return cleaned
+
+
+class SubmissionManagementForm(StyledModelForm):
+    """Safe event-workspace fields; submitted answers remain immutable here."""
+
+    class Meta:
+        model = FormSubmission
+        fields = (
+            "badge_name", "badge_organization", "badge_title",
+            "submitter_email", "submitter_phone",
+            "review_status", "review_notes",
+        )
+        widgets = {
+            "review_notes": forms.Textarea(attrs={"rows": 4}),
+        }
 
 
 class ConditionalManagementForm(StyledModelForm):

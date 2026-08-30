@@ -7,6 +7,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.dateparse import parse_date
+from django.utils import timezone
 
 from events.access import events_visible_to
 from events.department_views import can_manage_department_event
@@ -19,6 +20,7 @@ from .management_forms import (
     QuestionnaireForm,
     QuestionForm,
     SectionForm,
+    SubmissionManagementForm,
 )
 from .models import (
     DisplayLogicGroup,
@@ -97,6 +99,30 @@ def questionnaire_edit(request, event_slug, form_id):
     return render(request, "forms_builder/management/edit.html", {
         "event": event, "questionnaire": questionnaire, "form": form,
         "page_title": "Questionnaire settings",
+    })
+
+
+@login_required
+@transaction.atomic
+def questionnaire_delete(request, event_slug, form_id):
+    event = _event(request, event_slug)
+    questionnaire = _form(event, form_id)
+    if request.method == "POST":
+        questionnaire.is_active = False
+        questionnaire.is_published = False
+        questionnaire.updated_by = request.user
+        questionnaire.save(update_fields=[
+            "is_active", "is_published", "updated_by", "updated_at",
+        ])
+        messages.success(
+            request,
+            f'Questionnaire "{questionnaire.name_en}" was removed from active lists.',
+        )
+        return redirect("forms_builder:questionnaire_list", event.slug)
+    return render(request, "forms_builder/management/questionnaire_delete.html", {
+        "event": event,
+        "questionnaire": questionnaire,
+        "response_count": questionnaire.submissions.count(),
     })
 
 
@@ -219,6 +245,66 @@ def event_submission_detail(request, event_slug, submission_id):
         "event": event,
         "submission": submission,
         "answers": answers,
+    })
+
+
+@login_required
+@transaction.atomic
+def event_submission_edit(request, event_slug, submission_id):
+    event = _event(request, event_slug)
+    submission = get_object_or_404(
+        FormSubmission,
+        pk=submission_id,
+        event_form__event=event,
+        is_active=True,
+    )
+    previous_status = submission.review_status
+    form = SubmissionManagementForm(request.POST or None, instance=submission)
+    if request.method == "POST" and form.is_valid():
+        submission = form.save(commit=False)
+        if submission.review_status != previous_status:
+            if submission.review_status == FormSubmission.ReviewStatus.PENDING:
+                submission.reviewed_by = None
+                submission.reviewed_at = None
+            else:
+                submission.reviewed_by = request.user
+                submission.reviewed_at = timezone.now()
+        submission.updated_by = request.user
+        submission.full_clean()
+        submission.save()
+        messages.success(request, "Submission details were updated.")
+        return redirect(
+            "forms_builder:event_submission_detail", event.slug, submission.pk
+        )
+    return render(request, "forms_builder/management/submission_edit.html", {
+        "event": event,
+        "submission": submission,
+        "form": form,
+    })
+
+
+@login_required
+@transaction.atomic
+def event_submission_delete(request, event_slug, submission_id):
+    event = _event(request, event_slug)
+    submission = get_object_or_404(
+        FormSubmission,
+        pk=submission_id,
+        event_form__event=event,
+        is_active=True,
+    )
+    if request.method == "POST":
+        submission.is_active = False
+        submission.updated_by = request.user
+        submission.save(update_fields=["is_active", "updated_by", "updated_at"])
+        messages.success(
+            request,
+            f"Submission {submission.reference_number} was removed from active lists.",
+        )
+        return redirect("forms_builder:event_submission_list", event.slug)
+    return render(request, "forms_builder/management/submission_delete.html", {
+        "event": event,
+        "submission": submission,
     })
 
 

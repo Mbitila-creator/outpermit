@@ -210,6 +210,38 @@ class DepartmentEventAccessTests(TestCase):
             args=[self.dsti_event.slug, submission.pk],
         ))
         self.assertContains(detail_response, "Distinctive tracked answer")
+        self.assertNotContains(detail_response, "Open in Django Admin")
+        self.assertContains(detail_response, "Edit")
+        self.assertContains(detail_response, "Delete")
+
+        edit_response = self.client.post(reverse(
+            "forms_builder:event_submission_edit",
+            args=[self.dsti_event.slug, submission.pk],
+        ), {
+            "badge_name": "Updated Participant",
+            "badge_organization": "Updated Organization",
+            "badge_title": "Coordinator",
+            "submitter_email": "updated@example.com",
+            "submitter_phone": "0712345678",
+            "review_status": FormSubmission.ReviewStatus.APPROVED,
+            "review_notes": "Verified in the event workspace.",
+        })
+        self.assertRedirects(edit_response, reverse(
+            "forms_builder:event_submission_detail",
+            args=[self.dsti_event.slug, submission.pk],
+        ))
+        submission.refresh_from_db()
+        self.assertEqual(submission.badge_name, "Updated Participant")
+        self.assertEqual(submission.review_status, FormSubmission.ReviewStatus.APPROVED)
+        self.assertEqual(submission.reviewed_by, user)
+
+        delete_response = self.client.post(reverse(
+            "forms_builder:event_submission_delete",
+            args=[self.dsti_event.slug, submission.pk],
+        ))
+        self.assertRedirects(delete_response, submission_list_url)
+        submission.refresh_from_db()
+        self.assertFalse(submission.is_active)
 
         response = self.client.post(reverse(
             "forms_builder:questionnaire_publish",
@@ -252,6 +284,49 @@ class DepartmentEventAccessTests(TestCase):
             "events:department_event_detail", args=[self.dsti_event.slug]
         ))
         self.assertContains(event_response, "Questionnaires and forms")
+
+    def test_event_administrator_can_edit_and_archive_questionnaire_from_list(self):
+        user = self._staff("questionnaire-list-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+        questionnaire = EventForm.objects.create(
+            event=self.dsti_event,
+            name_en="Form list actions",
+            name_sw="Vitendo vya orodha ya fomu",
+            is_published=True,
+        )
+        submission = FormSubmission.objects.create(
+            event_form=questionnaire,
+            badge_name="Retained participant",
+        )
+
+        list_url = reverse(
+            "forms_builder:questionnaire_list", args=[self.dsti_event.slug]
+        )
+        list_response = self.client.get(list_url)
+        self.assertContains(list_response, reverse(
+            "forms_builder:questionnaire_edit",
+            args=[self.dsti_event.slug, questionnaire.pk],
+        ))
+        self.assertContains(list_response, reverse(
+            "forms_builder:questionnaire_delete",
+            args=[self.dsti_event.slug, questionnaire.pk],
+        ))
+
+        delete_url = reverse(
+            "forms_builder:questionnaire_delete",
+            args=[self.dsti_event.slug, questionnaire.pk],
+        )
+        confirmation = self.client.get(delete_url)
+        self.assertContains(confirmation, "1 submission")
+        response = self.client.post(delete_url)
+        self.assertRedirects(response, list_url)
+        questionnaire.refresh_from_db()
+        self.assertFalse(questionnaire.is_active)
+        self.assertFalse(questionnaire.is_published)
+        self.assertTrue(FormSubmission.objects.filter(pk=submission.pk).exists())
+        self.assertNotContains(self.client.get(list_url), "Form list actions")
 
     def test_event_administrator_can_preview_an_unpublished_questionnaire(self):
         user = self._staff("draft-preview-admin", self.dsti)

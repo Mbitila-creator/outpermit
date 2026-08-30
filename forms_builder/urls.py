@@ -23,6 +23,16 @@ urlpatterns = [
         name="event_submission_detail",
     ),
     path(
+        "manage/<slug:event_slug>/submissions/<int:submission_id>/edit/",
+        department_views.event_submission_edit,
+        name="event_submission_edit",
+    ),
+    path(
+        "manage/<slug:event_slug>/submissions/<int:submission_id>/delete/",
+        department_views.event_submission_delete,
+        name="event_submission_delete",
+    ),
+    path(
         "manage/<slug:event_slug>/questionnaires/new/",
         department_views.questionnaire_create,
         name="questionnaire_create",
@@ -36,6 +46,11 @@ urlpatterns = [
         "manage/<slug:event_slug>/questionnaires/<int:form_id>/settings/",
         department_views.questionnaire_edit,
         name="questionnaire_edit",
+    ),
+    path(
+        "manage/<slug:event_slug>/questionnaires/<int:form_id>/delete/",
+        department_views.questionnaire_delete,
+        name="questionnaire_delete",
     ),
     path(
         "manage/<slug:event_slug>/questionnaires/<int:form_id>/print/",
