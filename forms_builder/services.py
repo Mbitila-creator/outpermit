@@ -560,7 +560,7 @@ def _generate_weuutz_certificate_pdf(submission, verification_url):
         black, serif=True,
     )
     _draw_centered_fitted(
-        draw, recipient_name.upper(), 650, width, 54, width - 230,
+        draw, recipient_name, 650, width, 54, width - 230,
         blue, bold=True, serif=True,
     )
     draw.line((245, 725, width - 245, 725), fill="#8d8d8d", width=2)

@@ -550,6 +550,16 @@ class InstitutionCertificateTests(SimpleTestCase):
         )
         self.assertEqual(submission.badge_display_name, "Asha Representative")
 
+    def test_institution_abbreviation_case_is_preserved(self):
+        submission = self.submission(
+            organization="Moshi Co-operative University (MoCU)"
+        )
+
+        self.assertEqual(
+            certificate_recipient_name(submission),
+            "Moshi Co-operative University (MoCU)",
+        )
+
     def test_other_event_certificate_remains_awarded_to_participant(self):
         submission = self.submission(event_code="NESIF-2026")
 

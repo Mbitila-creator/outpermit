@@ -301,7 +301,7 @@
     font-weight: 700;
     letter-spacing: .025em;
     text-shadow: 0 1px 0 rgba(12, 39, 112, .12);
-    text-transform: uppercase;
+    text-transform: none;
     border-bottom: 1px solid #888;
 }
 
