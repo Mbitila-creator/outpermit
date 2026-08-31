@@ -1,4 +1,5 @@
 import csv
+import re
 from io import BytesIO
 from io import StringIO
 from pathlib import Path
@@ -286,6 +287,29 @@ def certificate_recipient_name(submission):
     return submission.badge_display_name
 
 
+def certificate_display_recipient_name(submission):
+    """Capitalize institution names without destroying official abbreviations."""
+    name = certificate_recipient_name(submission)
+    if not certificate_is_for_institution(submission):
+        return name
+
+    def capitalize_outside_parentheses(fragment):
+        def preserve_mixed_case_abbreviation(match):
+            word = match.group(0)
+            uppercase_count = sum(character.isupper() for character in word)
+            has_lowercase = any(character.islower() for character in word)
+            return word if uppercase_count >= 2 and has_lowercase else word.upper()
+
+        return re.sub(r"[A-Za-z]+(?:[-'][A-Za-z]+)*", preserve_mixed_case_abbreviation, fragment)
+
+    parts = re.split(r"(\([^)]*\))", name)
+    return "".join(
+        part if part.startswith("(") and part.endswith(")")
+        else capitalize_outside_parentheses(part)
+        for part in parts
+    )
+
+
 def certificate_qr_logo_path(event):
     if event.logo:
         try:
@@ -496,7 +520,7 @@ def _draw_centered_wrapped(draw, text, y, width, font, max_width, fill, spacing=
 
 def _generate_weuutz_certificate_pdf(submission, verification_url):
     event = submission.event_form.event
-    recipient_name = certificate_recipient_name(submission)
+    recipient_name = certificate_display_recipient_name(submission)
     short_certificate_number = certificate_number(submission)
     width, height = 1684, 1191
     image = Image.new("RGB", (width, height), "#00a651")

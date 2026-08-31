@@ -49,6 +49,7 @@ from .services import (
     booth_detail_url,
     certificate_number,
     certificate_is_for_institution,
+    certificate_display_recipient_name,
     certificate_qr_logo_path,
     certificate_recipient_name,
     certificate_verification_url,
@@ -1838,7 +1839,7 @@ def participant_certificate(request, participant_token):
                 else submission.event_form.event.title_sw
             ),
             "certificate_number": certificate_number(submission),
-            "certificate_recipient_name": certificate_recipient_name(submission),
+            "certificate_recipient_name": certificate_display_recipient_name(submission),
             "institution_certificate": certificate_is_for_institution(submission),
             "weuutz_event_sentence_html": weuutz_event_sentence_html(
                 submission.event_form.event
@@ -1934,7 +1935,7 @@ def certificate_verification(request, participant_token):
             "submission": submission,
             "event": event,
             "certificate_number": certificate_number(submission),
-            "certificate_recipient_name": certificate_recipient_name(submission),
+            "certificate_recipient_name": certificate_display_recipient_name(submission),
             "institution_certificate": certificate_is_for_institution(submission),
             "event_date_range": event_date_range(
                 event,

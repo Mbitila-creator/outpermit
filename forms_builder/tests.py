@@ -38,6 +38,7 @@ from .admin import EventFormAdmin, FormSubmissionAdmin
 
 from .services import (
     certificate_is_for_institution,
+    certificate_display_recipient_name,
     certificate_recipient_name,
     generate_qr_png,
     weuutz_event_sentence,
@@ -556,8 +557,18 @@ class InstitutionCertificateTests(SimpleTestCase):
         )
 
         self.assertEqual(
-            certificate_recipient_name(submission),
-            "Moshi Co-operative University (MoCU)",
+            certificate_display_recipient_name(submission),
+            "MOSHI CO-OPERATIVE UNIVERSITY (MoCU)",
+        )
+
+    def test_standalone_mixed_case_abbreviation_is_preserved(self):
+        submission = self.submission(
+            organization="Ministry of Education, Science and Technology MoEST"
+        )
+
+        self.assertEqual(
+            certificate_display_recipient_name(submission),
+            "MINISTRY OF EDUCATION, SCIENCE AND TECHNOLOGY MoEST",
         )
 
     def test_other_event_certificate_remains_awarded_to_participant(self):
