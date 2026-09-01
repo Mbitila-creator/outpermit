@@ -23,6 +23,7 @@ def special_event_researcher_identity(full_name, institution):
 class EventCategory(BaseModel):
     SPECIAL_EVENT_CODE = "SPECIAL_EVENT"
     CONFERENCE_CODE = "CONFERENCE"
+    LEARNING_EVENT_CODES = {"SEMINAR", "WORKSHOP", "TRAINING"}
     name_sw = models.CharField(
         _("name in Kiswahili"),
         max_length=150,
@@ -104,6 +105,12 @@ class EventCategory(BaseModel):
             or self.slug in {"conference", "kongamano"}
             or self.name_en.strip().casefold() == "conference"
         )
+
+    @property
+    def is_learning_event(self):
+        """Return true for Seminar, Workshop and Training categories."""
+        normalized_code = self.code.strip().upper().replace("-", "_").replace(" ", "_")
+        return normalized_code in self.LEARNING_EVENT_CODES
 
 
 class Venue(BaseModel):

@@ -31,6 +31,7 @@ from forms_builder.services import (
     public_form_path,
     safe_spreadsheet_value,
 )
+from learning_events.services import certificate_eligibility_for_submission
 
 from .models import ParticipantCheckIn
 
@@ -214,8 +215,15 @@ def attendance_reports(request):
                 certificate_record__status=CertificateRecord.Status.AUTHORIZED,
             )
             authorized = 0
+            skipped = 0
             with transaction.atomic():
                 for submission in eligible:
+                    category_eligible, _reason = certificate_eligibility_for_submission(
+                        submission
+                    )
+                    if not category_eligible:
+                        skipped += 1
+                        continue
                     _record, _record_created = CertificateRecord.objects.update_or_create(
                         submission=submission,
                         defaults={
@@ -245,6 +253,12 @@ def attendance_reports(request):
                 )
             else:
                 messages.info(request, _("No eligible participants were selected."))
+            if skipped:
+                messages.warning(
+                    request,
+                    _("%(count)s Training certificate(s) were skipped because attendance or post-assessment requirements were not satisfied.")
+                    % {"count": skipped},
+                )
         return redirect(
             f"{reverse('checkin:reports')}?event={selected_event.pk}"
             f"&filter={selected_filter}"
@@ -605,6 +619,9 @@ def participant_staff_detail(request, submission_id):
             raise PermissionDenied
         action = request.POST.get("action", "").strip()
         if action == "authorize":
+            category_eligible, category_reason = certificate_eligibility_for_submission(
+                submission
+            )
             if not event.certificate_enabled:
                 messages.error(request, _("Certificates are not enabled for this event."))
             elif not getattr(submission, "check_in", None):
@@ -612,6 +629,8 @@ def participant_staff_detail(request, submission_id):
                     request,
                     _("The participant must check in before certificate authorization."),
                 )
+            elif not category_eligible:
+                messages.error(request, category_reason)
             else:
                 _record, _created = CertificateRecord.objects.update_or_create(
                     submission=submission,

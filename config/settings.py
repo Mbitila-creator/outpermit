@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'checkin',
     'meetings',
     'conferences',
+    'learning_events',
 ]
 
 MIDDLEWARE = [

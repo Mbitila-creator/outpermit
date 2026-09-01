@@ -44,6 +44,7 @@ from .services import (
     submissions_csv,
     safe_spreadsheet_value,
 )
+from learning_events.services import certificate_eligibility_for_submission
 
 
 class AuditAdminMixin:
@@ -943,6 +944,10 @@ class FormSubmissionAdmin(admin.ModelAdmin):
         ).exclude(
             certificate_record__status=CertificateRecord.Status.AUTHORIZED,
         ).select_related("event_form__event", "certificate_record"))
+        eligible = [
+            submission for submission in eligible
+            if certificate_eligibility_for_submission(submission)[0]
+        ]
         now = timezone.now()
         for submission in eligible:
             certificate, created = CertificateRecord.objects.get_or_create(

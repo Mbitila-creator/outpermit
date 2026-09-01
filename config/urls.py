@@ -33,6 +33,7 @@ urlpatterns = [
     path("event-management/", include("checkin.urls")),
     path("event-management/", include("meetings.urls")),
     path("event-management/", include("conferences.urls")),
+    path("event-management/", include("learning_events.urls")),
 
     path("audit/", include("audit.urls")),
 

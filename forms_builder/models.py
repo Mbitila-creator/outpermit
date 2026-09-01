@@ -1182,6 +1182,17 @@ class CertificateRecord(BaseModel):
             )
             if not eligible:
                 raise ValidationError(_("Only an approved, checked-in participant may receive a certificate."))
+            if self.submission_id:
+                from learning_events.services import certificate_eligibility_for_submission
+
+                category_eligible, reason = certificate_eligibility_for_submission(
+                    self.submission
+                )
+                if not category_eligible:
+                    raise ValidationError(
+                        _("This Training certificate is not eligible: %(reason)s")
+                        % {"reason": reason}
+                    )
         elif self.status == self.Status.DENIED:
             if not self.denied_by_id or not self.denied_at or not self.denial_reason.strip():
                 raise ValidationError(_("A certificate denial requires the officer, time and reason."))
