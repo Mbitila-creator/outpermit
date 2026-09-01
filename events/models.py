@@ -109,8 +109,36 @@ class EventCategory(BaseModel):
     @property
     def is_learning_event(self):
         """Return true for Seminar, Workshop and Training categories."""
-        normalized_code = self.code.strip().upper().replace("-", "_").replace(" ", "_")
-        return normalized_code in self.LEARNING_EVENT_CODES
+        return bool(self.learning_event_type)
+
+    @property
+    def learning_event_type(self):
+        """Return the canonical learning category, including legacy labels."""
+        values = {
+            self.code.strip().casefold().replace("-", " ").replace("_", " "),
+            self.slug.strip().casefold().replace("-", " ").replace("_", " "),
+            self.name_en.strip().casefold(),
+            self.name_sw.strip().casefold(),
+        }
+        aliases = {
+            "SEMINAR": {"seminar", "semina"},
+            "WORKSHOP": {"workshop", "warsha"},
+            "TRAINING": {"training", "mafunzo"},
+        }
+        for category_type, recognized_values in aliases.items():
+            if values & recognized_values:
+                return category_type
+        return ""
+
+    @property
+    def is_exhibition(self):
+        values = {
+            self.code.strip().casefold().replace("-", " ").replace("_", " "),
+            self.slug.strip().casefold().replace("-", " ").replace("_", " "),
+            self.name_en.strip().casefold(),
+            self.name_sw.strip().casefold(),
+        }
+        return bool(values & {"exhibition", "maonesho"})
 
 
 class Venue(BaseModel):

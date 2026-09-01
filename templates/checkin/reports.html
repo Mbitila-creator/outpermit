@@ -50,7 +50,7 @@
                 </select>
                 {% if certificate_list_mode %}
                     <label for="certificate-search">{% translate "Search" %}</label>
-                    <input id="certificate-search" name="q" type="search" value="{{ search_query }}" placeholder="{% translate 'Reference, representative, institution, email, phone or certificate number' %}">
+                    <input id="certificate-search" name="q" type="search" value="{{ search_query }}" placeholder="Reference, {{ participant_heading|lower }}, institution, email, phone or certificate number">
                     <label for="certificate-organization">{% translate "Institution" %}</label>
                     <select id="certificate-organization" name="organization">
                         <option value="">{% translate "All institutions" %}</option>
@@ -120,7 +120,7 @@
                                 <tr>
                                     {% if certificate_list_mode %}<th><label class="report-select-all"><input id="select-all-certificates" type="checkbox"> <span>{% translate "Select all" %}</span></label></th>{% elif registration_certificate_mode or certificate_review_mode %}{% if can_authorize_certificates %}<th>{% translate "Select" %}</th>{% endif %}{% endif %}
                                     <th>{% translate "Reference number" %}</th>
-                                    <th>{% translate "Representative" %}</th>
+                                    <th>{{ participant_heading }}</th>
                                     <th>{% translate "Organization" %}</th>
                                     <th>{% translate "Status" %}</th>
                                     <th>{% translate "Attendance" %}</th>

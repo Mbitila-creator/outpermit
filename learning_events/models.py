@@ -16,7 +16,10 @@ LEARNING_CATEGORY_CODES = {"SEMINAR", "WORKSHOP", "TRAINING"}
 
 
 def normalized_category_code(event):
-    return event.category.code.strip().upper().replace("-", "_").replace(" ", "_")
+    return (
+        event.category.learning_event_type
+        or event.category.code.strip().upper().replace("-", "_").replace(" ", "_")
+    )
 
 
 def validate_learning_event(event):

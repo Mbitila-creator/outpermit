@@ -47,6 +47,29 @@ class LearningEventTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.context["category_code"], event.category.code)
 
+    def test_legacy_bilingual_training_category_is_recognized(self):
+        category = self.categories["TRAINING"]
+        category.code = "MAFUNZO_EVENT"
+        category.name_sw = "Mafunzo"
+        category.save(update_fields=("code", "name_sw", "updated_at"))
+        event = self.events["TRAINING"]
+        self.assertTrue(category.is_learning_event)
+        self.assertEqual(category.learning_event_type, "TRAINING")
+        self.client.force_login(self.user)
+        detail = self.client.get(reverse("events:department_event_detail", args=(event.slug,)))
+        self.assertContains(detail, "Training operations")
+
+    def test_training_reports_use_participant_not_exhibition_representative(self):
+        self.client.force_login(self.user)
+        event = self.events["TRAINING"]
+        response = self.client.get(
+            reverse("checkin:reports"),
+            {"event": event.pk, "filter": "registration_certificates"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, ">Participant<")
+        self.assertNotContains(response, ">Representative<")
+
     def test_training_certificate_requires_attendance_and_passing_post_assessment(self):
         event = self.events["TRAINING"]
         profile = LearningEventProfile.objects.create(

@@ -396,6 +396,11 @@ def attendance_reports(request):
             "organization": organization,
             "certificate_organizations": certificate_organizations,
             "can_authorize_certificates": can_authorize_certificates(request.user),
+            "participant_heading": (
+                _("Representative")
+                if selected_event and selected_event.category.is_exhibition
+                else _("Participant")
+            ),
         },
     )
 
@@ -477,7 +482,7 @@ def attendance_report_csv(request):
     writer = csv.writer(response)
     headers = [
         _("Reference number"),
-        _("Representative"),
+        _("Representative") if event.category.is_exhibition else _("Participant"),
         _("Organization"),
         _("Review status"),
         _("Checked in"),
@@ -547,7 +552,9 @@ def participant_list_excel(request):
     sheet["A2"].alignment = Alignment(horizontal="center")
     sheet.append([])
     headers = [
-        "#", "Reference", "Representative", "Institution", "Email", "Phone",
+        "#", "Reference",
+        "Representative" if event.category.is_exhibition else "Participant",
+        "Institution", "Email", "Phone",
         "Attendance", "Certificate",
     ]
     sheet.append(headers)
