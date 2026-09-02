@@ -301,6 +301,7 @@
 .conference-rating-bars label { color: #455c71; font-weight: 700; }
 .conference-rating-bars progress { width: 100%; height: 16px; accent-color: #087f73; }
 .conference-evaluation-analysis { margin-top: 20px; }
+.conference-analysis-print-actions { display:flex;align-items:center;gap:14px;margin:20px 0 0 }.conference-analysis-print-actions label{display:flex;align-items:center;gap:7px;color:#5c7085;font-weight:700}.conference-analysis-print-actions input{width:18px;height:18px;accent-color:#087f73}.conference-analysis-print-header{display:none}
 .conference-evaluation-stat-grid { display: grid; gap: 18px; }
 .conference-evaluation-stat-grid > article { padding: 18px; border: 1px solid #d4e0eb; border-radius: 13px; background: #f9fbfd; break-inside: avoid; }
 .conference-evaluation-stat-grid article > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
@@ -331,4 +332,26 @@
     .conference-rating-grid, .conference-feedback-dashboard-grid, .conference-feedback-thanks dl, .conference-evaluation-stat-layout { grid-template-columns: 1fr; }
     .conference-rating-bars > div { grid-template-columns: 1fr 45px; }
     .conference-rating-bars progress { grid-column: 1 / -1; grid-row: 2; }
+}
+
+@page { size: A4 portrait; margin: 14mm 12mm 18mm; }
+@media print {
+    body.conference-analysis-print-mode { background:#fff;print-color-adjust:exact;-webkit-print-color-adjust:exact }
+    body.conference-analysis-print-mode .public-header,body.conference-analysis-print-mode .public-footer,body.conference-analysis-print-mode .conference-page > :not(.conference-evaluation-analysis){display:none!important}
+    body.conference-analysis-print-mode main,body.conference-analysis-print-mode .conference-page{width:100%;margin:0;padding:0}
+    body.conference-analysis-print-mode .conference-evaluation-analysis{page:conference-analysis;margin:0;padding:0;border:0;box-shadow:none}
+    body.conference-analysis-print-mode .conference-analysis-print-header{display:grid;grid-template-columns:14mm minmax(0,1fr);align-items:center;gap:4mm;margin:0 0 5mm;padding-bottom:2mm;border-bottom:.5mm solid #2563eb;break-after:avoid}
+    body.conference-analysis-print-mode.conference-analysis-without-header .conference-analysis-print-header{display:none}
+    body.conference-analysis-print-mode .conference-analysis-print-header img{width:13mm;max-height:13mm;object-fit:contain}
+    body.conference-analysis-print-mode .conference-analysis-print-header strong{color:#17365d;font-size:8pt;text-transform:uppercase}
+    body.conference-analysis-print-mode .conference-analysis-print-header h1{margin:1mm 0;color:#17365d;font-size:13pt}
+    body.conference-analysis-print-mode .conference-analysis-print-header p{margin:0;color:#526176;font-size:8pt}
+    body.conference-analysis-print-mode:not(.conference-analysis-without-header) .conference-evaluation-analysis > .conference-panel-heading{display:none}
+    body.conference-analysis-print-mode.conference-analysis-without-header .conference-evaluation-analysis > .conference-panel-heading{display:block;margin:0 0 4mm;text-align:left}
+    body.conference-analysis-print-mode .conference-evaluation-stat-grid{gap:4mm}
+    body.conference-analysis-print-mode .conference-evaluation-stat-grid > article{padding:4mm;break-inside:avoid;page-break-inside:avoid}
+    body.conference-analysis-print-mode .conference-evaluation-stat-layout{grid-template-columns:minmax(0,1.2fr) minmax(55mm,.8fr);gap:5mm;margin-top:3mm}
+    body.conference-analysis-print-mode .conference-evaluation-histogram{gap:2mm;padding:3mm}
+    body.conference-analysis-print-mode .conference-evaluation-histogram > div{grid-template-columns:18mm minmax(30mm,1fr) 7mm;gap:2mm}
+    body.conference-analysis-print-mode .conference-evaluation-histogram label,body.conference-analysis-print-mode .conference-evaluation-histogram strong,body.conference-analysis-print-mode .conference-evaluation-stat-layout th,body.conference-analysis-print-mode .conference-evaluation-stat-layout td{font-size:7.5pt}
 }

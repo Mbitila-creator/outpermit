@@ -1,7 +1,9 @@
 {% extends "meetings/base_meetings.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}{{ meeting.reference_number }}{% endblock %}
+
+{% block extra_css %}{{ block.super }}<style>@page meeting-analysis{@bottom-left{content:"© MoEST {% now 'Y' %}";color:#526176;font-family:Arial,sans-serif;font-size:8pt}@bottom-right{content:"{% translate 'Page' %} " counter(page) " / " counter(pages);color:#526176;font-family:Arial,sans-serif;font-size:8pt}}</style>{% endblock %}
 
 {% block meeting_content %}
 {% translate "Not specified" as not_specified %}
@@ -146,8 +148,10 @@
         <article><span>{% translate "Agenda and content" %}</span><strong>{% if feedback_summary.content_rating %}{{ feedback_summary.content_rating|floatformat:1 }} / 5{% else %}—{% endif %}</strong></article>
         <article><span>{% translate "Chairing and facilitation" %}</span><strong>{% if feedback_summary.facilitation_rating %}{{ feedback_summary.facilitation_rating|floatformat:1 }} / 5{% else %}—{% endif %}</strong></article>
     </div>
-    <details class="meeting-evaluation-analysis">
+    <div class="meeting-analysis-print-actions"><button type="button" id="print-meeting-analysis" class="meeting-link-button">{% translate "Print / Save analysis as PDF" %}</button><label><input type="checkbox" id="include-meeting-analysis-header" checked> {% translate "Include report header" %}</label></div>
+    <details class="meeting-evaluation-analysis" id="meeting-evaluation-analysis-report">
         <summary>{% translate "Statistical summary — Analysis by evaluation question" %}</summary>
+        <header class="meeting-analysis-print-header"><img src="{% static 'logo/moest_logo.png' %}" alt=""><div><strong>{% translate "Ministry of Education, Science and Technology" %}</strong><h1>{% translate "Meeting evaluation statistical analysis" %}</h1><p>{{ meeting.reference_number }} — {% if request.LANGUAGE_CODE == 'en' %}{{ meeting.event.title_en }}{% else %}{{ meeting.event.title_sw }}{% endif %}</p></div></header>
         <div class="meeting-evaluation-stat-grid">
             {% for statistic in meeting_evaluation_statistics %}
                 <article>
@@ -168,3 +172,5 @@
     </div>
 </section>
 {% endblock %}
+
+{% block extra_js %}<script>document.addEventListener("DOMContentLoaded",function(){const button=document.getElementById("print-meeting-analysis");const header=document.getElementById("include-meeting-analysis-header");const report=document.getElementById("meeting-evaluation-analysis-report");let wasOpen=false;if(!button||!report)return;button.addEventListener("click",function(){wasOpen=report.open;report.open=true;document.body.classList.add("meeting-analysis-print-mode");document.body.classList.toggle("meeting-analysis-without-header",Boolean(header&&!header.checked));window.requestAnimationFrame(function(){window.print()})});window.addEventListener("afterprint",function(){report.open=wasOpen;document.body.classList.remove("meeting-analysis-print-mode","meeting-analysis-without-header")})});</script>{% endblock %}

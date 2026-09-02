@@ -128,6 +128,7 @@
 .meeting-feedback-summary strong { display: block; margin-top: 7px; color: #17365d; font-size: 25px; }
 .meeting-evaluation-analysis { margin: 0 0 18px; border: 1px solid #d7e1ed; border-radius: 12px; background: #fff; }
 .meeting-evaluation-analysis > summary { padding: 16px 18px; color: #17365d; font-weight: 850; cursor: pointer; }
+.meeting-analysis-print-actions{display:flex;align-items:center;gap:14px;margin:0 0 14px}.meeting-analysis-print-actions label{display:flex;align-items:center;gap:7px;color:#66758b;font-weight:700}.meeting-analysis-print-actions input{width:18px;height:18px;accent-color:#087f73}.meeting-analysis-print-header{display:none}
 .meeting-evaluation-stat-grid { display: grid; gap: 14px; padding: 0 18px 18px; }
 .meeting-evaluation-stat-grid > article { padding: 16px; border: 1px solid #d7e1ed; border-radius: 11px; background: #f8fafc; }
 .meeting-evaluation-stat-grid article > header { display: flex; justify-content: space-between; gap: 12px; }
@@ -376,3 +377,25 @@
 @media (max-width: 480px) { .meeting-filter-card,.meeting-step-nav,.meeting-series-card dl,.meeting-public-pass,.meeting-dashboard-filter,.meeting-decision-filter,.meeting-executive-metrics,.meeting-personal-card dl { grid-template-columns: 1fr; } .meeting-public-pass img { justify-self: center; } .meeting-primary-button,.meeting-secondary-button,.meeting-export-button,.meeting-danger-button { width: 100%; } .meeting-hero-actions { width: 100%; } .meeting-row-actions,.meeting-follow-up-item,.meeting-participant-pack > article { align-items: stretch; flex-direction: column; min-width: 180px; } .meeting-pack-actions { justify-content: flex-start; } .meeting-personal-filter label,.meeting-personal-filter button { width: 100%; min-width: 0; } }
 @media print { .meeting-no-print,.meeting-workspace-page > .meeting-workspace-container > .meeting-messages { display: none !important; } .meeting-workspace-page { padding: 0; background: #fff; } .meeting-staff-pass { box-shadow: none; } }
 @media (max-width: 720px) { .meeting-evaluation-stat-layout { grid-template-columns: 1fr; } }
+
+@page { size:A4 portrait; margin:14mm 12mm 18mm; }
+@media print {
+    body.meeting-analysis-print-mode{background:#fff;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+    body.meeting-analysis-print-mode .public-header,body.meeting-analysis-print-mode .public-footer,body.meeting-analysis-print-mode .meeting-detail-hero,body.meeting-analysis-print-mode .meeting-step-nav,body.meeting-analysis-print-mode .meeting-workflow-section:not(#evaluation),body.meeting-analysis-print-mode #evaluation > :not(.meeting-evaluation-analysis){display:none!important}
+    body.meeting-analysis-print-mode main,body.meeting-analysis-print-mode .meeting-workspace-page,body.meeting-analysis-print-mode .meeting-workspace-container,body.meeting-analysis-print-mode #evaluation{width:100%;margin:0;padding:0;background:#fff;border:0;box-shadow:none}
+    body.meeting-analysis-print-mode .meeting-evaluation-analysis{page:meeting-analysis;margin:0;border:0}
+    body.meeting-analysis-print-mode .meeting-analysis-print-header{display:grid;grid-template-columns:14mm minmax(0,1fr);align-items:center;gap:4mm;margin:0 0 5mm;padding-bottom:2mm;border-bottom:.5mm solid #2563eb;break-after:avoid}
+    body.meeting-analysis-print-mode.meeting-analysis-without-header .meeting-analysis-print-header{display:none}
+    body.meeting-analysis-print-mode .meeting-analysis-print-header img{width:13mm;max-height:13mm;object-fit:contain}
+    body.meeting-analysis-print-mode .meeting-analysis-print-header strong{color:#17365d;font-size:8pt;text-transform:uppercase}
+    body.meeting-analysis-print-mode .meeting-analysis-print-header h1{margin:1mm 0;color:#17365d;font-size:13pt}
+    body.meeting-analysis-print-mode .meeting-analysis-print-header p{margin:0;color:#526176;font-size:8pt}
+    body.meeting-analysis-print-mode:not(.meeting-analysis-without-header) .meeting-evaluation-analysis > summary{display:none}
+    body.meeting-analysis-print-mode.meeting-analysis-without-header .meeting-evaluation-analysis > summary{display:block;padding:0 0 4mm;text-align:left;list-style:none}
+    body.meeting-analysis-print-mode .meeting-evaluation-stat-grid{gap:4mm;padding:0}
+    body.meeting-analysis-print-mode .meeting-evaluation-stat-grid > article{padding:4mm;break-inside:avoid;page-break-inside:avoid}
+    body.meeting-analysis-print-mode .meeting-evaluation-stat-layout{grid-template-columns:minmax(0,1.2fr) minmax(55mm,.8fr);gap:5mm;margin-top:3mm}
+    body.meeting-analysis-print-mode .meeting-evaluation-histogram{gap:2mm;padding:3mm}
+    body.meeting-analysis-print-mode .meeting-evaluation-histogram > div{grid-template-columns:18mm minmax(30mm,1fr) 7mm;gap:2mm}
+    body.meeting-analysis-print-mode .meeting-evaluation-histogram label,body.meeting-analysis-print-mode .meeting-evaluation-histogram strong,body.meeting-analysis-print-mode .meeting-evaluation-stat-layout th,body.meeting-analysis-print-mode .meeting-evaluation-stat-layout td{font-size:7.5pt}
+}

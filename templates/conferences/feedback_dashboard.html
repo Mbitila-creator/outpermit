@@ -2,7 +2,10 @@
 {% load static i18n %}
 
 {% block title %}{{ event_form.event.code }} — {% translate "Event evaluation dashboard" %}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/conferences.css' %}?v=20260902a">{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/conferences.css' %}?v=20260902b">
+<style>@page conference-analysis{@bottom-left{content:"© MoEST {% now 'Y' %}";color:#526176;font-family:Arial,sans-serif;font-size:8pt}@bottom-right{content:"{% translate 'Page' %} " counter(page) " / " counter(pages);color:#526176;font-family:Arial,sans-serif;font-size:8pt}}</style>
+{% endblock %}
 
 {% block content %}
 <main class="conference-page">
@@ -19,7 +22,9 @@
         <article class="conference-panel conference-feedback-qr"><span>{% translate "Public evaluation link" %}</span><h2>{% translate "Share this QR code" %}</h2><img src="{% url 'conferences:feedback_qr' event_form.event.slug %}" alt="Conference evaluation QR code"><a href="{% url 'conferences:feedback_submit' event_form.event.slug %}" target="_blank" rel="noopener">{% translate "Open evaluation form" %}</a><a href="{% url 'conferences:feedback_qr' event_form.event.slug %}" download="{{ event_form.event.code }}-feedback-QR.png">{% translate "Download QR as PNG" %}</a></article>
     </section>
     <section class="conference-panel"><div class="conference-panel-heading"><div><span>{% translate "Session analysis" %}</span><h2>{% translate "Responses by session" %}</h2></div></div><div class="conference-session-grid">{% for session in sessions %}<article class="conference-session-card"><span>{{ session.starts_at|date:"d M Y" }}</span><h3>{{ session.title }}</h3><p><strong>{{ session.response_count }}</strong> {% translate "responses" %} · {% translate "Average" %} {{ session.average_rating|floatformat:1|default:"—" }}/5</p><a href="?session={{ session.pk }}">{% translate "View responses" %}</a></article>{% empty %}<p>{% translate "No sessions have been configured." %}</p>{% endfor %}</div></section>
-    <section class="conference-panel conference-evaluation-analysis">
+    <div class="conference-analysis-print-actions"><button type="button" id="print-conference-analysis" class="conference-primary">{% translate "Print / Save analysis as PDF" %}</button><label><input type="checkbox" id="include-conference-analysis-header" checked> {% translate "Include report header" %}</label></div>
+    <section class="conference-panel conference-evaluation-analysis" id="conference-evaluation-analysis-report">
+        <header class="conference-analysis-print-header"><img src="{% static 'logo/moest_logo.png' %}" alt=""><div><strong>{% translate "Ministry of Education, Science and Technology" %}</strong><h1>{% translate "Conference evaluation statistical analysis" %}</h1><p>{{ event_form.event.code }} — {% if request.LANGUAGE_CODE == 'en' %}{{ event_form.event.title_en }}{% else %}{{ event_form.event.title_sw }}{% endif %}</p></div></header>
         <div class="conference-panel-heading"><div><span>{% translate "Statistical summary" %}</span><h2>{% translate "Analysis by evaluation question" %}</h2></div></div>
         <div class="conference-evaluation-stat-grid">
             {% for statistic in evaluation_statistics %}
@@ -36,3 +41,5 @@
     <section class="conference-panel"><div class="conference-panel-heading"><div><span>{% translate "Submitted evaluations" %}</span><h2>{% translate "Evaluation responses" %}</h2></div><strong>{{ responses|length }}</strong></div>{% if session_filter %}<p><a href="{% url 'conferences:feedback_dashboard' event_form.pk %}">{% translate "Clear session filter" %}</a></p>{% endif %}<div class="conference-table-scroll"><table class="conference-table"><thead><tr><th>{% translate "Respondent" %}</th><th>{% translate "Scope" %}</th><th>{% translate "Ratings" %}</th><th>{% translate "Most valuable" %}</th><th>{% translate "Improvements" %}</th></tr></thead><tbody>{% for item in responses %}<tr><td><strong>{{ item.display_name }}</strong><small>{{ item.reference_number }} · {{ item.created_at|date:"d M Y H:i" }}</small></td><td>{% if item.session %}{{ item.session.title }}{% else %}{% translate "Overall conference" %}{% endif %}</td><td><strong>{{ item.overall_rating }}/5</strong><small>{% translate "Recommend" %}: {{ item.would_recommend|yesno:"Yes,No" }}</small></td><td>{{ item.most_valuable|default:"—"|linebreaksbr }}</td><td>{{ item.improvements|default:"—"|linebreaksbr }}</td></tr>{% empty %}<tr><td colspan="5">{% translate "No evaluations have been submitted yet." %}</td></tr>{% endfor %}</tbody></table></div></section>
 </main>
 {% endblock %}
+
+{% block extra_js %}<script>document.addEventListener("DOMContentLoaded",function(){const button=document.getElementById("print-conference-analysis");const header=document.getElementById("include-conference-analysis-header");if(!button)return;button.addEventListener("click",function(){document.body.classList.add("conference-analysis-print-mode");document.body.classList.toggle("conference-analysis-without-header",Boolean(header&&!header.checked));window.requestAnimationFrame(function(){window.print()})});window.addEventListener("afterprint",function(){document.body.classList.remove("conference-analysis-print-mode","conference-analysis-without-header")})});</script>{% endblock %}

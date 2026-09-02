@@ -887,7 +887,10 @@ class DepartmentEventAccessTests(TestCase):
         self.assertContains(response, "Conference event evaluation")
         self.assertContains(response, "Analysis by evaluation question")
         self.assertContains(response, "Evaluation responses")
-        self.assertContains(response, "conferences.css?v=20260902a")
+        self.assertContains(response, "conferences.css?v=20260902b")
+        self.assertContains(response, 'id="print-conference-analysis"')
+        self.assertContains(response, "Print / Save analysis as PDF")
+        self.assertContains(response, "@page conference-analysis")
         self.assertNotContains(response, "Feedback responses")
 
     def test_event_without_evaluation_offers_evaluation_setup(self):
