@@ -179,6 +179,10 @@ class QuestionnaireAnalysisReportTests(TestCase):
         self.assertContains(response, 'class="evaluation-rating-disclosure"')
         self.assertContains(response, "Rating per Question")
         self.assertContains(response, "Overall average rating")
+        self.assertContains(response, 'id="print-question-analysis"')
+        self.assertContains(response, "Print / Save analysis as PDF")
+        self.assertContains(response, 'class="analysis-print-header"')
+        self.assertContains(response, 'class="analysis-print-footer"')
 
 
 class QuestionnairePrintLanguageTests(TestCase):

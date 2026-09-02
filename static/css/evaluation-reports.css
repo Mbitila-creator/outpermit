@@ -31,6 +31,10 @@
 .evaluation-response-table th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
 .evaluation-empty { margin-top: 24px; padding: 20px; border-radius: 12px; background: #fff8df; }
 .question-analysis-section { margin-top: 32px; }
+.analysis-print-actions { display: flex; align-items: center; gap: 16px; margin-top: 28px; }
+.analysis-print-actions label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-weight: 700; }
+.analysis-print-actions input { width: 18px; height: 18px; accent-color: var(--primary); }
+.analysis-print-header, .analysis-print-footer { display: none; }
 .question-analysis-heading, .response-table-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
 .question-analysis-heading h2, .response-table-heading h2 { margin: 5px 0 0; color: var(--primary); }
 .question-analysis-heading p, .response-table-heading p { margin: 0; color: var(--muted); }
@@ -74,3 +78,46 @@
 .response-table-heading { margin-bottom: 16px; }
 @media (max-width: 900px) { .question-analysis-layout { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .evaluation-summary-grid, .evaluation-rating-grid, .numeric-summary { grid-template-columns: 1fr; } .evaluation-rating-disclosure, .evaluation-rating-disclosure[open] { grid-column: auto; } .evaluation-rating-disclosure summary { grid-template-columns: minmax(0, 1fr) auto 16px; } .evaluation-report-filter { align-items: stretch; flex-direction: column; } .question-analysis-heading, .response-table-heading, .question-analysis-card > header { align-items: flex-start; flex-direction: column; } .histogram-row { grid-template-columns: minmax(80px, 120px) minmax(80px, 1fr) 30px; } }
+
+@page { size: A4 portrait; margin: 25mm 12mm 18mm; }
+@media print {
+    body.analysis-print-mode { background: #fff; color: #17263c; font-size: 9pt; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    body.analysis-print-mode .public-header,
+    body.analysis-print-mode .public-footer,
+    body.analysis-print-mode .evaluation-report-heading,
+    body.analysis-print-mode .evaluation-report-filter,
+    body.analysis-print-mode .evaluation-summary-grid,
+    body.analysis-print-mode .evaluation-report-actions,
+    body.analysis-print-mode .analysis-print-actions,
+    body.analysis-print-mode .evaluation-response-table { display: none !important; }
+    body.analysis-print-mode main,
+    body.analysis-print-mode .evaluation-report-page,
+    body.analysis-print-mode .evaluation-report-container { width: 100%; margin: 0; padding: 0; }
+    body.analysis-print-mode .question-analysis-section { margin: 0; }
+    body.analysis-print-mode .analysis-print-header { position: fixed; top: -20mm; left: 0; right: 0; display: grid; grid-template-columns: 14mm minmax(0, 1fr); align-items: center; gap: 4mm; min-height: 16mm; padding-bottom: 2mm; border-bottom: .5mm solid #2563eb; background: #fff; }
+    body.analysis-print-mode.analysis-print-without-header .analysis-print-header { display: none; }
+    body.analysis-print-mode .analysis-print-header img { width: 13mm; max-height: 13mm; object-fit: contain; }
+    body.analysis-print-mode .analysis-print-header strong { color: #17365d; font-size: 8pt; letter-spacing: .03em; text-transform: uppercase; }
+    body.analysis-print-mode .analysis-print-header h1 { margin: 1mm 0; color: #17365d; font-size: 13pt; }
+    body.analysis-print-mode .analysis-print-header p { margin: 0; color: #526176; font-size: 8pt; }
+    body.analysis-print-mode .analysis-print-footer { position: fixed; right: 0; bottom: -12mm; left: 0; display: flex; justify-content: space-between; padding-top: 2mm; border-top: .3mm solid #cbd5e1; color: #526176; font-size: 7.5pt; }
+    body.analysis-print-mode .analysis-print-page-number::after { content: counter(page) " / " counter(pages); }
+    body.analysis-print-mode .question-analysis-heading { align-items: flex-end; margin-bottom: 4mm; break-after: avoid; }
+    body.analysis-print-mode .question-analysis-heading h2 { font-size: 16pt; }
+    body.analysis-print-mode .question-analysis-list { gap: 4mm; margin-top: 0; }
+    body.analysis-print-mode .question-analysis-card { padding: 4mm; border-radius: 3mm; box-shadow: none; break-inside: avoid; page-break-inside: avoid; }
+    body.analysis-print-mode .question-analysis-card h3 { font-size: 11pt; }
+    body.analysis-print-mode .question-response-rate { min-width: 22mm; padding: 2mm 3mm; }
+    body.analysis-print-mode .question-response-rate strong { font-size: 15pt; }
+    body.analysis-print-mode .question-counts { margin-top: 2.5mm; }
+    body.analysis-print-mode .question-counts span { padding: 1.3mm 2mm; font-size: 7.5pt; }
+    body.analysis-print-mode .numeric-summary { margin-top: 3mm; }
+    body.analysis-print-mode .numeric-summary div { padding: 2.5mm; }
+    body.analysis-print-mode .numeric-summary strong { font-size: 13pt; }
+    body.analysis-print-mode .question-analysis-layout { grid-template-columns: minmax(0, 1.2fr) minmax(55mm, .8fr); gap: 5mm; margin-top: 3mm; }
+    body.analysis-print-mode .question-histogram { gap: 2mm; padding: 3mm; }
+    body.analysis-print-mode .histogram-row { grid-template-columns: minmax(28mm, 42mm) minmax(30mm, 1fr) 7mm; gap: 2mm; }
+    body.analysis-print-mode .histogram-label, body.analysis-print-mode .histogram-row strong { font-size: 7.5pt; }
+    body.analysis-print-mode .histogram-track { height: 4mm; }
+    body.analysis-print-mode .question-summary-table th, body.analysis-print-mode .question-summary-table td { padding: 1.5mm 2mm; font-size: 7.5pt; }
+}

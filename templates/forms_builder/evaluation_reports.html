@@ -64,7 +64,26 @@
                     <a href="{% url 'forms_builder:evaluation_reports_csv' %}?form={{ selected_form.pk }}" class="primary-button">{% translate "Download evaluation CSV" %}</a>
                 </div>
 
-                <section class="question-analysis-section" aria-labelledby="question-analysis-title">
+                <div class="analysis-print-actions">
+                    <button type="button" id="print-question-analysis" class="primary-button">
+                        {% translate "Print / Save analysis as PDF" %}
+                    </button>
+                    <label for="include-analysis-header">
+                        <input type="checkbox" id="include-analysis-header" checked>
+                        {% translate "Include report header" %}
+                    </label>
+                </div>
+
+                <section class="question-analysis-section" id="question-analysis-report" aria-labelledby="question-analysis-title">
+                    <header class="analysis-print-header" aria-hidden="true">
+                        <img src="{% static 'logo/moest_logo.png' %}" alt="">
+                        <div>
+                            <strong>{% translate "Ministry of Education, Science and Technology" %}</strong>
+                            <h1>{% translate "Questionnaire statistical analysis" %}</h1>
+                            <p>{{ selected_form.event.code }} — {% if request.LANGUAGE_CODE == "en" %}{{ selected_form.name_en }}{% else %}{{ selected_form.name_sw }}{% endif %}</p>
+                        </div>
+                    </header>
+
                     <div class="question-analysis-heading">
                         <div>
                             <span class="section-kicker">{% translate "Statistical summary" %}</span>
@@ -152,6 +171,11 @@
                             <div class="question-no-data">{% translate "This form has no active questions to analyse." %}</div>
                         {% endfor %}
                     </div>
+
+                    <footer class="analysis-print-footer" aria-hidden="true">
+                        <span>&copy; MoEST {% now "Y" %}</span>
+                        <span>{% translate "Page" %} <span class="analysis-print-page-number"></span></span>
+                    </footer>
                 </section>
 
                 <div class="evaluation-response-table">
@@ -180,4 +204,33 @@
             {% endif %}
         </div>
     </section>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const printButton = document.getElementById("print-question-analysis");
+            const includeHeader = document.getElementById("include-analysis-header");
+
+            if (!printButton) {
+                return;
+            }
+
+            printButton.addEventListener("click", function () {
+                document.body.classList.add("analysis-print-mode");
+                document.body.classList.toggle(
+                    "analysis-print-without-header",
+                    Boolean(includeHeader && !includeHeader.checked)
+                );
+                window.print();
+            });
+
+            window.addEventListener("afterprint", function () {
+                document.body.classList.remove(
+                    "analysis-print-mode",
+                    "analysis-print-without-header"
+                );
+            });
+        });
+    </script>
 {% endblock %}
