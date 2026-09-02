@@ -6,6 +6,22 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/evaluation-reports.css' %}">
+    <style>
+        @page analysis-report {
+            @bottom-left {
+                content: "© MoEST {% now 'Y' %}";
+                color: #526176;
+                font-family: Arial, sans-serif;
+                font-size: 8pt;
+            }
+            @bottom-right {
+                content: "{% translate 'Page' %} " counter(page) " / " counter(pages);
+                color: #526176;
+                font-family: Arial, sans-serif;
+                font-size: 8pt;
+            }
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
@@ -172,10 +188,6 @@
                         {% endfor %}
                     </div>
 
-                    <footer class="analysis-print-footer" aria-hidden="true">
-                        <span>&copy; MoEST {% now "Y" %}</span>
-                        <span>{% translate "Page" %} <span class="analysis-print-page-number"></span></span>
-                    </footer>
                 </section>
 
                 <div class="evaluation-response-table">
@@ -222,7 +234,9 @@
                     "analysis-print-without-header",
                     Boolean(includeHeader && !includeHeader.checked)
                 );
-                window.print();
+                window.requestAnimationFrame(function () {
+                    window.print();
+                });
             });
 
             window.addEventListener("afterprint", function () {

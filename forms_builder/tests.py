@@ -182,7 +182,8 @@ class QuestionnaireAnalysisReportTests(TestCase):
         self.assertContains(response, 'id="print-question-analysis"')
         self.assertContains(response, "Print / Save analysis as PDF")
         self.assertContains(response, 'class="analysis-print-header"')
-        self.assertContains(response, 'class="analysis-print-footer"')
+        self.assertContains(response, "@page analysis-report")
+        self.assertContains(response, 'counter(page) " / " counter(pages)')
 
 
 class QuestionnairePrintLanguageTests(TestCase):
