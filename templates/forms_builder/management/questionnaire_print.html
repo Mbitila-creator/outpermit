@@ -30,7 +30,6 @@
         .choice::before { content: "☐"; margin-right: 7px; }
         .answer-lines { height: 42px; margin-top: 8px; background: repeating-linear-gradient(to bottom, transparent 0, transparent 20px, #b8c5d3 21px); }
         .long-answer { height: 86px; }
-        .logic { margin-top: 6px; color: #6b5200; font-size: 11px; }
         .footer-note { margin-top: 28px; color: #52657c; font-size: 11px; text-align: center; }
         @media print {
             body { background: #fff; font-size: 11pt; }
@@ -59,19 +58,18 @@
         {% if language_code == "en" and questionnaire.introduction_en %}<section class="introduction"><strong>Introduction</strong><p>{{ questionnaire.introduction_en|linebreaksbr }}</p></section>{% elif language_code == "sw" and questionnaire.introduction_sw %}<section class="introduction"><strong>Utangulizi</strong><p>{{ questionnaire.introduction_sw|linebreaksbr }}</p></section>{% endif %}
         {% for section in sections %}
             <section class="section">
-                <h2>{{ forloop.counter }}. {% if language_code == "en" %}{{ section.title_en }}{% else %}{{ section.title_sw }}{% endif %}</h2>
+                <h2>{% if language_code == "en" %}{{ section.title_en }}{% else %}{{ section.title_sw }}{% endif %}</h2>
                 {% if language_code == "en" and section.description_en %}<p class="section-description">{{ section.description_en }}</p>{% elif language_code == "sw" and section.description_sw %}<p class="section-description">{{ section.description_sw }}</p>{% endif %}
                 {% for question in section.questions.all %}{% if question.is_active %}
                     <article class="question">
-                        <div class="question-title">{{ forloop.counter }}. {% if language_code == "en" %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}{% if question.is_required %} <span class="required">*</span>{% endif %}</div>
+                        <div class="question-title">{% if language_code == "en" %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}{% if question.is_required %} <span class="required">*</span>{% endif %}</div>
                         {% if language_code == "en" and question.help_text_en %}<div>{{ question.help_text_en }}</div>{% elif language_code == "sw" and question.help_text_sw %}<div>{{ question.help_text_sw }}</div>{% endif %}
                         {% if question.options.all %}<ul class="choices">{% for option in question.options.all %}{% if option.is_active %}<li class="choice">{% if language_code == "en" %}{{ option.label_en }}{% else %}{{ option.label_sw }}{% endif %}</li>{% endif %}{% endfor %}</ul>{% else %}<div class="answer-lines {% if question.question_type == 'LONG_TEXT' %}long-answer{% endif %}"></div>{% endif %}
-                        {% if language_code == "en" %}{% if question.display_logic %}<div class="logic">Show when: {{ question.display_logic.summary_en }}</div>{% endif %}{% if question.required_logic %}<div class="logic">Required when: {{ question.required_logic.summary_en }}</div>{% endif %}{% if question.validation_logic %}<div class="logic">Valid when: {{ question.validation_logic.summary_en }}</div>{% endif %}{% endif %}
                     </article>
                 {% endif %}{% empty %}<p>{% if language_code == "en" %}No active questions.{% else %}Hakuna maswali yanayotumika.{% endif %}</p>{% endfor %}
             </section>
         {% empty %}<p>{% if language_code == "en" %}No active sections.{% else %}Hakuna sehemu zinazotumika.{% endif %}</p>{% endfor %}
-        <p class="footer-note">{% if language_code == "en" %}Generated from the OutPermit Event Management questionnaire builder.{% else %}Imetengenezwa kupitia kijenzi cha dodoso cha Mfumo wa Usimamizi wa Matukio wa OutPermit.{% endif %}</p>
+        <p class="footer-note">© {% if language_code == "en" %}MoEST{% else %}WyEST{% endif %} {% now "Y" %}</p>
     </main>
 </body>
 </html>
