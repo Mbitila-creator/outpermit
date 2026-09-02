@@ -7,10 +7,22 @@
 .evaluation-report-filter select { min-width: min(100%, 430px); min-height: 48px; padding: 8px 12px; border: 1px solid #b9c5d4; border-radius: 9px; background: #fff; font: inherit; }
 .evaluation-summary-grid, .evaluation-rating-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 24px; }
 .evaluation-rating-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.evaluation-summary-grid article, .evaluation-rating-grid article { padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
+.evaluation-summary-grid article, .evaluation-rating-grid article, .evaluation-rating-disclosure { padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
 .evaluation-summary-grid span, .evaluation-summary-grid strong, .evaluation-rating-grid span, .evaluation-rating-grid strong, .evaluation-rating-grid small { display: block; }
 .evaluation-summary-grid span, .evaluation-rating-grid span, .evaluation-rating-grid small { color: var(--muted); }
 .evaluation-summary-grid strong, .evaluation-rating-grid strong { margin: 8px 0; color: var(--primary); font-size: 30px; }
+.evaluation-rating-disclosure { padding: 0; overflow: hidden; }
+.evaluation-rating-disclosure[open] { grid-column: 1 / -1; }
+.evaluation-rating-disclosure summary { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto 20px; align-items: center; gap: 16px; min-height: 100%; padding: 20px; cursor: pointer; list-style: none; }
+.evaluation-rating-disclosure summary::-webkit-details-marker { display: none; }
+.evaluation-rating-disclosure summary:hover, .evaluation-rating-disclosure summary:focus-visible { background: #f5f9ff; }
+.evaluation-rating-disclosure summary strong { margin: 0; }
+.evaluation-rating-disclosure summary small { display: block; margin-top: 5px; color: var(--muted); }
+.rating-card-title { color: var(--muted); }
+.rating-card-chevron { width: 10px; height: 10px; border-right: 2px solid var(--primary); border-bottom: 2px solid var(--primary); transform: rotate(45deg); transition: transform .18s ease; }
+.evaluation-rating-disclosure[open] .rating-card-chevron { transform: rotate(225deg); }
+.evaluation-rating-disclosure .evaluation-rating-grid { padding: 0 20px 20px; margin-top: 0; }
+.evaluation-rating-empty { margin: 0 20px 20px; padding: 16px; border-radius: 10px; background: #f7f9fc; color: var(--muted); }
 .evaluation-report-actions { justify-content: flex-start; margin-top: 22px; }
 .evaluation-table-scroll { overflow-x: auto; }
 .evaluation-response-table table { width: 100%; border-collapse: collapse; }
@@ -60,4 +72,4 @@
 .analysis-note { margin: 13px 0 0; color: var(--muted); font-size: 13px; }
 .response-table-heading { margin-bottom: 16px; }
 @media (max-width: 900px) { .question-analysis-layout { grid-template-columns: 1fr; } }
-@media (max-width: 760px) { .evaluation-rating-grid, .numeric-summary { grid-template-columns: 1fr; } .evaluation-report-filter { align-items: stretch; flex-direction: column; } .question-analysis-heading, .response-table-heading, .question-analysis-card > header { align-items: flex-start; flex-direction: column; } .histogram-row { grid-template-columns: minmax(80px, 120px) minmax(80px, 1fr) 30px; } }
+@media (max-width: 760px) { .evaluation-summary-grid, .evaluation-rating-grid, .numeric-summary { grid-template-columns: 1fr; } .evaluation-rating-disclosure[open] { grid-column: auto; } .evaluation-rating-disclosure summary { grid-template-columns: minmax(0, 1fr) auto 16px; } .evaluation-report-filter { align-items: stretch; flex-direction: column; } .question-analysis-heading, .response-table-heading, .question-analysis-card > header { align-items: flex-start; flex-direction: column; } .histogram-row { grid-template-columns: minmax(80px, 120px) minmax(80px, 1fr) 30px; } }
