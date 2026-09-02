@@ -5,15 +5,16 @@
 .evaluation-report-filter, .evaluation-response-table { margin-top: 24px; padding: 20px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; box-shadow: 0 7px 22px rgba(15, 23, 42, .07); }
 .evaluation-report-filter label { font-weight: 800; }
 .evaluation-report-filter select { min-width: min(100%, 430px); min-height: 48px; padding: 8px 12px; border: 1px solid #b9c5d4; border-radius: 9px; background: #fff; font: inherit; }
-.evaluation-summary-grid, .evaluation-rating-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 24px; }
+.evaluation-summary-grid, .evaluation-rating-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 14px; margin-top: 24px; }
 .evaluation-rating-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .evaluation-summary-grid article, .evaluation-rating-grid article, .evaluation-rating-disclosure { padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
+.evaluation-summary-grid > article { min-height: 112px; }
 .evaluation-summary-grid span, .evaluation-summary-grid strong, .evaluation-rating-grid span, .evaluation-rating-grid strong, .evaluation-rating-grid small { display: block; }
 .evaluation-summary-grid span, .evaluation-rating-grid span, .evaluation-rating-grid small { color: var(--muted); }
 .evaluation-summary-grid strong, .evaluation-rating-grid strong { margin: 8px 0; color: var(--primary); font-size: 30px; }
-.evaluation-rating-disclosure { grid-column: 1 / -1; padding: 0; overflow: hidden; }
+.evaluation-rating-disclosure { grid-column: auto; padding: 0; overflow: hidden; }
 .evaluation-rating-disclosure[open] { grid-column: 1 / -1; }
-.evaluation-rating-disclosure summary { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto 20px; align-items: center; gap: 16px; min-height: 100%; padding: 20px; cursor: pointer; list-style: none; }
+.evaluation-rating-disclosure summary { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto 20px; align-items: center; gap: 16px; min-height: 112px; padding: 20px; cursor: pointer; list-style: none; }
 .evaluation-rating-disclosure summary::-webkit-details-marker { display: none; }
 .evaluation-rating-disclosure summary:hover, .evaluation-rating-disclosure summary:focus-visible { background: #f5f9ff; }
 .evaluation-rating-disclosure summary strong { margin: 0; }
