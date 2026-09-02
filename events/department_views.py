@@ -80,6 +80,16 @@ def department_event_detail(request, event_slug):
         slug=event_slug,
     )
     can_manage = can_manage_department_event(request.user)
+    can_manage_registrations = can_manage or has_event_role(
+        request.user, {EventRole.REGISTRATION_OFFICER}
+    )
+    can_check_in = can_manage or has_event_role(request.user, {
+        EventRole.REGISTRATION_OFFICER,
+        EventRole.ATTENDANCE_OFFICER,
+    })
+    can_view_reports = can_manage or has_event_role(
+        request.user, {EventRole.REPORT_OFFICER}
+    )
     registration_form = event.forms.filter(
         form_type__in={
             EventForm.FormType.REGISTRATION,
@@ -100,16 +110,11 @@ def department_event_detail(request, event_slug):
             and event.owning_department.code.strip().upper() == "DSTI"
         ),
         "can_manage": can_manage,
-        "can_manage_registrations": can_manage or has_event_role(
-            request.user, {EventRole.REGISTRATION_OFFICER}
-        ),
-        "can_check_in": can_manage or has_event_role(request.user, {
-            EventRole.REGISTRATION_OFFICER,
-            EventRole.ATTENDANCE_OFFICER,
-        }),
-        "can_view_reports": can_manage or has_event_role(
-            request.user, {EventRole.REPORT_OFFICER}
-        ),
+        "can_manage_registrations": can_manage_registrations,
+        "can_check_in": can_check_in,
+        "can_view_registration_records": can_manage_registrations or can_check_in,
+        "can_view_attendance_records": can_check_in,
+        "can_view_reports": can_view_reports,
         "can_view_meetings": can_manage or has_event_role(request.user, {
             EventRole.ATTENDANCE_OFFICER,
             EventRole.REPORT_OFFICER,

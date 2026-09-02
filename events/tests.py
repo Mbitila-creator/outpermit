@@ -690,6 +690,67 @@ class DepartmentEventAccessTests(TestCase):
         user.profile.save(update_fields=["role"])
         self.assertEqual(user.role, EventRole.REGISTRATION_OFFICER)
 
+    def test_event_officer_workspaces_match_assigned_responsibilities(self):
+        self.dsti_event.qr_checkin_enabled = True
+        self.dsti_event.save(update_fields=["qr_checkin_enabled", "updated_at"])
+        evaluation_form = EventForm.objects.create(
+            event=self.dsti_event,
+            name_en="Event evaluation",
+            name_sw="Tathmini ya tukio",
+            form_type=EventForm.FormType.EVALUATION,
+            is_active=True,
+        )
+        detail_url = reverse(
+            "events:department_event_detail",
+            kwargs={"event_slug": self.dsti_event.slug},
+        )
+        reports_url = reverse("checkin:reports")
+
+        registration_officer = self._staff("registration-workspace", self.dsti)
+        registration_officer.profile.role = "REGISTRATION_OFFICER"
+        registration_officer.profile.save(update_fields=["role"])
+        self.client.force_login(registration_officer)
+        response = self.client.get(detail_url)
+        self.assertContains(response, "Registered participants")
+        self.assertContains(response, "Checked-in participants")
+        self.assertContains(response, "Not checked in")
+        self.assertEqual(
+            self.client.get(reports_url, {"event": self.dsti_event.pk}).status_code,
+            200,
+        )
+        self.assertNotContains(response, "Evaluation reports")
+
+        attendance_officer = self._staff("attendance-workspace", self.dsti)
+        attendance_officer.profile.role = "ATTENDANCE_OFFICER"
+        attendance_officer.profile.save(update_fields=["role"])
+        self.client.force_login(attendance_officer)
+        response = self.client.get(detail_url)
+        self.assertContains(response, "Participant check-in")
+        self.assertContains(response, "Registered participants")
+        self.assertContains(response, "Checked-in participants")
+        self.assertContains(response, "Not checked in")
+        self.assertEqual(
+            self.client.get(
+                reports_url,
+                {"event": self.dsti_event.pk, "filter": "checked_in"},
+            ).status_code,
+            200,
+        )
+        self.assertNotContains(response, "Evaluation reports")
+
+        reports_officer = self._staff("reports-workspace", self.dsti)
+        reports_officer.profile.role = "REPORT_OFFICER"
+        reports_officer.profile.save(update_fields=["role"])
+        self.client.force_login(reports_officer)
+        response = self.client.get(detail_url)
+        self.assertContains(response, "Attendance reports")
+        self.assertContains(response, "Evaluation reports")
+        self.assertContains(
+            response,
+            f"{reverse('forms_builder:evaluation_reports')}?form={evaluation_form.pk}",
+        )
+        self.assertNotContains(response, "Participant check-in")
+
     def test_system_home_discards_messages_from_unrelated_workflows(self):
         admin = User.objects.create_superuser(
             username="message-admin",

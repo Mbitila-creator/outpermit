@@ -63,6 +63,8 @@ check_in_required = user_passes_test(
 REPORT_ROLES = {
     User.Role.SYSTEM_ADMIN,
     User.Role.EVENT_ADMIN,
+    User.Role.REGISTRATION_OFFICER,
+    User.Role.ATTENDANCE_OFFICER,
     User.Role.REPORT_OFFICER,
     User.Role.DIRECTOR,
     User.Role.ASSISTANT_DIRECTOR,
