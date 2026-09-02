@@ -94,6 +94,8 @@ class QuestionnairePrintLanguageTests(TestCase):
         self.assertContains(response, "English question?")
         self.assertContains(response, "English choice")
         self.assertContains(response, "© MoEST")
+        self.assertContains(response, "position: fixed")
+        self.assertContains(response, "bottom: 0")
         self.assertNotContains(response, "1. English Details")
         self.assertNotContains(response, "1. English question?")
         self.assertNotContains(response, "Generated from the OutPermit")

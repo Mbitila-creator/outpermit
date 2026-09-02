@@ -12,7 +12,7 @@
         .actions { position: sticky; top: 0; z-index: 2; display: flex; justify-content: center; gap: 10px; padding: 12px; background: #0b3a69; }
         .button { padding: 10px 16px; border: 0; border-radius: 7px; background: #fff; color: #0b3a69; font-weight: 700; text-decoration: none; cursor: pointer; }
         .button.primary { background: #087f73; color: #fff; }
-        .paper { width: min(210mm, calc(100% - 24px)); min-height: 297mm; margin: 20px auto; padding: 14mm; background: #fff; box-shadow: 0 5px 22px #17324d22; }
+        .paper { display: flex; flex-direction: column; width: min(210mm, calc(100% - 24px)); min-height: 297mm; margin: 20px auto; padding: 14mm; background: #fff; box-shadow: 0 5px 22px #17324d22; }
         .official { padding-bottom: 15px; border-bottom: 2px solid #2f6fac; text-align: center; }
         .logo { display: block; width: auto; max-width: 31mm; max-height: 31mm; margin: 0 auto 8px; object-fit: contain; }
         .ministry { margin: 0; font-size: 17px; font-weight: 800; text-transform: uppercase; }
@@ -30,13 +30,14 @@
         .choice::before { content: "☐"; margin-right: 7px; }
         .answer-lines { height: 42px; margin-top: 8px; background: repeating-linear-gradient(to bottom, transparent 0, transparent 20px, #b8c5d3 21px); }
         .long-answer { height: 86px; }
-        .footer-note { margin-top: 28px; color: #52657c; font-size: 11px; text-align: center; }
+        .footer-note { margin-top: auto; padding-top: 28px; color: #52657c; font-size: 11px; text-align: center; }
         @media print {
             body { background: #fff; font-size: 11pt; }
             .actions { display: none !important; }
-            .paper { width: auto; min-height: auto; margin: 0; padding: 0; box-shadow: none; }
+            .paper { width: auto; min-height: calc(297mm - 28mm); margin: 0; padding: 0 0 10mm; box-shadow: none; }
             .section { break-inside: auto; }
             .question { break-inside: avoid; }
+            .footer-note { position: fixed; right: 0; bottom: 0; left: 0; margin: 0; padding: 2mm 0 0; background: #fff; }
         }
         @media (max-width: 600px) { .choices { grid-template-columns: 1fr; } .paper { padding: 18px; } }
     </style>
