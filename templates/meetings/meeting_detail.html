@@ -146,6 +146,20 @@
         <article><span>{% translate "Agenda and content" %}</span><strong>{% if feedback_summary.content_rating %}{{ feedback_summary.content_rating|floatformat:1 }} / 5{% else %}—{% endif %}</strong></article>
         <article><span>{% translate "Chairing and facilitation" %}</span><strong>{% if feedback_summary.facilitation_rating %}{{ feedback_summary.facilitation_rating|floatformat:1 }} / 5{% else %}—{% endif %}</strong></article>
     </div>
+    <details class="meeting-evaluation-analysis">
+        <summary>{% translate "Statistical summary — Analysis by evaluation question" %}</summary>
+        <div class="meeting-evaluation-stat-grid">
+            {% for statistic in meeting_evaluation_statistics %}
+                <article>
+                    <header><div><span>{% translate "Question" %} {{ forloop.counter }}</span><h3>{{ statistic.label }}</h3></div><strong>{% if statistic.average %}{{ statistic.average|floatformat:2 }}/5{% else %}—{% endif %}</strong></header>
+                    <div class="meeting-evaluation-stat-layout">
+                        <div class="meeting-evaluation-histogram">{% for row in statistic.rows %}<div><label>{{ row.label }}</label><span><i class="color-{{ row.color_index }}" style="width:{{ row.percentage }}%"></i></span><strong>{{ row.count }}</strong></div>{% endfor %}</div>
+                        <table><thead><tr><th>{% translate "Response" %}</th><th>{% translate "Count" %}</th><th>{% translate "Share" %}</th></tr></thead><tbody>{% for row in statistic.rows %}<tr><td>{{ row.label }}</td><td>{{ row.count }}</td><td>{{ row.percentage }}%</td></tr>{% endfor %}</tbody></table>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    </details>
     {% if meeting.evaluation_enabled %}<p class="meeting-section-note">{% translate "Only participants marked present can submit one evaluation." %}{% if meeting.evaluation_deadline %} {% translate "Deadline" %}: {{ meeting.evaluation_deadline|date:"d M Y, H:i" }}.{% endif %}</p>{% else %}<p class="meeting-section-note">{% translate "Participant evaluation is disabled for this meeting." %}</p>{% endif %}
     <div class="meeting-table-scroll"><table><thead><tr><th>{% translate "Respondent" %}</th><th>{% translate "Overall" %}</th><th>{% translate "Average" %}</th><th>{% translate "Comments" %}</th><th>{% translate "Recommendations" %}</th><th>{% translate "Submitted" %}</th></tr></thead><tbody>{% for feedback in feedback_responses %}<tr><td>{% if feedback.is_anonymous %}<span class="meeting-pill">{% translate "Anonymous" %}</span>{% else %}<strong>{{ feedback.attendee.full_name }}</strong><small>{{ feedback.attendee.organization }}</small>{% endif %}</td><td>{{ feedback.overall_rating }} / 5</td><td>{{ feedback.average_rating }} / 5</td><td>{{ feedback.comments|default:"—" }}</td><td>{{ feedback.recommendations|default:"—" }}</td><td>{{ feedback.submitted_at|date:"d M Y, H:i" }}</td></tr>{% empty %}<tr><td colspan="6" class="meeting-empty-cell">{% translate "No participant feedback has been submitted." %}</td></tr>{% endfor %}</tbody></table></div>
     <div class="meeting-closure-panel">
@@ -154,4 +168,3 @@
     </div>
 </section>
 {% endblock %}
-

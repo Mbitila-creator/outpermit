@@ -1,7 +1,7 @@
 import base64
 import calendar
 import csv
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -1758,6 +1758,30 @@ def meeting_detail(request, meeting_id):
         facilitation_rating=Avg("facilitation_rating"),
         venue_platform_rating=Avg("venue_platform_rating"),
     )
+    feedback_rows = list(feedbacks)
+    meeting_evaluation_statistics = []
+    for field_name, label, average_key in (
+        ("overall_rating", _("Overall meeting rating"), "overall_rating"),
+        ("organization_rating", _("Organization and logistics"), "organization_rating"),
+        ("content_rating", _("Agenda and content"), "content_rating"),
+        ("facilitation_rating", _("Chairing and facilitation"), "facilitation_rating"),
+        ("venue_platform_rating", _("Venue or online platform"), "venue_platform_rating"),
+    ):
+        counts = Counter(getattr(item, field_name) for item in feedback_rows)
+        total = len(feedback_rows)
+        meeting_evaluation_statistics.append({
+            "label": label,
+            "average": feedback_summary[average_key],
+            "rows": [
+                {
+                    "label": f"{rating} / 5",
+                    "count": counts[rating],
+                    "percentage": round(counts[rating] * 100 / total, 1) if total else 0,
+                    "color_index": rating,
+                }
+                for rating in range(1, 6)
+            ],
+        })
     closure_blockers = _meeting_closure_blockers(meeting)
     context = {
         "meeting": meeting,
@@ -1827,8 +1851,9 @@ def meeting_detail(request, meeting_id):
             is_active=True,
         ).select_related("resource", "confirmed_by"),
         "communications": meeting.communications.filter(is_active=True)[:50],
-        "feedback_responses": feedbacks[:30],
+        "feedback_responses": feedback_rows[:30],
         "feedback_summary": feedback_summary,
+        "meeting_evaluation_statistics": meeting_evaluation_statistics,
         "closure_blockers": closure_blockers,
         "can_close_meeting": bool(
             _can_manage(request.user)

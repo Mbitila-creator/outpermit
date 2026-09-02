@@ -1,5 +1,6 @@
 import csv
 import re
+from collections import Counter
 from io import BytesIO
 
 from openpyxl import Workbook
@@ -1075,6 +1076,50 @@ def feedback_dashboard(request, form_id):
         "recommend_percent": round(recommend_count * 100 / response_count) if response_count else 0,
         **aggregates,
     }
+    response_rows = list(responses)
+    rating_questions = (
+        ("overall_rating", _("Overall experience"), aggregates["overall"]),
+        ("content_rating", _("Content relevance and quality"), aggregates["content"]),
+        ("speakers_rating", _("Speakers and presentations"), aggregates["speakers"]),
+        ("organization_rating", _("Organization and communication"), aggregates["organization"]),
+        ("venue_rating", _("Venue and facilities"), aggregates["venue"]),
+    )
+    evaluation_statistics = []
+    for field_name, label, average in rating_questions:
+        counts = Counter(getattr(item, field_name) for item in response_rows)
+        evaluation_statistics.append({
+            "label": label,
+            "average": average,
+            "rows": [
+                {
+                    "label": f"{rating} / 5",
+                    "count": counts[rating],
+                    "percentage": (
+                        round(counts[rating] * 100 / response_count, 1)
+                        if response_count else 0
+                    ),
+                    "color_index": rating,
+                }
+                for rating in range(1, 6)
+            ],
+        })
+    recommendation_counts = Counter(item.would_recommend for item in response_rows)
+    evaluation_statistics.append({
+        "label": _("Would recommend this conference"),
+        "average": None,
+        "rows": [
+            {
+                "label": _("Yes") if value else _("No"),
+                "count": recommendation_counts[value],
+                "percentage": (
+                    round(recommendation_counts[value] * 100 / response_count, 1)
+                    if response_count else 0
+                ),
+                "color_index": 5 if value else 2,
+            }
+            for value in (True, False)
+        ],
+    })
     sessions = ConferenceSession.objects.filter(
         event=event_form.event,
         is_active=True,
@@ -1090,9 +1135,10 @@ def feedback_dashboard(request, form_id):
     ).order_by("starts_at", "display_order")
     return render(request, "conferences/feedback_dashboard.html", {
         "event_form": event_form,
-        "responses": responses,
+        "responses": response_rows,
         "sessions": sessions,
         "summary": summary,
+        "evaluation_statistics": evaluation_statistics,
         "session_filter": session_filter,
     })
 

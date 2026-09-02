@@ -33,6 +33,7 @@ from forms_builder.models import (
 )
 from checkin.models import ParticipantCheckIn
 from conferences.views import _conference_registration_forms
+from conferences.models import ConferenceFeedback
 from permits.views import system_home
 
 
@@ -846,6 +847,78 @@ class DepartmentEventAccessTests(TestCase):
             ),
         )
         self.assertContains(response, "Conference feedback and evaluation")
+
+    def test_conference_evaluation_dashboard_uses_statistical_question_analysis(self):
+        registration_form = EventForm.objects.create(
+            event=self.dsti_event,
+            name_sw="Usajili wa kongamano",
+            name_en="Conference registration",
+            form_type=EventForm.FormType.REGISTRATION,
+            is_active=True,
+        )
+        for rating, recommend in ((5, True), (3, False)):
+            ConferenceFeedback.objects.create(
+                event=self.dsti_event,
+                overall_rating=rating,
+                content_rating=rating,
+                speakers_rating=rating,
+                organization_rating=rating,
+                venue_rating=rating,
+                would_recommend=recommend,
+            )
+        administrator = User.objects.create_superuser(
+            username="conference-analysis-admin",
+            email="conference-analysis@example.test",
+            password="safe-password",
+        )
+        self.client.force_login(administrator)
+
+        response = self.client.get(reverse(
+            "conferences:feedback_dashboard",
+            kwargs={"form_id": registration_form.pk},
+        ))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["evaluation_statistics"]), 6)
+        self.assertEqual(
+            response.context["evaluation_statistics"][0]["rows"][4]["count"],
+            1,
+        )
+        self.assertContains(response, "Conference event evaluation")
+        self.assertContains(response, "Analysis by evaluation question")
+        self.assertContains(response, "Evaluation responses")
+        self.assertNotContains(response, "Feedback responses")
+
+    def test_event_without_evaluation_offers_evaluation_setup(self):
+        seminar_category = EventCategory.objects.create(
+            code="SEMINAR",
+            name_sw="Semina",
+            name_en="Seminar",
+        )
+        event = Event.objects.create(
+            owning_department=self.dsti,
+            category=seminar_category,
+            code="SEM-EVAL-2026",
+            title_sw="Semina ya tathmini",
+            title_en="Evaluation seminar",
+            starts_at=timezone.now(),
+            ends_at=timezone.now() + timedelta(days=1),
+        )
+        user = self._staff("seminar-evaluation-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+
+        response = self.client.get(reverse(
+            "events:department_event_detail",
+            kwargs={"event_slug": event.slug},
+        ))
+
+        self.assertContains(response, "Set up event evaluation")
+        self.assertContains(
+            response,
+            reverse("forms_builder:questionnaire_list", kwargs={"event_slug": event.slug}),
+        )
 
     def test_registration_remains_available_while_event_is_ongoing(self):
         now = timezone.now()

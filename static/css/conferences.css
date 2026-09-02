@@ -300,14 +300,35 @@
 .conference-rating-bars > div { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(140px, 2fr) 40px; gap: 12px; align-items: center; }
 .conference-rating-bars label { color: #455c71; font-weight: 700; }
 .conference-rating-bars progress { width: 100%; height: 16px; accent-color: #087f73; }
+.conference-evaluation-analysis { margin-top: 20px; }
+.conference-evaluation-stat-grid { display: grid; gap: 18px; }
+.conference-evaluation-stat-grid > article { padding: 18px; border: 1px solid #d4e0eb; border-radius: 13px; background: #f9fbfd; break-inside: avoid; }
+.conference-evaluation-stat-grid article > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.conference-evaluation-stat-grid header span { color: #6a7d90; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.conference-evaluation-stat-grid header h3 { margin: 4px 0 0; color: #17365d; }
+.conference-evaluation-stat-grid header > strong { color: #087f73; font-size: 24px; }
+.conference-evaluation-stat-layout { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(280px,.8fr); gap: 20px; margin-top: 16px; }
+.conference-evaluation-histogram { display: grid; gap: 9px; padding: 14px; border-radius: 11px; background: #fff; }
+.conference-evaluation-histogram > div { display: grid; grid-template-columns: 70px minmax(100px,1fr) 30px; align-items: center; gap: 9px; }
+.conference-evaluation-histogram label { color: #455c71; font-size: 12px; font-weight: 700; }
+.conference-evaluation-histogram span { height: 16px; overflow: hidden; border-radius: 999px; background: #e2e8f0; }
+.conference-evaluation-histogram i { display: block; height: 100%; border-radius: inherit; }
+.conference-evaluation-histogram i.color-1 { background: #e11d48; }
+.conference-evaluation-histogram i.color-2 { background: #f59e0b; }
+.conference-evaluation-histogram i.color-3 { background: #7c3aed; }
+.conference-evaluation-histogram i.color-4 { background: #2563eb; }
+.conference-evaluation-histogram i.color-5 { background: #0d9488; }
+.conference-evaluation-stat-layout table { width: 100%; border-collapse: collapse; background: #fff; }
+.conference-evaluation-stat-layout th, .conference-evaluation-stat-layout td { padding: 8px 9px; border-bottom: 1px solid #d7e1ed; text-align: left; }
+.conference-evaluation-stat-layout th { color: #66758b; font-size: 11px; text-transform: uppercase; }
+.conference-evaluation-stat-layout th:nth-child(n+2), .conference-evaluation-stat-layout td:nth-child(n+2) { text-align: right; }
 .conference-feedback-qr { text-align: center; }
 .conference-feedback-qr img { display: block; width: 180px; height: 180px; margin: 12px auto; }
 .conference-feedback-qr a { display: block; margin-top: 9px; color: #1b5e91; font-weight: 800; }
 @media (max-width: 760px) {
     .conference-feedback-hero { grid-template-columns: 64px 1fr; padding: 20px; }
     .conference-feedback-hero img { width: 64px; height: 64px; }
-    .conference-rating-grid, .conference-feedback-dashboard-grid, .conference-feedback-thanks dl { grid-template-columns: 1fr; }
+    .conference-rating-grid, .conference-feedback-dashboard-grid, .conference-feedback-thanks dl, .conference-evaluation-stat-layout { grid-template-columns: 1fr; }
     .conference-rating-bars > div { grid-template-columns: 1fr 45px; }
     .conference-rating-bars progress { grid-column: 1 / -1; grid-row: 2; }
 }
-
