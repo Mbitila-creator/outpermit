@@ -735,6 +735,32 @@ class DepartmentEventAccessTests(TestCase):
             f"/event-management/participants/{participant_token}/",
         )
 
+    def test_language_prefixed_event_page_redirects_to_public_event(self):
+        response = self.client.get(f"/sw/events/{self.dsti_event.slug}/")
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(
+            response["Location"],
+            f"/event-management/events/{self.dsti_event.slug}/",
+        )
+
+    def test_public_event_language_change_keeps_canonical_url(self):
+        self.dsti_event.is_public = True
+        self.dsti_event.title_en = "English public event"
+        self.dsti_event.title_sw = "Tukio la umma la Kiswahili"
+        self.dsti_event.save(update_fields=("is_public", "title_en", "title_sw", "updated_at"))
+        event_url = reverse("events:event_detail", args=(self.dsti_event.slug,))
+
+        response = self.client.post(
+            reverse("set_language"),
+            {"language": "sw", "next": event_url},
+            follow=True,
+        )
+
+        self.assertRedirects(response, event_url)
+        self.assertContains(response, "Tukio la umma la Kiswahili")
+        self.assertNotContains(response, "English public event")
+
     def test_conference_evaluation_is_available_in_participant_portal(self):
         registration_form = EventForm.objects.create(
             event=self.dsti_event,

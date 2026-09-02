@@ -74,6 +74,10 @@ urlpatterns = [
         legacy_redirect("forms_builder:public_event_form"),
     ),
     path(
+        "events/<slug:event_slug>/",
+        legacy_redirect("events:event_detail"),
+    ),
+    path(
         "submissions/<str:reference_number>/success/",
         legacy_redirect("forms_builder:submission_success"),
     ),

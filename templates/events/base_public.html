@@ -184,41 +184,15 @@
         }
 
         languageSelect.addEventListener("change", function () {
-            const selectedLanguage = languageSelect.value;
             const currentPath = window.location.pathname;
             const queryString = window.location.search;
             const hash = window.location.hash;
 
-            let newPath = currentPath;
-
-            if (
-                currentPath.startsWith("/sw/") ||
-                currentPath.startsWith("/en/")
-            ) {
-                newPath = currentPath.replace(
-                    /^\/(sw|en)\//,
-                    "/" + selectedLanguage + "/"
-                );
-            } else if (currentPath.startsWith("/event-management/")) {
-                // Public Event Management URLs are mounted below
-                // /event-management/ in the integrated application, while
-                // the language-aware compatibility routes live at /en/ and
-                // /sw/.  Keep the same resource and token when changing the
-                // language, but use the route Django can resolve.
-                newPath =
-                    "/" +
-                    selectedLanguage +
-                    "/" +
-                    currentPath.replace(/^\/event-management\/+/, "");
-            } else {
-                newPath =
-                    "/" +
-                    selectedLanguage +
-                    "/" +
-                    currentPath.replace(/^\/+/, "");
-            }
-
-            nextInput.value = newPath + queryString + hash;
+            // LocaleMiddleware stores the selected language in its cookie.
+            // Keep the canonical URL unchanged so every public page can
+            // switch languages without requiring a duplicate /en/ or /sw/
+            // route for each resource.
+            nextInput.value = currentPath + queryString + hash;
 
             if (typeof languageForm.requestSubmit === "function") {
                 languageForm.requestSubmit();
