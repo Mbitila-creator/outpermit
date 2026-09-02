@@ -52,7 +52,104 @@
                     <a href="{% url 'forms_builder:evaluation_reports_csv' %}?form={{ selected_form.pk }}" class="primary-button">{% translate "Download evaluation CSV" %}</a>
                 </div>
 
+                <section class="question-analysis-section" aria-labelledby="question-analysis-title">
+                    <div class="question-analysis-heading">
+                        <div>
+                            <span class="section-kicker">{% translate "Statistical summary" %}</span>
+                            <h2 id="question-analysis-title">{% translate "Analysis by question" %}</h2>
+                        </div>
+                        <p>{% translate "Charts and tables include completed submissions only." %}</p>
+                    </div>
+
+                    <div class="question-analysis-list">
+                        {% for statistic in question_statistics %}
+                            <article class="question-analysis-card">
+                                <header>
+                                    <div>
+                                        <span class="question-number">{% translate "Question" %} {{ forloop.counter }}</span>
+                                        <h3>{{ statistic.label }}</h3>
+                                        <small>{{ statistic.type_label }}</small>
+                                    </div>
+                                    <div class="question-response-rate">
+                                        <strong>{{ statistic.answer_rate }}%</strong>
+                                        <span>{% translate "response rate" %}</span>
+                                    </div>
+                                </header>
+
+                                <div class="question-counts">
+                                    <span><strong>{{ statistic.answered_count }}</strong> {% translate "answered" %}</span>
+                                    <span><strong>{{ statistic.unanswered_count }}</strong> {% translate "not answered" %}</span>
+                                    {% if statistic.answer_entry_count > statistic.answered_count %}
+                                        <span><strong>{{ statistic.answer_entry_count }}</strong> {% translate "repeat entries" %}</span>
+                                    {% endif %}
+                                </div>
+
+                                {% if statistic.numeric %}
+                                    <div class="numeric-summary">
+                                        <div><span>{% translate "Average" %}</span><strong>{{ statistic.numeric.average }}</strong></div>
+                                        <div><span>{% translate "Minimum" %}</span><strong>{{ statistic.numeric.minimum }}</strong></div>
+                                        <div><span>{% translate "Maximum" %}</span><strong>{{ statistic.numeric.maximum }}</strong></div>
+                                    </div>
+                                {% endif %}
+
+                                {% if statistic.rows %}
+                                    <div class="question-analysis-layout">
+                                        <div class="question-histogram" role="img" aria-label="{% translate 'Response histogram' %}">
+                                            {% for item in statistic.rows %}
+                                                <div class="histogram-row">
+                                                    <div class="histogram-label" title="{{ item.label }}">{{ item.label }}</div>
+                                                    <div class="histogram-track">
+                                                        <span class="histogram-bar color-{{ item.color_index }}" style="width: {{ item.bar_width }}%"></span>
+                                                    </div>
+                                                    <strong>{{ item.count }}</strong>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+
+                                        <div class="question-summary-table">
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <th>{% translate "Response" %}</th>
+                                                        <th>{% translate "Count" %}</th>
+                                                        <th>{% translate "Share" %}</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for item in statistic.rows %}
+                                                        <tr>
+                                                            <td>{{ item.label }}</td>
+                                                            <td>{{ item.count }}</td>
+                                                            <td>{{ item.percentage }}%</td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    {% if statistic.truncated_count %}
+                                        <p class="analysis-note">
+                                            {% blocktranslate with count=statistic.truncated_count %}{{ count }} additional unique responses remain available in the complete response table and CSV export.{% endblocktranslate %}
+                                        </p>
+                                    {% endif %}
+                                {% else %}
+                                    <div class="question-no-data">{% translate "No answers are available for this question yet." %}</div>
+                                {% endif %}
+                            </article>
+                        {% empty %}
+                            <div class="question-no-data">{% translate "This form has no active questions to analyse." %}</div>
+                        {% endfor %}
+                    </div>
+                </section>
+
                 <div class="evaluation-response-table">
+                    <div class="response-table-heading">
+                        <div>
+                            <span class="section-kicker">{% translate "Table data" %}</span>
+                            <h2>{% translate "Individual submitted responses" %}</h2>
+                        </div>
+                        <p>{% translate "Scroll horizontally to review every question." %}</p>
+                    </div>
                     <div class="evaluation-table-scroll">
                         <table>
                             <thead><tr><th>{% translate "Submitted on" %}</th>{% for question in questions %}<th>{% if request.LANGUAGE_CODE == "en" %}{{ question.label_en }}{% else %}{{ question.label_sw }}{% endif %}</th>{% endfor %}</tr></thead>

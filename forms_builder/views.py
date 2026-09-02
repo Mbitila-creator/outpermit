@@ -2,6 +2,7 @@ import csv
 import re
 import secrets
 import uuid
+from collections import Counter
 from types import SimpleNamespace
 from decimal import Decimal, InvalidOperation
 
@@ -195,6 +196,137 @@ def numeric_rating_value(answer):
     return None
 
 
+def _display_decimal(value):
+    """Return a report-friendly decimal without unnecessary trailing zeroes."""
+    return format(Decimal(value).normalize(), "f")
+
+
+def _distribution_rows(counter):
+    """Convert counted labels into table rows and CSS-safe percentage widths."""
+    total = sum(counter.values())
+    rows = []
+    for index, (label, count) in enumerate(counter.items()):
+        percentage = round((count / total) * 100, 1) if total else 0
+        rows.append({
+            "label": label,
+            "count": count,
+            "percentage": percentage,
+            "bar_width": min(100, percentage),
+            "color_index": (index % 6) + 1,
+        })
+    return rows
+
+
+def _numeric_distribution(values):
+    """Create exact-value or five-bin histogram rows for numeric answers."""
+    sorted_values = sorted(Decimal(value) for value in values)
+    unique_values = sorted(set(sorted_values))
+    if len(unique_values) <= 8:
+        return _distribution_rows(Counter({
+            _display_decimal(value): sorted_values.count(value)
+            for value in unique_values
+        }))
+
+    minimum = sorted_values[0]
+    maximum = sorted_values[-1]
+    width = (maximum - minimum) / Decimal("5")
+    bins = [0, 0, 0, 0, 0]
+    for value in sorted_values:
+        index = min(int((value - minimum) / width), 4)
+        bins[index] += 1
+    counter = Counter()
+    for index, count in enumerate(bins):
+        lower = minimum + (width * index)
+        upper = maximum if index == 4 else minimum + (width * (index + 1))
+        counter[f"{_display_decimal(lower)} – {_display_decimal(upper)}"] = count
+    return _distribution_rows(counter)
+
+
+def question_analysis(questions, submissions, language):
+    """Build safe, server-side statistical summaries for every form question."""
+    answers_by_question = {question.pk: [] for question in questions}
+    for submission in submissions:
+        for answer in submission.answers.all():
+            if answer.question_id in answers_by_question:
+                answers_by_question[answer.question_id].append(answer)
+
+    analyses = []
+    choice_types = {
+        FormQuestion.QuestionType.SINGLE_CHOICE,
+        FormQuestion.QuestionType.MULTIPLE_CHOICE,
+        FormQuestion.QuestionType.DROPDOWN,
+    }
+    numeric_types = {
+        FormQuestion.QuestionType.NUMBER,
+        FormQuestion.QuestionType.CALCULATED,
+    }
+
+    for question in questions:
+        answers = answers_by_question[question.pk]
+        answered_submissions = {answer.submission_id for answer in answers}
+        analysis = {
+            "question": question,
+            "label": question.label_en if language == "en" else question.label_sw,
+            "type_label": question.get_question_type_display(),
+            "answered_count": len(answered_submissions),
+            "answer_entry_count": len(answers),
+            "unanswered_count": max(0, len(submissions) - len(answered_submissions)),
+            "answer_rate": (
+                round((len(answered_submissions) / len(submissions)) * 100, 1)
+                if submissions else 0
+            ),
+            "rows": [],
+            "numeric": None,
+            "truncated_count": 0,
+        }
+
+        if question.question_type in choice_types:
+            option_counts = Counter()
+            configured_labels = []
+            for option in question.options.filter(is_active=True):
+                label = option.label_en if language == "en" else option.label_sw
+                configured_labels.append(label)
+                option_counts[label] = 0
+            for answer in answers:
+                for option in answer.selected_options.all():
+                    label = option.label_en if language == "en" else option.label_sw
+                    option_counts[label] += 1
+            analysis["rows"] = _distribution_rows(Counter({
+                label: option_counts[label] for label in configured_labels
+            }))
+        elif question.question_type == FormQuestion.QuestionType.YES_NO:
+            yes_label, no_label = str(_("Yes")), str(_("No"))
+            counts = Counter({yes_label: 0, no_label: 0})
+            for answer in answers:
+                if answer.boolean_value is not None:
+                    counts[yes_label if answer.boolean_value else no_label] += 1
+            analysis["rows"] = _distribution_rows(counts)
+        elif question.question_type in numeric_types:
+            values = [
+                answer.number_value for answer in answers
+                if answer.number_value is not None
+            ]
+            if values:
+                analysis["numeric"] = {
+                    "average": _display_decimal(sum(values) / len(values)),
+                    "minimum": _display_decimal(min(values)),
+                    "maximum": _display_decimal(max(values)),
+                }
+                analysis["rows"] = _numeric_distribution(values)
+        else:
+            value_counts = Counter(
+                value
+                for answer in answers
+                if (value := localized_answer_value(answer, language))
+            )
+            ordered_counts = Counter(dict(value_counts.most_common(10)))
+            analysis["rows"] = _distribution_rows(ordered_counts)
+            analysis["truncated_count"] = max(0, len(value_counts) - len(ordered_counts))
+
+        analyses.append(analysis)
+    return analyses
+
+
 def get_client_ip(request):
     forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
 
@@ -354,6 +486,7 @@ def evaluation_reports(request):
     questions = []
     response_rows = []
     rating_statistics = []
+    question_statistics = []
     total_responses = 0
     overall_average = None
 
@@ -363,7 +496,7 @@ def evaluation_reports(request):
                 section__event_form=selected_form,
                 section__is_active=True,
                 is_active=True,
-            ).select_related("section").order_by(
+            ).select_related("section").prefetch_related("options").order_by(
                 "section__display_order",
                 "display_order",
                 "id",
@@ -425,6 +558,11 @@ def evaluation_reports(request):
                 sum(all_ratings) / len(all_ratings),
                 2,
             )
+        question_statistics = question_analysis(
+            questions,
+            submissions,
+            request.LANGUAGE_CODE,
+        )
 
     return render(
         request,
@@ -435,6 +573,7 @@ def evaluation_reports(request):
             "questions": questions,
             "response_rows": response_rows,
             "rating_statistics": rating_statistics,
+            "question_statistics": question_statistics,
             "total_responses": total_responses,
             "overall_average": overall_average,
         },

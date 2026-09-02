@@ -50,6 +50,134 @@ from .expressions import ExpressionError, evaluate_expression, question_referenc
 from .views import choice_option_is_available, expression_answer_values
 
 
+class QuestionnaireAnalysisReportTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser(
+            username="analysis-admin",
+            email="analysis@example.test",
+            password="safe-password",
+        )
+        category = EventCategory.objects.create(
+            code="ANALYSIS_EVENT",
+            name_en="Analysis event",
+            name_sw="Tukio la uchambuzi",
+        )
+        now = timezone.now()
+        event = Event.objects.create(
+            category=category,
+            code="ANALYSIS-2026",
+            title_en="Questionnaire analysis",
+            title_sw="Uchambuzi wa dodoso",
+            starts_at=now,
+            ends_at=now + timedelta(days=1),
+        )
+        self.form = EventForm.objects.create(
+            event=event,
+            name_en="Visitor evaluation",
+            name_sw="Tathmini ya mgeni",
+            form_type=EventForm.FormType.EVALUATION,
+        )
+        section = FormSection.objects.create(
+            event_form=self.form,
+            title_en="Feedback",
+            title_sw="Maoni",
+        )
+        self.choice_question = FormQuestion.objects.create(
+            section=section,
+            label_en="How was the event?",
+            label_sw="Tukio lilikuwaje?",
+            question_type=FormQuestion.QuestionType.SINGLE_CHOICE,
+            display_order=1,
+        )
+        self.good_option = QuestionOption.objects.create(
+            question=self.choice_question,
+            value="GOOD",
+            label_en="Good",
+            label_sw="Nzuri",
+            display_order=1,
+        )
+        self.poor_option = QuestionOption.objects.create(
+            question=self.choice_question,
+            value="POOR",
+            label_en="Poor",
+            label_sw="Dhaifu",
+            display_order=2,
+        )
+        self.score_question = FormQuestion.objects.create(
+            section=section,
+            label_en="Score",
+            label_sw="Alama",
+            question_type=FormQuestion.QuestionType.NUMBER,
+            display_order=2,
+        )
+        self.comment_question = FormQuestion.objects.create(
+            section=section,
+            label_en="Comment",
+            label_sw="Maoni",
+            question_type=FormQuestion.QuestionType.LONG_TEXT,
+            display_order=3,
+        )
+
+        for index, (option, score, comment) in enumerate((
+            (self.good_option, Decimal("4"), "Helpful"),
+            (self.good_option, Decimal("2"), "Helpful"),
+            (self.poor_option, None, "Needs more time"),
+        )):
+            submission = FormSubmission.objects.create(
+                event_form=self.form,
+                is_complete=True,
+                is_active=True,
+                submitter_email=f"visitor-{index}@example.test",
+            )
+            choice_answer = FormAnswer.objects.create(
+                submission=submission,
+                question=self.choice_question,
+            )
+            choice_answer.selected_options.add(option)
+            if score is not None:
+                FormAnswer.objects.create(
+                    submission=submission,
+                    question=self.score_question,
+                    number_value=score,
+                )
+            FormAnswer.objects.create(
+                submission=submission,
+                question=self.comment_question,
+                text_value=comment,
+            )
+
+    def test_report_shows_histogram_and_table_for_each_question(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("forms_builder:evaluation_reports"),
+            {"form": self.form.pk},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["question_statistics"]), 3)
+        choice_analysis, score_analysis, comment_analysis = response.context[
+            "question_statistics"
+        ]
+        self.assertEqual(choice_analysis["answered_count"], 3)
+        self.assertEqual(
+            [(row["label"], row["count"]) for row in choice_analysis["rows"]],
+            [("Good", 2), ("Poor", 1)],
+        )
+        self.assertEqual(score_analysis["answered_count"], 2)
+        self.assertEqual(score_analysis["unanswered_count"], 1)
+        self.assertEqual(score_analysis["numeric"], {
+            "average": "3",
+            "minimum": "2",
+            "maximum": "4",
+        })
+        self.assertEqual(comment_analysis["rows"][0]["label"], "Helpful")
+        self.assertEqual(comment_analysis["rows"][0]["count"], 2)
+        self.assertContains(response, "Analysis by question")
+        self.assertContains(response, "Response histogram", count=3)
+        self.assertContains(response, "Individual submitted responses")
+        self.assertContains(response, "histogram-bar color-1")
+
+
 class QuestionnairePrintLanguageTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_superuser(
