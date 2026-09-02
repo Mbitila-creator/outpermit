@@ -178,7 +178,7 @@ class QuestionnaireAnalysisReportTests(TestCase):
         self.assertContains(response, "histogram-bar color-1")
         self.assertContains(response, 'class="evaluation-rating-disclosure"')
         self.assertContains(response, "Rating per Question")
-        self.assertNotContains(response, "Overall average rating")
+        self.assertContains(response, "Overall average rating")
 
 
 class QuestionnairePrintLanguageTests(TestCase):

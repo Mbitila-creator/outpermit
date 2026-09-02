@@ -33,13 +33,14 @@
             {% if selected_form %}
                 <div class="evaluation-summary-grid">
                     <article><span>{% translate "Total responses" %}</span><strong>{{ total_responses }}</strong></article>
+                    <article><span>{% translate "Overall average rating" %}</span><strong>{% if overall_average != None %}{{ overall_average }}/5{% else %}—{% endif %}</strong></article>
                     <details class="evaluation-rating-disclosure">
                         <summary>
                             <span>
                                 <span class="rating-card-title">{% translate "Rating per Question" %}</span>
                                 <small>{% translate "Click to view or hide all question ratings" %}</small>
                             </span>
-                            <strong>{% if overall_average != None %}{{ overall_average }}/5{% else %}—{% endif %}</strong>
+                            <strong>{{ rating_statistics|length }}</strong>
                             <span class="rating-card-chevron" aria-hidden="true"></span>
                         </summary>
 
