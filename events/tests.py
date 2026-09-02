@@ -310,10 +310,21 @@ class DepartmentEventAccessTests(TestCase):
         ))
         self.assertEqual(print_response.status_code, 200)
         self.assertContains(print_response, "Were you satisfied?")
-        self.assertContains(print_response, "Umeridhika?")
+        self.assertNotContains(print_response, "Umeridhika?")
         self.assertContains(print_response, "Yes")
-        self.assertContains(print_response, "Ndiyo")
+        self.assertNotContains(print_response, "Ndiyo")
         self.assertContains(print_response, "window.print()")
+
+        sw_print_response = self.client.get(
+            reverse(
+                "forms_builder:questionnaire_print",
+                args=[self.dsti_event.slug, questionnaire.pk],
+            ),
+            {"language": "sw"},
+        )
+        self.assertContains(sw_print_response, "Umeridhika?")
+        self.assertContains(sw_print_response, "Ndiyo")
+        self.assertNotContains(sw_print_response, "Were you satisfied?")
 
         event_response = self.client.get(reverse(
             "events:department_event_detail", args=[self.dsti_event.slug]

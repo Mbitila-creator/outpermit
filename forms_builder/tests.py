@@ -26,6 +26,7 @@ from .models import (
     EventForm,
     FormAnswer,
     FormQuestion,
+    FormSection,
     FormSubmission,
     QuestionOption,
 )
@@ -47,6 +48,66 @@ from .services import (
 from .views import registration_identity_conflicts
 from .expressions import ExpressionError, evaluate_expression, question_reference_ids
 from .views import choice_option_is_available, expression_answer_values
+
+
+class QuestionnairePrintLanguageTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser(
+            username="print-admin", email="print@example.test", password="safe-password"
+        )
+        category = EventCategory.objects.create(
+            code="SEMINAR_PRINT", name_en="Seminar print", name_sw="Semina chapisho"
+        )
+        now = timezone.now()
+        self.event = Event.objects.create(
+            category=category, code="PRINT-2026",
+            title_en="English Event", title_sw="Tukio la Kiswahili",
+            starts_at=now, ends_at=now + timedelta(days=1),
+        )
+        self.form = EventForm.objects.create(
+            event=self.event, name_en="English Registration", name_sw="Usajili wa Kiswahili",
+            introduction_en="English introduction only.",
+            introduction_sw="Utangulizi wa Kiswahili pekee.",
+        )
+        section = FormSection.objects.create(
+            event_form=self.form, title_en="English Details", title_sw="Maelezo ya Kiswahili",
+            description_en="English section description.",
+            description_sw="Maelezo ya sehemu kwa Kiswahili.",
+        )
+        question = FormQuestion.objects.create(
+            section=section, label_en="English question?", label_sw="Swali la Kiswahili?",
+            help_text_en="English help.", help_text_sw="Msaada wa Kiswahili.",
+            question_type=FormQuestion.QuestionType.SINGLE_CHOICE,
+        )
+        QuestionOption.objects.create(
+            question=question, value="YES", label_en="English choice", label_sw="Chaguo la Kiswahili"
+        )
+        self.client.force_login(self.user)
+        self.url = reverse(
+            "forms_builder:questionnaire_print", args=(self.event.slug, self.form.pk)
+        )
+
+    def test_english_print_contains_no_kiswahili_form_content(self):
+        response = self.client.get(self.url, {"language": "en"})
+        self.assertContains(response, "English Registration")
+        self.assertContains(response, "English introduction only.")
+        self.assertContains(response, "English question?")
+        self.assertContains(response, "English choice")
+        self.assertNotContains(response, "Usajili wa Kiswahili")
+        self.assertNotContains(response, "Utangulizi wa Kiswahili pekee.")
+        self.assertNotContains(response, "Swali la Kiswahili?")
+        self.assertNotContains(response, "Chaguo la Kiswahili")
+
+    def test_kiswahili_print_contains_no_english_form_content(self):
+        response = self.client.get(self.url, {"language": "sw"})
+        self.assertContains(response, "Usajili wa Kiswahili")
+        self.assertContains(response, "Utangulizi wa Kiswahili pekee.")
+        self.assertContains(response, "Swali la Kiswahili?")
+        self.assertContains(response, "Chaguo la Kiswahili")
+        self.assertNotContains(response, "English Registration")
+        self.assertNotContains(response, "English introduction only.")
+        self.assertNotContains(response, "English question?")
+        self.assertNotContains(response, "English choice")
 
 
 class QuestionnaireExpressionTests(SimpleTestCase):

@@ -161,6 +161,12 @@ def questionnaire_print(request, event_slug, form_id):
     """Render every active question in an A4-friendly administrator print view."""
     event = _event(request, event_slug)
     questionnaire = _form(event, form_id)
+    requested_language = request.GET.get("language", "").strip().lower()
+    language_code = (
+        requested_language
+        if requested_language in {"en", "sw"}
+        else ("en" if request.LANGUAGE_CODE == "en" else "sw")
+    )
     sections = questionnaire.sections.filter(is_active=True).prefetch_related(
         "questions__options",
         "questions__display_logic",
@@ -171,6 +177,7 @@ def questionnaire_print(request, event_slug, form_id):
         "event": event,
         "questionnaire": questionnaire,
         "sections": sections,
+        "language_code": language_code,
     })
 
 
