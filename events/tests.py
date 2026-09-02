@@ -748,7 +748,29 @@ class DepartmentEventAccessTests(TestCase):
         self.dsti_event.is_public = True
         self.dsti_event.title_en = "English public event"
         self.dsti_event.title_sw = "Tukio la umma la Kiswahili"
-        self.dsti_event.save(update_fields=("is_public", "title_en", "title_sw", "updated_at"))
+        self.dsti_event.contact_person = "Afisa wa Tukio"
+        self.dsti_event.contact_phone = "0712345678"
+        self.dsti_event.status = Event.Status.PUBLISHED
+        self.dsti_event.registration_enabled = True
+        self.dsti_event.save(update_fields=(
+            "is_public",
+            "title_en",
+            "title_sw",
+            "contact_person",
+            "contact_phone",
+            "status",
+            "registration_enabled",
+            "updated_at",
+        ))
+        EventForm.objects.create(
+            event=self.dsti_event,
+            name_sw="Fomu ya Usajili",
+            name_en="Registration Form",
+            form_type=EventForm.FormType.REGISTRATION,
+            is_active=True,
+            is_published=True,
+            requires_participant_registration=True,
+        )
         event_url = reverse("events:event_detail", args=(self.dsti_event.slug,))
 
         response = self.client.post(
@@ -760,6 +782,38 @@ class DepartmentEventAccessTests(TestCase):
         self.assertRedirects(response, event_url)
         self.assertContains(response, "Tukio la umma la Kiswahili")
         self.assertNotContains(response, "English public event")
+        for translated_label in (
+            "Kuhusu Tukio",
+            "Fomu ya Tukio",
+            "Taarifa muhimu",
+            "Mtu wa kuwasiliana naye",
+            "Simu",
+            "Jisajili Sasa",
+            "Hali ya Usajili",
+            "Ingia kama mtumishi",
+        ):
+            self.assertContains(response, translated_label)
+        for english_label in (
+            "About the event",
+            "Event forms",
+            "Preview questions",
+            "Important information",
+            "Contact person",
+            "Register now",
+            "Registration Status",
+            "Staff login",
+        ):
+            self.assertNotContains(response, english_label)
+
+        user = self._staff("public-header-user", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+        authenticated_response = self.client.get(event_url)
+        self.assertContains(authenticated_response, "Angalia maswali")
+        self.assertContains(authenticated_response, "Badilisha nywila")
+        self.assertContains(authenticated_response, "Eneo langu la kazi")
+        self.assertContains(authenticated_response, "Toka kwenye akaunti")
 
     def test_conference_evaluation_is_available_in_participant_portal(self):
         registration_form = EventForm.objects.create(

@@ -33,6 +33,78 @@ msgstr "Tarehe ya mwisho"
 msgid "Venue"
 msgstr "Mahali"
 
+msgid "About the event"
+msgstr "Kuhusu Tukio"
+
+msgid "No event description has been provided."
+msgstr "Maelezo ya tukio bado hayajawekwa."
+
+msgid "Event forms"
+msgstr "Fomu ya Tukio"
+
+msgid "Preview questions"
+msgstr "Angalia maswali"
+
+msgid "Open participant portal"
+msgstr "Fungua tovuti ya mshiriki"
+
+msgid "Open form"
+msgstr "Fungua fomu"
+
+msgid "Important information"
+msgstr "Taarifa muhimu"
+
+msgid "Contact person"
+msgstr "Mtu wa kuwasiliana naye"
+
+msgid "Phone"
+msgstr "Simu"
+
+msgid "Email"
+msgstr "Barua pepe"
+
+msgid "Register now"
+msgstr "Jisajili Sasa"
+
+msgid "Registration Status"
+msgstr "Hali ya Usajili"
+
+msgid "Change password"
+msgstr "Badilisha nywila"
+
+msgid "My workspace"
+msgstr "Eneo langu la kazi"
+
+msgid "Sign out"
+msgstr "Toka kwenye akaunti"
+
+msgid "Staff login"
+msgstr "Ingia kama mtumishi"
+
+msgid "Event timetable"
+msgstr "Ratiba ya tukio"
+
+msgid "View timetable"
+msgstr "Angalia ratiba"
+
+msgid "Download PDF"
+msgstr "Pakua PDF"
+
+msgid "Registration has not opened yet."
+msgstr "Usajili bado haujafunguliwa."
+
+msgid "The registration period has ended."
+msgstr "Muda wa usajili umeisha."
+
+msgid "The registration form has not been configured yet."
+msgstr "Fomu ya usajili bado haijaandaliwa."
+
+msgid "Submit an evaluation"
+msgstr "Wasilisha tathmini"
+
+msgid "Explore exhibition booths"
+msgstr "Angalia mabanda ya maonesho"
+
 msgid "Previous"
 msgstr "Iliyotangulia"
 
