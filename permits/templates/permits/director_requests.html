@@ -281,49 +281,49 @@
 
         <div class="stats">
 
-            <a href="{% url 'director_requests' %}">
+            <a href="{% url 'director_requests' %}{% if admin_scope_query %}?{{ admin_scope_query }}{% endif %}">
                 <div class="stat-box total">
                     <h3>Total Requests</h3>
                     <div class="number">{{ total_requests|default:0 }}</div>
                 </div>
             </a>
 
-            <a href="{% url 'director_requests' %}?status=PENDING_DIRECTOR">
+            <a href="{% url 'director_requests' %}?{% if admin_scope_query %}{{ admin_scope_query }}&amp;{% endif %}status=PENDING_DIRECTOR">
                 <div class="stat-box pending">
                     <h3>Pending Director</h3>
                     <div class="number">{{ pending_director_count|default:0 }}</div>
                 </div>
             </a>
 
-            <a href="{% url 'director_requests' %}?status=RETURNED">
+            <a href="{% url 'director_requests' %}?{% if admin_scope_query %}{{ admin_scope_query }}&amp;{% endif %}status=RETURNED">
                 <div class="stat-box returned">
                     <h3>Returned</h3>
                     <div class="number">{{ returned_count|default:0 }}</div>
                 </div>
             </a>
 
-            <a href="{% url 'director_requests' %}?status=APPROVED">
+            <a href="{% url 'director_requests' %}?{% if admin_scope_query %}{{ admin_scope_query }}&amp;{% endif %}status=APPROVED">
                 <div class="stat-box approved">
                     <h3>Approved</h3>
                     <div class="number">{{ approved_count|default:0 }}</div>
                 </div>
             </a>
 
-            <a href="{% url 'director_requests' %}?status=REJECTED">
+            <a href="{% url 'director_requests' %}?{% if admin_scope_query %}{{ admin_scope_query }}&amp;{% endif %}status=REJECTED">
                 <div class="stat-box rejected">
                     <h3>Rejected</h3>
                     <div class="number">{{ rejected_count|default:0 }}</div>
                 </div>
             </a>
 
-            <a href="{% url 'director_requests' %}?status=CLOSED">
+            <a href="{% url 'director_requests' %}?{% if admin_scope_query %}{{ admin_scope_query }}&amp;{% endif %}status=CLOSED">
                 <div class="stat-box closed">
                     <h3>Closed</h3>
                     <div class="number">{{ closed_count|default:0 }}</div>
                 </div>
             </a>
 
-            <a href="{% url 'director_requests' %}?status=OVERDUE">
+            <a href="{% url 'director_requests' %}?{% if admin_scope_query %}{{ admin_scope_query }}&amp;{% endif %}status=OVERDUE">
                 <div class="stat-box overdue">
                     <h3>Overdue</h3>
                     <div class="number">{{ overdue_count|default:0 }}</div>

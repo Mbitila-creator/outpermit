@@ -14,21 +14,6 @@
         .top-menu a:hover { background:#084298; transform:translateY(-3px); box-shadow:0 6px 14px rgba(0,0,0,.15); }
         .top-menu .logout { background:#6c757d; }
 
-        .stats { display:flex; flex-wrap:wrap; gap:8px; margin:15px 0 24px; }
-        .stats a { text-decoration:none; color:inherit; display:inline-block; transition:transform .18s ease; }
-        .stats a:hover { transform:translateY(-5px); }
-        .stats a:hover .stat-box { transform:scale(1.05); box-shadow:0 8px 16px rgba(0,0,0,.15); }
-        .stat-box { width:100px; height:52px; border-radius:8px; padding:6px; color:white; font-weight:700; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; box-sizing:border-box; transition:.18s ease; }
-        .stat-box h3 { margin:0; font-size:10px; line-height:1.1; }
-        .stat-box .number { font-size:14px; margin-top:2px; line-height:1; }
-        .total { background:#0b5ed7; }
-        .submitted { background:#ffc107; color:#212529; }
-        .returned { background:#0dcaf0; color:#083344; }
-        .approved { background:#198754; }
-        .rejected { background:#dc3545; }
-        .closed { background:#6c757d; }
-        .overdue { background:#fd7e14; }
-
         .admin-section { margin-top:24px; }
         .section-heading { margin:0 0 12px; font-size:17px; font-weight:700; color:#1f2937; border-left:5px solid #0b5ed7; padding-left:10px; }
         .admin-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:18px; }
@@ -37,27 +22,22 @@
         .admin-card h3 { margin:0 0 8px; font-size:16px; color:#0b3a75; }
         .admin-card p { margin:0; font-size:13px; color:#6b7280; line-height:1.4; }
 
-        .section-title { margin-top:28px; margin-bottom:14px; font-size:18px; font-weight:700; }
-        table { width:100%; border-collapse:collapse; margin-top:10px; }
-        th, td { padding:12px; border-bottom:1px solid #eee; text-align:left; }
-        th { background:#f8f9fa; }
-        .badge { display:inline-block; padding:6px 12px; border-radius:20px; font-weight:700; font-size:12px; }
-        .badge-submitted { background:#fff3cd; color:#856404; }
-        .badge-returned { background:#cff4fc; color:#055160; }
-        .badge-approved { background:#d1e7dd; color:#0f5132; }
-        .badge-rejected { background:#f8d7da; color:#842029; }
-        .badge-closed { background:#e2e3e5; color:#41464b; }
-        .badge-overdue { background:#ffe5d0; color:#9a3412; }
-        .btn-link { display:inline-block; padding:8px 12px; background:#0b5ed7; color:white; text-decoration:none; border-radius:6px; font-size:13px; transition:.18s ease; }
-        .btn-link:hover { transform:translateY(-2px); box-shadow:0 4px 10px rgba(0,0,0,.12); }
+        .department-group { margin:0 0 18px; padding:18px; border:1px solid #dbe4ef; border-radius:14px; background:#f8fbff; }
+        .department-group h3 { margin:0; color:#0b3a75; }
+        .department-name { margin:4px 0 14px; color:#6b7280; font-size:13px; }
+        .role-columns { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+        .role-column { padding:14px; background:#fff; border:1px solid #e5e7eb; border-radius:10px; }
+        .role-column h4 { margin:0 0 10px; color:#374151; }
+        .officer-link { display:block; margin-top:8px; padding:10px; border-radius:8px; background:#eef5ff; color:#0b3a75; text-decoration:none; font-weight:700; }
+        .officer-link small { display:block; margin-top:3px; color:#6b7280; font-weight:400; }
+        .empty-role { color:#8a94a3; font-size:13px; }
 
         @media (max-width:900px) { .admin-grid { grid-template-columns:1fr 1fr; } }
         @media (max-width:640px) {
             body { padding:15px; }
             .card { padding:18px; }
-            .stat-box { width:90px; height:48px; }
             .admin-grid { grid-template-columns:1fr; }
-            th, td { padding:10px 8px; font-size:13px; }
+            .role-columns { grid-template-columns:1fr; }
         }
     </style>
 </head>
@@ -73,18 +53,7 @@
             <a href="{% url 'request_new' %}">Create New Request</a>
             <a href="{% url 'permit_reports' %}">Reports</a>
             <a href="{% url 'workflow_list' %}">Workflow Configuration</a>
-            <a href="{% url 'director_requests' %}">Director Approval Panel</a>
             <a href="{% url 'logout' %}" class="logout">Logout</a>
-        </div>
-
-        <div class="stats">
-            <a href="{% url 'admin_dashboard' %}"><div class="stat-box total"><h3>Total</h3><div class="number">{{ total_requests|default:0 }}</div></div></a>
-            <a href="{% url 'admin_dashboard' %}?status=PENDING"><div class="stat-box submitted"><h3>Submitted</h3><div class="number">{{ pending_hou_count|add:pending_director_count }}</div></div></a>
-            <a href="{% url 'admin_dashboard' %}?status=RETURNED"><div class="stat-box returned"><h3>Returned</h3><div class="number">{{ returned_count|default:0 }}</div></div></a>
-            <a href="{% url 'admin_dashboard' %}?status=APPROVED"><div class="stat-box approved"><h3>Approved</h3><div class="number">{{ approved_count|default:0 }}</div></div></a>
-            <a href="{% url 'admin_dashboard' %}?status=REJECTED"><div class="stat-box rejected"><h3>Rejected</h3><div class="number">{{ rejected_count|default:0 }}</div></div></a>
-            <a href="{% url 'admin_dashboard' %}?status=CLOSED"><div class="stat-box closed"><h3>Closed</h3><div class="number">{{ closed_count|default:0 }}</div></div></a>
-            <a href="{% url 'admin_dashboard' %}?status=OVERDUE"><div class="stat-box overdue"><h3>Overdue</h3><div class="number">{{ overdue_count|default:0 }}</div></div></a>
         </div>
 
         <div class="admin-section">
@@ -129,65 +98,19 @@
 
         <div class="admin-section">
             <div class="section-heading">Operations &amp; Dashboards</div>
-            <div class="admin-grid">
-                <a class="admin-card" href="{% url 'director_requests' %}">
-                    <h3>Director Approval Panel</h3>
-                    <p>Open the department-aware approval list and process permit requests.</p>
-                </a>
-                <a class="admin-card" href="{% url 'assistant_director_dashboard' %}">
-                    <h3>Assistant Director Dashboard</h3>
-                    <p>Access the department- or unit-scoped Assistant Director monitoring dashboard.</p>
-                </a>
-            </div>
+            {% for group in department_role_groups %}
+            <section class="department-group">
+                <h3>{{ group.department.code }}</h3>
+                <p class="department-name">{{ group.department.name }}</p>
+                <div class="role-columns">
+                    <div class="role-column"><h4>Directors</h4>{% for profile in group.directors %}<a class="officer-link" href="{% url 'director_requests' %}?department={{ group.department.pk }}">{{ profile.user.get_full_name|default:profile.user.username }}<small>Open {{ group.department.code }} Director dashboard</small></a>{% empty %}<span class="empty-role">No Director assigned</span>{% endfor %}</div>
+                    <div class="role-column"><h4>Assistant Directors</h4>{% for profile in group.assistant_directors %}<a class="officer-link" href="{% url 'director_requests' %}?officer={{ profile.user.pk }}">{{ profile.user.get_full_name|default:profile.user.username }}<small>{% if profile.department_unit %}{{ profile.department_unit.code }} — {{ profile.department_unit.name }}{% else %}Department-wide dashboard{% endif %}</small></a>{% empty %}<span class="empty-role">No Assistant Director assigned</span>{% endfor %}</div>
+                    <div class="role-column"><h4>Heads of Units</h4>{% for profile in group.heads_of_unit %}<a class="officer-link" href="{% url 'head_of_unit_requests' %}?officer={{ profile.user.pk }}">{{ profile.user.get_full_name|default:profile.user.username }}<small>{% if profile.department_unit %}{{ profile.department_unit.code }} — {{ profile.department_unit.name }}{% else %}Department scope{% endif %}</small></a>{% empty %}<span class="empty-role">No Head of Unit assigned</span>{% endfor %}</div>
+                </div>
+            </section>
+            {% empty %}<p class="empty-role">No departmental leadership roles have been assigned yet. Use User Management to assign them.</p>{% endfor %}
+            {% if departments_without_leaders %}<p class="empty-role">Departments without assigned leadership: {% for department in departments_without_leaders %}{{ department.code }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
         </div>
-
-        <div class="section-title">Recent Requests</div>
-
-        <table>
-            <tr>
-                <th>Reference No</th>
-                <th>Requester</th>
-                <th>Request Type</th>
-                <th>Destination</th>
-                <th>Status</th>
-                <th>Action</th>
-            </tr>
-
-            {% for r in recent_requests %}
-            <tr>
-                <td>{{ r.reference_no }}</td>
-                <td>
-                    {% if r.is_group_request %}
-                    {{ r.group_leader_name }} ({{ r.members.count }} members)
-                    {% else %}
-                    {{ r.requester_name }}
-                    {% endif %}
-                </td>
-                <td>{% if r.is_group_request %}Group{% else %}Individual{% endif %}</td>
-                <td>{{ r.destination }}</td>
-                <td>
-                    {% if r.raw_status == "CLOSED" %}
-                    <span class="badge badge-closed">Closed</span>
-                    {% elif r.raw_status == "APPROVED" %}
-                    <span class="badge badge-approved">Approved</span>
-                    {% elif r.raw_status == "RETURNED_HOU" or r.raw_status == "RETURNED_DIRECTOR" %}
-                    <span class="badge badge-returned">{{ r.display_status|default:"Returned" }}</span>
-                    {% elif r.raw_status == "REJECTED_HOU" or r.raw_status == "REJECTED_DIRECTOR" %}
-                    <span class="badge badge-rejected">{{ r.display_status|default:"Rejected" }}</span>
-                    {% elif r.is_overdue %}
-                    <span class="badge badge-overdue">Overdue</span>
-                    {% else %}
-                    <span class="badge badge-submitted">{{ r.display_status|default:"Submitted" }}</span>
-                    {% endif %}
-                </td>
-                <td><a class="btn-link" href="{% url 'director_request_detail' r.pk %}">Open</a></td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="6">No requests available.</td>
-            </tr>
-            {% endfor %}
-        </table>
     </div>
 </body>
 

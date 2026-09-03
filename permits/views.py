@@ -40,7 +40,7 @@ from core.notifications import notify_user
 from core.audit import log_action
 from forms_builder.services import generate_qr_png
 
-from .models import ExternalWorkRequest, UserProfile, GroupMember, ModuleRoleAssignment
+from .models import Department, ExternalWorkRequest, UserProfile, GroupMember, ModuleRoleAssignment
 from .module_roles import set_module_roles
 from .forms import (
     LoginForm,
@@ -1678,55 +1678,48 @@ def admin_dashboard(request):
     if not (request.user.is_superuser or profile.role == "ADMIN"):
         return HttpResponseForbidden("Not allowed.")
 
-    status = request.GET.get("status")
-    now = timezone.now()
-
-    all_requests = ExternalWorkRequest.objects.all()
-
-    if status == "OVERDUE":
-        recent_requests = all_requests.filter(
-            end_time__lt=now
-        ).exclude(
-            status__in=["CLOSED"] + _rejected_statuses()
+    leadership_profiles = (
+        UserProfile.objects.select_related(
+            "user", "department", "department_unit", "approval_role"
         )
-    elif status in ["RETURNED", "RETURNED_HOU", "RETURNED_DIRECTOR"]:
-        recent_requests = all_requests.filter(status__in=_returned_statuses())
-    elif status in ["REJECTED", "REJECTED_HOU", "REJECTED_DIRECTOR"]:
-        recent_requests = all_requests.filter(status__in=_rejected_statuses())
-    elif status in ["PENDING", "PENDING_HOU", "PENDING_DIRECTOR"]:
-        recent_requests = all_requests.filter(status__in=["PENDING_HOU", "PENDING_DIRECTOR"])
-    elif _is_total_status(status):
-        recent_requests = all_requests
-    else:
-        recent_requests = all_requests.filter(status=status)
-
-    total_requests = all_requests.count()
-    pending_hou_count = all_requests.filter(status="PENDING_HOU").count()
-    pending_director_count = all_requests.filter(status="PENDING_DIRECTOR").count()
-    returned_count = all_requests.filter(status__in=_returned_statuses()).count()
-    approved_count = all_requests.filter(status="APPROVED").count()
-    rejected_count = all_requests.filter(status__in=_rejected_statuses()).count()
-    closed_count = all_requests.filter(status="CLOSED").count()
-    overdue_count = all_requests.filter(
-        end_time__lt=now
-    ).exclude(
-        status__in=["CLOSED"] + _rejected_statuses()
-    ).count()
-
-    recent_requests = recent_requests.order_by("-updated_at")[:10]
-    recent_requests = _attach_display_status_list(recent_requests, context="list")
+        .filter(user__is_active=True, department__is_active=True)
+        .filter(
+            Q(role__in=["DIRECTOR", "ASSISTANT_DIRECTOR", "HEAD_OF_UNIT"])
+            | Q(approval_role__code__in=[
+                "DIRECTOR", "ASSISTANT_DIRECTOR", "HEAD_OF_UNIT"
+            ])
+        )
+        .order_by("department__code", "department_unit__code", "user__last_name")
+    )
+    leaders_by_department = {}
+    for leadership_profile in leadership_profiles:
+        role_code = (
+            leadership_profile.approval_role.code
+            if leadership_profile.approval_role_id
+            else leadership_profile.role
+        )
+        department_group = leaders_by_department.setdefault(
+            leadership_profile.department_id,
+            {
+                "department": leadership_profile.department,
+                "directors": [],
+                "assistant_directors": [],
+                "heads_of_unit": [],
+            },
+        )
+        destination = {
+            "DIRECTOR": "directors",
+            "ASSISTANT_DIRECTOR": "assistant_directors",
+            "HEAD_OF_UNIT": "heads_of_unit",
+        }.get(role_code)
+        if destination:
+            department_group[destination].append(leadership_profile)
 
     context = {
-        "selected_status": status,
-        "total_requests": total_requests,
-        "pending_hou_count": pending_hou_count,
-        "pending_director_count": pending_director_count,
-        "returned_count": returned_count,
-        "approved_count": approved_count,
-        "rejected_count": rejected_count,
-        "closed_count": closed_count,
-        "overdue_count": overdue_count,
-        "recent_requests": recent_requests,
+        "department_role_groups": list(leaders_by_department.values()),
+        "departments_without_leaders": Department.objects.filter(
+            is_active=True
+        ).exclude(pk__in=leaders_by_department).order_by("code"),
     }
 
     return render(request, "permits/admin_dashboard.html", context)
@@ -2186,7 +2179,6 @@ def assistant_director_dashboard(request):
     """
     profile = _get_profile(request.user)
     role = _get_user_role(request.user)
-
     if role != "ASSISTANT_DIRECTOR":
         return HttpResponseForbidden(
             "You are not allowed to access this dashboard."
@@ -3070,25 +3062,45 @@ def export_permit_pdf(request, pk):
 @login_required
 def head_of_unit_requests(request):
     profile = _get_profile(request.user)
+    viewed_officer = request.user
 
-    if not (
-        request.user.is_superuser
-        or _head_of_unit_allowed(request.user)
-    ):
+    if _admin_allowed(request.user) and request.GET.get("officer"):
+        viewed_officer = get_object_or_404(
+            User.objects.select_related(
+                "profile__department", "profile__department_unit"
+            ).filter(
+                Q(profile__role="HEAD_OF_UNIT")
+                | Q(profile__approval_role__code="HEAD_OF_UNIT")
+            ),
+            pk=request.GET.get("officer"),
+            is_active=True,
+        )
+        profile = viewed_officer.profile
+    elif not _head_of_unit_allowed(request.user):
         return HttpResponseForbidden("Not allowed.")
 
     status = request.GET.get("status")
     now = timezone.now()
-    base_requests = _head_of_unit_scope_queryset(
-        request.user,
-        ExternalWorkRequest.objects.select_related(
+    base_queryset = ExternalWorkRequest.objects.select_related(
             "requester",
             "requester__profile",
             "requester__profile__department",
             "requester__profile__department_unit",
-        ),
-    )
-
+        )
+    if viewed_officer != request.user:
+        base_requests = base_queryset.filter(
+            head_of_unit=viewed_officer,
+            requester__profile__department_id=profile.department_id,
+        )
+        if profile.department_unit_id:
+            base_requests = base_requests.filter(
+                requester__profile__department_unit_id=profile.department_unit_id
+            )
+    else:
+        base_requests = _head_of_unit_scope_queryset(
+            request.user,
+            base_queryset,
+        )
     if status == "OVERDUE":
         requests = base_requests.filter(
             end_time__lt=now
@@ -3105,7 +3117,7 @@ def head_of_unit_requests(request):
         requests = base_requests.filter(status=status)
     elif status in ["APPROVED_FORWARDED", "FORWARDED", "PENDING_DIRECTOR"]:
         requests = base_requests.filter(
-            hou_approved_by=request.user,
+            hou_approved_by=viewed_officer,
             status__in=["PENDING_DIRECTOR", "APPROVED", "CLOSED", "RETURNED_DIRECTOR", "REJECTED_DIRECTOR"]
         )
     elif _is_total_status(status):
@@ -3123,7 +3135,7 @@ def head_of_unit_requests(request):
     approved_count = base_requests.filter(status="APPROVED").count()
     closed_count = base_requests.filter(status="CLOSED").count()
     approved_forwarded_count = base_requests.filter(
-        hou_approved_by=request.user
+        hou_approved_by=viewed_officer
     ).exclude(status="PENDING_HOU").count()
     overdue_count = base_requests.filter(
         end_time__lt=now
@@ -3148,6 +3160,12 @@ def head_of_unit_requests(request):
             "approved_forwarded_count": approved_forwarded_count,
             "overdue_count": overdue_count,
             "welcome_name": welcome_name,
+            "viewed_officer": viewed_officer,
+            "admin_scope_query": (
+                f"officer={viewed_officer.pk}"
+                if viewed_officer != request.user
+                else ""
+            ),
         }
     )
 
@@ -3155,33 +3173,47 @@ def head_of_unit_requests(request):
 @login_required
 def head_of_unit_request_detail(request, pk):
     profile = _get_profile(request.user)
+    viewed_officer = request.user
 
-    if not (
-        request.user.is_superuser
-        or _head_of_unit_allowed(request.user)
-    ):
+    if _admin_allowed(request.user) and request.GET.get("officer"):
+        viewed_officer = get_object_or_404(
+            User.objects.filter(
+                Q(profile__role="HEAD_OF_UNIT")
+                | Q(profile__approval_role__code="HEAD_OF_UNIT")
+            ),
+            pk=request.GET.get("officer"),
+            is_active=True,
+        )
+    elif not _head_of_unit_allowed(request.user):
         return HttpResponseForbidden("Not allowed.")
 
-    req = get_object_or_404(
-        _head_of_unit_scope_queryset(
-            request.user,
-            ExternalWorkRequest.objects
+    scoped_requests = (
+        ExternalWorkRequest.objects
             .select_related(
                 "requester",
                 "requester__profile",
                 "requester__profile__department",
                 "requester__profile__department_unit",
             )
-            .prefetch_related("members"),
-        ),
-        pk=pk,
+            .prefetch_related("members")
     )
+    if viewed_officer != request.user:
+        scoped_requests = scoped_requests.filter(head_of_unit=viewed_officer)
+    else:
+        scoped_requests = _head_of_unit_scope_queryset(
+            request.user, scoped_requests
+        )
+    req = get_object_or_404(scoped_requests, pk=pk)
     _attach_display_status(req, context="detail")
 
-    can_take_hou_action = req.raw_status == "PENDING_HOU"
+    can_take_hou_action = (
+        viewed_officer == request.user and req.raw_status == "PENDING_HOU"
+    )
     is_view_only = req.raw_status in ["APPROVED", "CLOSED", "PENDING_DIRECTOR", "REJECTED_HOU", "REJECTED_DIRECTOR", "RETURNED_HOU", "RETURNED_DIRECTOR"]
 
     if request.method == "POST":
+        if viewed_officer != request.user:
+            return HttpResponseForbidden("Administrator access is view-only.")
         if req.status != "PENDING_HOU":
             return HttpResponseForbidden("Only pending Head of Unit requests can be acted on.")
 
@@ -3337,6 +3369,7 @@ def head_of_unit_request_detail(request, pk):
 
 @login_required
 @require_role(
+    "ADMIN",
     "DIRECTOR",
     "ASSISTANT_DIRECTOR",
 )
@@ -3362,6 +3395,47 @@ def director_requests(request):
         request.user,
         ExternalWorkRequest.objects.exclude(status="PENDING_HOU")
     )
+    admin_scope_query = ""
+    if _admin_allowed(request.user) and request.GET.get("officer"):
+        viewed_officer = get_object_or_404(
+            User.objects.select_related(
+                "profile__department", "profile__department_unit"
+            ).filter(
+                Q(profile__role__in=["DIRECTOR", "ASSISTANT_DIRECTOR"])
+                | Q(profile__approval_role__code__in=[
+                    "DIRECTOR", "ASSISTANT_DIRECTOR"
+                ])
+            ),
+            pk=request.GET.get("officer"),
+            is_active=True,
+        )
+        officer_profile = viewed_officer.profile
+        officer_role = (
+            officer_profile.approval_role.code
+            if officer_profile.approval_role_id
+            else officer_profile.role
+        )
+        admin_scope_query = f"officer={viewed_officer.pk}"
+        visible_requests = visible_requests.filter(
+            requester__profile__department_id=officer_profile.department_id
+        )
+        if (
+            officer_role == "ASSISTANT_DIRECTOR"
+            and officer_profile.department_unit_id
+        ):
+            visible_requests = visible_requests.filter(
+                requester__profile__department_unit_id=(
+                    officer_profile.department_unit_id
+                )
+            )
+    elif _admin_allowed(request.user) and request.GET.get("department"):
+        selected_department = get_object_or_404(
+            Department, pk=request.GET.get("department"), is_active=True
+        )
+        visible_requests = visible_requests.filter(
+            requester__profile__department=selected_department
+        )
+        admin_scope_query = f"department={selected_department.pk}"
 
     if status == "OVERDUE":
         requests = visible_requests.filter(
@@ -3413,6 +3487,7 @@ def director_requests(request):
             "closed_count": closed_count,
             "overdue_count": overdue_count,
             "welcome_name": welcome_name,
+            "admin_scope_query": admin_scope_query,
         }
     )
 
