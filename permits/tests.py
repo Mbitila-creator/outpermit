@@ -117,6 +117,12 @@ class AdministrationCentreTests(TestCase):
         response = self.client.get(reverse("admin_dashboard"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Admin Page")
+        self.assertNotContains(response, "Ministry Enterprise Management Platform")
+        self.assertContains(response, f'href="{reverse("system_home")}">Home</a>')
+        self.assertContains(response, f'href="{reverse("logout")}" class="logout">Logout</a>')
+        self.assertNotContains(response, ">Requester Dashboard</a>")
+        self.assertNotContains(response, ">Create New Request</a>")
         self.assertContains(response, "Operations &amp; Dashboards", html=False)
         self.assertContains(response, department.code)
         self.assertContains(response, "Directors")

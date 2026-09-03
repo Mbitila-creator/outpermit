@@ -44,15 +44,11 @@
 
 <body>
     <div class="card">
-        <h2>Ministry Enterprise Management Platform</h2>
+        <h2>Admin Page</h2>
         <div class="subtitle">Administration Centre · Welcome, {{ request.user.username }}</div>
 
         <div class="top-menu">
             <a href="{% url 'system_home' %}">Home</a>
-            <a href="{% url 'requester_dashboard' %}">Requester Dashboard</a>
-            <a href="{% url 'request_new' %}">Create New Request</a>
-            <a href="{% url 'permit_reports' %}">Reports</a>
-            <a href="{% url 'workflow_list' %}">Workflow Configuration</a>
             <a href="{% url 'logout' %}" class="logout">Logout</a>
         </div>
 
