@@ -267,6 +267,8 @@ class AdministrationCentreTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["selected_report"], "active_permissions")
+        self.assertNotContains(response, "Approved Not Closed")
+        self.assertNotContains(response, "Expired Not Closed")
         self.assertContains(
             response,
             'name="report" id="selectedReport" value="active_permissions"',
