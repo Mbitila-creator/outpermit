@@ -1,13 +1,15 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
+from datetime import timedelta
 
 from events.auth import EventRole, event_role, has_event_role
 from finance.views import get_user_role as get_finance_role
 from tasks.views import _get_user_role as get_task_role
 
 from .forms import AdminUserUpdateForm
-from .models import Department, ModuleRoleAssignment
+from .models import Department, ExternalWorkRequest, GroupMember, ModuleRoleAssignment
 from .module_roles import set_module_roles
 
 
@@ -209,4 +211,74 @@ class AdministrationCentreTests(TestCase):
         self.assertContains(
             report,
             f'name="department" value="{selected_department.pk}"',
+        )
+
+    def test_workforce_reports_separate_at_work_and_active_permission(self):
+        department = Department.objects.create(code="DTVET", name="DTVET")
+        admin = User.objects.create_superuser(
+            username="workforce-admin", email="workforce@example.test", password="safe"
+        )
+        at_work = User.objects.create_user(
+            username="at-work", first_name="At", last_name="Work"
+        )
+        permitted = User.objects.create_user(
+            username="permitted", first_name="Active", last_name="Permit"
+        )
+        expired = User.objects.create_user(
+            username="expired", first_name="Expired", last_name="Permit"
+        )
+        group_member = User.objects.create_user(
+            username="group-member", first_name="Group", last_name="Member"
+        )
+        for worker in (at_work, permitted, expired, group_member):
+            worker.profile.department = department
+            worker.profile.save(update_fields=["department"])
+        now = timezone.now()
+        active_permit = ExternalWorkRequest.objects.create(
+            requester=permitted,
+            purpose="Official duty",
+            destination="Dodoma",
+            start_time=now - timedelta(hours=1),
+            end_time=now + timedelta(days=1),
+            status="APPROVED",
+            is_group_request=True,
+        )
+        GroupMember.objects.create(
+            request=active_permit,
+            member_user=group_member,
+            full_name="Group Member",
+        )
+        ExternalWorkRequest.objects.create(
+            requester=expired,
+            purpose="Completed duty",
+            destination="Arusha",
+            start_time=now - timedelta(days=3),
+            end_time=now - timedelta(days=1),
+            status="APPROVED",
+        )
+
+        self.client.force_login(admin)
+        response = self.client.get(
+            reverse("permit_reports"), {"department": department.pk}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Workers at Work")
+        self.assertContains(response, "Workers with Active Permission")
+        self.assertEqual(
+            [row["worker"] for row in response.context["workforce_at_work_rows"]],
+            [at_work, expired],
+        )
+        self.assertEqual(
+            {row["worker"] for row in response.context["workforce_active_permission_rows"]},
+            {permitted, group_member},
+        )
+        excel_response = self.client.get(
+            reverse("export_permit_reports_excel"),
+            {"department": department.pk, "report": "active_permissions"},
+        )
+        self.assertEqual(excel_response.status_code, 200)
+        self.assertEqual(
+            excel_response["Content-Type"],
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )

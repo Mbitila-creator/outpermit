@@ -3818,6 +3818,78 @@ def _apply_admin_report_scope(user, request, queryset):
         )
     return queryset, department, department_unit, scope_query
 
+
+def _build_workforce_report_rows(
+    user, request, permit_queryset, scoped_department=None, scoped_unit=None
+):
+    """Return active workers split by whether they are currently away on permit."""
+    profile = _get_profile(user)
+    role = _get_user_role(user)
+    workers = User.objects.select_related(
+        "profile__department", "profile__department_unit"
+    ).filter(is_active=True, profile__department__is_active=True)
+
+    effective_department = scoped_department
+    effective_unit = scoped_unit
+    if role != "ADMIN":
+        effective_department = profile.department
+        if role == "ASSISTANT_DIRECTOR" and profile.department_unit_id:
+            effective_unit = profile.department_unit
+    if effective_department:
+        workers = workers.filter(profile__department=effective_department)
+    if effective_unit:
+        workers = workers.filter(profile__department_unit=effective_unit)
+
+    selected_unit = request.GET.get("unit", "").strip()
+    selected_requester = request.GET.get("requester", "").strip()
+    if selected_unit:
+        workers = workers.filter(profile__unit_name=selected_unit)
+        permit_queryset = permit_queryset.filter(
+            requester__profile__unit_name=selected_unit
+        )
+    if selected_requester:
+        workers = workers.filter(pk=selected_requester)
+
+    now = timezone.now()
+    active_permits = (
+        permit_queryset.filter(
+            status="APPROVED", start_time__lte=now, end_time__gte=now
+        )
+        .prefetch_related("members")
+        .order_by("end_time")
+    )
+    permit_by_worker = {}
+    for permit_request in active_permits:
+        covered_ids = {permit_request.requester_id}
+        covered_ids.update(
+            permit_request.members.exclude(member_user__isnull=True).values_list(
+                "member_user_id", flat=True
+            )
+        )
+        for worker_id in covered_ids:
+            permit_by_worker.setdefault(worker_id, permit_request)
+
+    at_work_rows = []
+    active_permission_rows = []
+    for worker in workers.order_by("first_name", "last_name", "username"):
+        worker_profile = worker.profile
+        permit_request = permit_by_worker.get(worker.pk)
+        row = {
+            "worker": worker,
+            "employee_id": worker_profile.employee_id or "",
+            "unit": (
+                worker_profile.department_unit.name
+                if worker_profile.department_unit_id
+                else worker_profile.unit_name or "Not assigned"
+            ),
+            "permit": permit_request,
+        }
+        if permit_request:
+            active_permission_rows.append(row)
+        else:
+            at_work_rows.append(row)
+    return at_work_rows, active_permission_rows
+
 @login_required
 @require_role(
     "DIRECTOR",
@@ -3844,6 +3916,11 @@ def permit_reports(request):
         _apply_admin_report_scope(request.user, request, base_qs)
     )
 
+    workforce_at_work_rows, workforce_active_permission_rows = (
+        _build_workforce_report_rows(
+            request.user, request, base_qs, scoped_department, scoped_unit
+        )
+    )
     base_qs = _apply_permit_report_filters(base_qs, request)
 
     total_requests = base_qs.count()
@@ -4072,6 +4149,8 @@ def permit_reports(request):
         "compliance_rows": compliance_rows,
         "workload_by_unit": workload_by_unit,
         "workload_by_hou": workload_by_hou,
+        "workforce_at_work_rows": workforce_at_work_rows,
+        "workforce_active_permission_rows": workforce_active_permission_rows,
 
         "is_director_level": is_director_level,
         "unit_options": unit_options,
@@ -4132,8 +4211,13 @@ def export_permit_reports_excel(request):
     qs = _get_report_base_queryset(
         request.user
     )
-    qs, _scoped_department, _scoped_unit, _scope_query = (
+    qs, scoped_department, scoped_unit, _scope_query = (
         _apply_admin_report_scope(request.user, request, qs)
+    )
+    workforce_at_work_rows, workforce_active_permission_rows = (
+        _build_workforce_report_rows(
+            request.user, request, qs, scoped_department, scoped_unit
+        )
     )
 
     qs = _apply_permit_report_filters(
@@ -4141,7 +4225,31 @@ def export_permit_reports_excel(request):
         request,
     )
 
-    if report_type == "turnaround":
+    if report_type in {"workers_at_work", "active_permissions"}:
+        ws.append([
+            "Worker", "Employee ID", "Unit", "Department",
+            "Permit Reference", "Destination", "Permission Ends",
+        ])
+        workforce_rows = (
+            workforce_at_work_rows
+            if report_type == "workers_at_work"
+            else workforce_active_permission_rows
+        )
+        for row in workforce_rows:
+            permit_request = row["permit"]
+            ws.append([
+                row["worker"].get_full_name() or row["worker"].username,
+                row["employee_id"],
+                row["unit"],
+                row["worker"].profile.department.code,
+                permit_request.reference_no if permit_request else "",
+                permit_request.destination if permit_request else "",
+                (
+                    _format_local_datetime(permit_request.end_time)
+                    if permit_request else ""
+                ),
+            ])
+    elif report_type == "turnaround":
         ws.append([
             "Reference No",
             "Requester",
@@ -4396,6 +4504,11 @@ def export_permit_reports_pdf(request):
     qs, scoped_department, scoped_unit, _scope_query = (
         _apply_admin_report_scope(request.user, request, qs)
     )
+    workforce_at_work_rows, workforce_active_permission_rows = (
+        _build_workforce_report_rows(
+            request.user, request, qs, scoped_department, scoped_unit
+        )
+    )
     qs = _apply_permit_report_filters(qs, request)
 
     profile = _get_profile(request.user)
@@ -4476,7 +4589,39 @@ def export_permit_reports_pdf(request):
     elements.append(Paragraph(f"<b>Report Scope:</b> {report_scope}", normal_style))
     elements.append(Spacer(1, 10))
 
-    if report_type == "turnaround":
+    if report_type in {"workers_at_work", "active_permissions"}:
+        elements.append(Paragraph(
+            (
+                "Active workers with no current approved permission."
+                if report_type == "workers_at_work"
+                else "Workers covered by an approved permission that is currently active."
+            ),
+            note_style,
+        ))
+        data = [[
+            "Worker", "Employee ID", "Unit", "Department",
+            "Permit Reference", "Destination", "Permission Ends",
+        ]]
+        workforce_rows = (
+            workforce_at_work_rows
+            if report_type == "workers_at_work"
+            else workforce_active_permission_rows
+        )
+        for row in workforce_rows:
+            permit_request = row["permit"]
+            data.append([
+                row["worker"].get_full_name() or row["worker"].username,
+                row["employee_id"] or "",
+                row["unit"],
+                row["worker"].profile.department.code,
+                permit_request.reference_no if permit_request else "",
+                permit_request.destination if permit_request else "",
+                (
+                    _format_local_datetime(permit_request.end_time)
+                    if permit_request else ""
+                ),
+            ])
+    elif report_type == "turnaround":
         elements.append(Paragraph(
             "This report shows the time taken from submission to Head of Unit approval and final Director-level approval.",
             note_style

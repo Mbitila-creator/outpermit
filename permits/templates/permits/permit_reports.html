@@ -365,6 +365,8 @@
             <button type="button" class="tab-btn" data-report="overdue">Overdue & Risk</button>
             <button type="button" class="tab-btn" data-report="compliance">Compliance</button>
             <button type="button" class="tab-btn" data-report="workload">Workload</button>
+            {% if is_director_level %}<button type="button" class="tab-btn" data-report="workers_at_work">Workers at Work</button>
+            <button type="button" class="tab-btn" data-report="active_permissions">Active Permissions</button>{% endif %}
         </div>
 
         <form method="get" class="filter-form" id="reportFilterForm">
@@ -708,6 +710,24 @@
                 {% endfor %}
             </table>
         </div>
+
+        {% if is_director_level %}
+        <div class="report-panel" id="report-workers_at_work">
+            <h3 class="section-title">Workers at Work</h3>
+            <div class="report-note">Active workers with no approved permit covering the current date and time. This includes workers with no permit and workers whose permission has expired.</div>
+            <table><tr><th>Worker</th><th>Employee ID</th><th>Unit</th><th>Department</th></tr>
+                {% for row in workforce_at_work_rows %}<tr><td>{{ row.worker.get_full_name|default:row.worker.username }}</td><td>{{ row.employee_id|default:"—" }}</td><td>{{ row.unit }}</td><td>{{ row.worker.profile.department.code }}</td></tr>{% empty %}<tr><td colspan="4" class="empty-row">No workers are currently listed as at work.</td></tr>{% endfor %}
+            </table>
+        </div>
+
+        <div class="report-panel" id="report-active_permissions">
+            <h3 class="section-title">Workers with Active Permission</h3>
+            <div class="report-note">Workers covered by an approved individual or group permit whose permitted period includes the current date and time.</div>
+            <table><tr><th>Worker</th><th>Employee ID</th><th>Unit</th><th>Reference No</th><th>Destination</th><th>Permission ends</th></tr>
+                {% for row in workforce_active_permission_rows %}<tr><td>{{ row.worker.get_full_name|default:row.worker.username }}</td><td>{{ row.employee_id|default:"—" }}</td><td>{{ row.unit }}</td><td>{{ row.permit.reference_no }}</td><td>{{ row.permit.destination }}</td><td>{{ row.permit.end_time|date:"d M Y, H:i" }}</td></tr>{% empty %}<tr><td colspan="6" class="empty-row">No workers currently have active permission.</td></tr>{% endfor %}
+            </table>
+        </div>
+        {% endif %}
 
     </div>
 
