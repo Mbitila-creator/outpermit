@@ -3,6 +3,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from datetime import timedelta
+from io import BytesIO
+from pypdf import PdfReader
 
 from events.auth import EventRole, event_role, has_event_role
 from finance.views import get_user_role as get_finance_role
@@ -282,3 +284,29 @@ class AdministrationCentreTests(TestCase):
             excel_response["Content-Type"],
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
+        at_work_pdf_response = self.client.get(
+            reverse("export_permit_reports_pdf"),
+            {"department": department.pk, "report": "workers_at_work"},
+        )
+        at_work_pdf = PdfReader(BytesIO(at_work_pdf_response.content))
+        at_work_page = at_work_pdf.pages[0]
+        self.assertLess(
+            float(at_work_page.mediabox.width), float(at_work_page.mediabox.height)
+        )
+        at_work_text = "\n".join(page.extract_text() for page in at_work_pdf.pages)
+        self.assertIn("Workers at Work Report", at_work_text)
+        self.assertNotIn("Permit Reference", at_work_text)
+
+        active_pdf_response = self.client.get(
+            reverse("export_permit_reports_pdf"),
+            {"department": department.pk, "report": "active_permissions"},
+        )
+        active_pdf = PdfReader(BytesIO(active_pdf_response.content))
+        active_page = active_pdf.pages[0]
+        self.assertGreater(
+            float(active_page.mediabox.width), float(active_page.mediabox.height)
+        )
+        active_text = "\n".join(page.extract_text() for page in active_pdf.pages)
+        self.assertIn("Workers with Active Permission Report", active_text)
+        self.assertIn("Permission Starts", active_text)
+        self.assertIn("Permission Ends", active_text)
