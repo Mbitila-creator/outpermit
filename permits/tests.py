@@ -165,3 +165,48 @@ class AdministrationCentreTests(TestCase):
             ).status_code,
             200,
         )
+
+    def test_admin_view_of_director_reports_keeps_department_unit_scope(self):
+        selected_department = Department.objects.create(
+            code="DTVET", name="Technical and Vocational Education and Training"
+        )
+        other_department = Department.objects.create(
+            code="DSTI", name="Science Technology and Innovation"
+        )
+        admin = User.objects.create_superuser(
+            username="report-admin", email="report-admin@example.test", password="safe"
+        )
+        director = User.objects.create_user(username="dtvet-director")
+        director.profile.role = "DIRECTOR"
+        director.profile.department = selected_department
+        director.profile.save(update_fields=["role", "department"])
+        own_unit_user = User.objects.create_user(username="dtvet-unit-user")
+        own_unit_user.profile.department = selected_department
+        own_unit_user.profile.unit_name = "DTVET_ONLY_UNIT"
+        own_unit_user.profile.save(update_fields=["department", "unit_name"])
+        other_unit_user = User.objects.create_user(username="dsti-unit-user")
+        other_unit_user.profile.department = other_department
+        other_unit_user.profile.unit_name = "DSTI_OTHER_UNIT"
+        other_unit_user.profile.save(update_fields=["department", "unit_name"])
+
+        self.client.force_login(admin)
+        director_page = self.client.get(
+            reverse("director_requests"),
+            {"department": selected_department.pk},
+        )
+        self.assertContains(
+            director_page,
+            f'{reverse("permit_reports")}?department={selected_department.pk}',
+        )
+
+        report = self.client.get(
+            reverse("permit_reports"),
+            {"department": selected_department.pk},
+        )
+        self.assertEqual(report.status_code, 200)
+        self.assertContains(report, "DTVET_ONLY_UNIT")
+        self.assertNotContains(report, "DSTI_OTHER_UNIT")
+        self.assertContains(
+            report,
+            f'name="department" value="{selected_department.pk}"',
+        )

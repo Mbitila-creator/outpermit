@@ -335,7 +335,7 @@
         <div class="menu">
             <a href="{% url 'system_home' %}">Home</a>
             <a href="{% url 'requester_dashboard' %}">My Requests</a>
-            <a href="{% url 'permit_reports' %}">Reports</a>
+            <a href="{% url 'permit_reports' %}{% if admin_scope_query %}?{{ admin_scope_query }}{% endif %}">Reports</a>
             <a href="#" onclick="confirmLogout(event)">Logout</a>
         </div>
 

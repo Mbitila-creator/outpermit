@@ -3767,6 +3767,57 @@ def _get_report_base_queryset(user):
 
     return qs.none()
 
+
+def _apply_admin_report_scope(user, request, queryset):
+    """Apply the department/unit selected from the Administration Centre."""
+    if not _admin_allowed(user):
+        return queryset, None, None, ""
+
+    department = None
+    department_unit = None
+    scope_query = ""
+    officer_id = request.GET.get("officer", "").strip()
+    department_id = request.GET.get("department", "").strip()
+    if officer_id:
+        officer = get_object_or_404(
+            User.objects.select_related(
+                "profile__department", "profile__department_unit",
+                "profile__approval_role",
+            ).filter(
+                Q(profile__role__in=["DIRECTOR", "ASSISTANT_DIRECTOR"])
+                | Q(profile__approval_role__code__in=[
+                    "DIRECTOR", "ASSISTANT_DIRECTOR"
+                ])
+            ),
+            pk=officer_id,
+            is_active=True,
+        )
+        officer_profile = officer.profile
+        officer_role = (
+            officer_profile.approval_role.code
+            if officer_profile.approval_role_id
+            else officer_profile.role
+        )
+        department = officer_profile.department
+        if officer_role == "ASSISTANT_DIRECTOR":
+            department_unit = officer_profile.department_unit
+        scope_query = f"officer={officer.pk}"
+    elif department_id:
+        department = get_object_or_404(
+            Department, pk=department_id, is_active=True
+        )
+        scope_query = f"department={department.pk}"
+
+    if department:
+        queryset = queryset.filter(
+            requester__profile__department_id=department.pk
+        )
+    if department_unit:
+        queryset = queryset.filter(
+            requester__profile__department_unit_id=department_unit.pk
+        )
+    return queryset, department, department_unit, scope_query
+
 @login_required
 @require_role(
     "DIRECTOR",
@@ -3789,6 +3840,9 @@ def permit_reports(request):
     now = timezone.now()
 
     base_qs = _get_report_base_queryset(request.user)
+    base_qs, scoped_department, scoped_unit, admin_scope_query = (
+        _apply_admin_report_scope(request.user, request, base_qs)
+    )
 
     base_qs = _apply_permit_report_filters(base_qs, request)
 
@@ -3921,6 +3975,17 @@ def permit_reports(request):
         work_requests__isnull=False
     )
 
+    if role == "ADMIN" and scoped_department:
+        unit_profiles = unit_profiles.filter(department=scoped_department)
+        requester_options = requester_options.filter(
+            profile__department=scoped_department
+        )
+        if scoped_unit:
+            unit_profiles = unit_profiles.filter(department_unit=scoped_unit)
+            requester_options = requester_options.filter(
+                profile__department_unit=scoped_unit
+            )
+
     if role in [
         "DIRECTOR",
         "ASSISTANT_DIRECTOR",
@@ -4018,6 +4083,9 @@ def permit_reports(request):
         "selected_status": request.GET.get("status", ""),
         "selected_unit": request.GET.get("unit", ""),
         "selected_requester": request.GET.get("requester", ""),
+        "admin_scope_query": admin_scope_query,
+        "scoped_department": scoped_department,
+        "scoped_unit": scoped_unit,
     }
 
     return render(request, "permits/permit_reports.html", context)
@@ -4063,6 +4131,9 @@ def export_permit_reports_excel(request):
 
     qs = _get_report_base_queryset(
         request.user
+    )
+    qs, _scoped_department, _scoped_unit, _scope_query = (
+        _apply_admin_report_scope(request.user, request, qs)
     )
 
     qs = _apply_permit_report_filters(
@@ -4322,13 +4393,21 @@ def export_permit_reports_pdf(request):
     now = timezone.now()
 
     qs = _get_report_base_queryset(request.user)
+    qs, scoped_department, scoped_unit, _scope_query = (
+        _apply_admin_report_scope(request.user, request, qs)
+    )
     qs = _apply_permit_report_filters(qs, request)
 
     profile = _get_profile(request.user)
     role = _get_user_role(request.user)
 
     if role == "ADMIN":
-        report_scope = "All Departments"
+        if scoped_unit:
+            report_scope = f"Unit: {scoped_unit.name}"
+        elif scoped_department:
+            report_scope = f"Department: {scoped_department.name}"
+        else:
+            report_scope = "All Departments"
     elif role in [
         "DIRECTOR",
         "ASSISTANT_DIRECTOR",

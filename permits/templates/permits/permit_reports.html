@@ -368,6 +368,7 @@
         </div>
 
         <form method="get" class="filter-form" id="reportFilterForm">
+            {% if admin_scope_query %}{% if scoped_unit %}<input type="hidden" name="officer" value="{{ request.GET.officer }}">{% else %}<input type="hidden" name="department" value="{{ scoped_department.pk }}">{% endif %}{% endif %}
         
             <div class="filter-row">
         
@@ -425,7 +426,7 @@
         
                 <div class="filter-actions">
                     <button type="submit" class="filter-btn">Apply Filters</button>
-                    <a href="{% url 'permit_reports' %}" class="clear-btn">Clear</a>
+                    <a href="{% url 'permit_reports' %}{% if admin_scope_query %}?{{ admin_scope_query }}{% endif %}" class="clear-btn">Clear</a>
                 </div>
         
             </div>
