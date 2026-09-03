@@ -261,10 +261,17 @@ class AdministrationCentreTests(TestCase):
 
         self.client.force_login(admin)
         response = self.client.get(
-            reverse("permit_reports"), {"department": department.pk}
+            reverse("permit_reports"),
+            {"department": department.pk, "report": "active_permissions"},
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_report"], "active_permissions")
+        self.assertContains(
+            response,
+            'name="report" id="selectedReport" value="active_permissions"',
+            html=False,
+        )
         self.assertContains(response, "Workers at Work")
         self.assertContains(response, "Workers with Active Permission")
         self.assertEqual(

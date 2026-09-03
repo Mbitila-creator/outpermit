@@ -3909,6 +3909,19 @@ def permit_reports(request):
     ]:
         return HttpResponseForbidden("Not allowed.")
 
+    available_reports = {
+        "performance",
+        "turnaround",
+        "overdue",
+        "compliance",
+        "workload",
+    }
+    if role in {"ADMIN", "DIRECTOR", "ASSISTANT_DIRECTOR"}:
+        available_reports.update({"workers_at_work", "active_permissions"})
+    selected_report = request.GET.get("report", "performance")
+    if selected_report not in available_reports:
+        selected_report = "performance"
+
     now = timezone.now()
 
     base_qs = _get_report_base_queryset(request.user)
@@ -4162,6 +4175,7 @@ def permit_reports(request):
         "selected_status": request.GET.get("status", ""),
         "selected_unit": request.GET.get("unit", ""),
         "selected_requester": request.GET.get("requester", ""),
+        "selected_report": selected_report,
         "admin_scope_query": admin_scope_query,
         "scoped_department": scoped_department,
         "scoped_unit": scoped_unit,

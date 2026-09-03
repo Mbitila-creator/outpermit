@@ -371,6 +371,7 @@
 
         <form method="get" class="filter-form" id="reportFilterForm">
             {% if admin_scope_query %}{% if scoped_unit %}<input type="hidden" name="officer" value="{{ request.GET.officer }}">{% else %}<input type="hidden" name="department" value="{{ scoped_department.pk }}">{% endif %}{% endif %}
+            <input type="hidden" name="report" id="selectedReport" value="{{ selected_report }}">
         
             <div class="filter-row">
         
@@ -428,7 +429,7 @@
         
                 <div class="filter-actions">
                     <button type="submit" class="filter-btn">Apply Filters</button>
-                    <a href="{% url 'permit_reports' %}{% if admin_scope_query %}?{{ admin_scope_query }}{% endif %}" class="clear-btn">Clear</a>
+                    <a href="{% url 'permit_reports' %}{% if admin_scope_query %}?{{ admin_scope_query }}&{% else %}?{% endif %}report={{ selected_report }}" class="clear-btn">Clear</a>
                 </div>
         
             </div>
@@ -762,8 +763,8 @@
                 }
 
                 const form = document.getElementById("reportFilterForm");
+                document.getElementById("selectedReport").value = reportName;
                 const params = new URLSearchParams(new FormData(form));
-                params.set("report", reportName);
 
                 excelBtn.href = excelBaseUrl + "?" + params.toString();
                 pdfBtn.href = pdfBaseUrl + "?" + params.toString();
@@ -776,7 +777,7 @@
                 });
             });
 
-            showReport("performance");
+            showReport("{{ selected_report|escapejs }}");
         });
     </script>
 
