@@ -19,7 +19,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.dateparse import parse_date
+from django.utils.dateparse import parse_date, parse_datetime
 from django.views.decorators.http import require_POST
 
 from openpyxl import Workbook
@@ -299,7 +299,13 @@ def _director_scope_queryset(user, qs):
         return qs
 
     if role in EXECUTIVE_APPROVER_ROLES:
-        return qs.filter(director=user)
+        # Keep requests visible after an executive approves and forwards them
+        # to the next stage. The configured chain is permanent audit context;
+        # the current ``director`` remains the only user allowed to act.
+        return qs.filter(
+            Q(director=user)
+            | Q(executive_approval_chain__icontains=f'"{role}"')
+        ).distinct()
 
     if role not in [
         "DIRECTOR",
@@ -357,7 +363,10 @@ def _director_can_access_request(user, req):
         return True
 
     if role in EXECUTIVE_APPROVER_ROLES:
-        return req.director_id == user.id
+        return (
+            req.director_id == user.id
+            or role in (req.executive_approval_chain or [])
+        )
 
     if role not in [
         "DIRECTOR",
@@ -591,6 +600,19 @@ def _attach_display_status(req, context="detail"):
     req.is_finalized = _is_view_only_status(raw_status)
     req.can_upload_report = raw_status == "APPROVED"
     req.has_summary_report = bool(getattr(req, "report_file", None))
+    req.executive_history_rows = []
+    for entry in getattr(req, "executive_approval_history", None) or []:
+        approved_at = parse_datetime(entry.get("approved_at", ""))
+        if approved_at and timezone.is_aware(approved_at):
+            approved_at = timezone.localtime(approved_at)
+        req.executive_history_rows.append({
+            "role": EXECUTIVE_ROLE_LABELS.get(
+                entry.get("role", ""), entry.get("role", "")
+            ),
+            "approver": entry.get("approver", ""),
+            "comment": entry.get("comment", ""),
+            "approved_at": approved_at,
+        })
     return req
 
 

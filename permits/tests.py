@@ -93,6 +93,49 @@ class ExecutivePermitApprovalRoutingTests(TestCase):
         self.assertEqual(req.director_approved_by, self.ps)
         self.assertEqual(len(req.executive_approval_history), 2)
 
+    def test_deputy_keeps_approved_request_in_dashboard_history(self):
+        department, _ = Department.objects.update_or_create(
+            code="DSTI", defaults={"name": "Science"}
+        )
+        director = self._user("history-director", self.director_role, department)
+        req = _apply_permit_workflow_routing(
+            self._request(director), director.profile
+        )
+        req.save()
+
+        advanced, _next_label = _advance_executive_approval(
+            req, self.dps_hes, "Reviewed and approved"
+        )
+        self.assertTrue(advanced)
+        self.assertEqual(req.director, self.ps)
+
+        self.client.force_login(self.dps_hes)
+        dashboard = self.client.get(reverse("director_requests"))
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertContains(dashboard, req.reference_no)
+        self.assertEqual(dashboard.context["total_requests"], 1)
+
+        detail = self.client.get(reverse("director_request_detail", args=[req.pk]))
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, "Executive Approval History")
+        self.assertContains(detail, "Reviewed and approved")
+
+    def test_deputy_cannot_see_another_executive_chain(self):
+        department, _ = Department.objects.update_or_create(
+            code="SQAD", defaults={"name": "Quality Assurance"}
+        )
+        director = self._user("sqad-history-director", self.director_role, department)
+        req = _apply_permit_workflow_routing(
+            self._request(director), director.profile
+        )
+        req.save()
+
+        self.client.force_login(self.dps_hes)
+        dashboard = self.client.get(reverse("director_requests"))
+        self.assertNotContains(dashboard, req.reference_no)
+        detail = self.client.get(reverse("director_request_detail", args=[req.pk]))
+        self.assertEqual(detail.status_code, 403)
+
     def test_direct_unit_director_routes_straight_to_ps(self):
         department, _ = Department.objects.update_or_create(
             code="FAU", defaults={"name": "Finance"}

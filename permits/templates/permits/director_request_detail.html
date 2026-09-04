@@ -347,6 +347,24 @@
             {% endif %}
         </div>
 
+        {% if req.executive_history_rows %}
+        <h3>Executive Approval History</h3>
+        <div class="section-box">
+            {% for approval in req.executive_history_rows %}
+            <p>
+                <strong>{{ approval.role }}:</strong>
+                {{ approval.approver|default:"Approver not recorded" }}
+                {% if approval.approved_at %}
+                — approved {{ approval.approved_at|date:"d M Y, H:i" }}
+                {% endif %}
+            </p>
+            {% if approval.comment %}
+            <p class="justified"><strong>Comment:</strong> {{ approval.comment }}</p>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <!-- Purpose -->
         <h3>Purpose</h3>
         <div class="section-box justified">
