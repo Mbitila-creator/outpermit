@@ -6,6 +6,12 @@
     <title>
         {% if request.user.profile.approval_role.code == "ASSISTANT_DIRECTOR" %}
         Assistant Director Review
+        {% elif request.user.profile.approval_role.code == "PERMANENT_SECRETARY" %}
+        Permanent Secretary Review
+        {% elif request.user.profile.approval_role.code == "DPS_HES" or request.user.profile.approval_role.code == "DPS_BE" %}
+        Deputy Permanent Secretary Review
+        {% elif request.user.profile.approval_role.code == "COMMISSIONER_EDUCATION" %}
+        Commissioner for Education Review
         {% else %}
         Director Review
         {% endif %}
@@ -282,6 +288,12 @@
         <h2>
             {% if request.user.profile.approval_role.code == "ASSISTANT_DIRECTOR" %}
             Assistant Director Review
+            {% elif request.user.profile.approval_role.code == "PERMANENT_SECRETARY" %}
+            Permanent Secretary Review
+            {% elif request.user.profile.approval_role.code == "DPS_HES" or request.user.profile.approval_role.code == "DPS_BE" %}
+            Deputy Permanent Secretary Review
+            {% elif request.user.profile.approval_role.code == "COMMISSIONER_EDUCATION" %}
+            Commissioner for Education Review
             {% else %}
             Director Review
             {% endif %}
@@ -312,6 +324,9 @@
                 <span class="badge badge-pending">{{ req.display_status|default:req.get_status_display }}</span>
                 {% endif %}
             </p>
+            {% if req.executive_approval_stage %}
+            <p><strong>Executive approval stage:</strong> {{ req.display_status }}</p>
+            {% endif %}
 
             <p><strong>Requester:</strong> {{ req.requester_name }}{% if req.requester_employee_id %} ({{ req.requester_employee_id }}){% endif %}</p>
             <p><strong>Unit:</strong> {{ req.requester.profile.get_unit_name_display|default:"Not assigned" }}</p>

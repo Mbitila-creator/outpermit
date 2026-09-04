@@ -11,8 +11,142 @@ from finance.views import get_user_role as get_finance_role
 from tasks.views import _get_user_role as get_task_role
 
 from .forms import AdminUserUpdateForm
-from .models import Department, ExternalWorkRequest, GroupMember, ModuleRoleAssignment
+from .models import (
+    ApprovalRole,
+    Department,
+    DepartmentUnit,
+    ExternalWorkRequest,
+    GroupMember,
+    ModuleRoleAssignment,
+)
 from .module_roles import set_module_roles
+from .views import _advance_executive_approval, _apply_permit_workflow_routing
+
+
+class ExecutivePermitApprovalRoutingTests(TestCase):
+    def setUp(self):
+        self.director_role, _ = ApprovalRole.objects.update_or_create(
+            code="DIRECTOR", defaults={"name": "Director"}
+        )
+        self.dps_hes_role, _ = ApprovalRole.objects.update_or_create(
+            code="DPS_HES", defaults={"name": "DPS HES"}
+        )
+        self.dps_be_role, _ = ApprovalRole.objects.update_or_create(
+            code="DPS_BE", defaults={"name": "DPS BE"}
+        )
+        self.ps_role, _ = ApprovalRole.objects.update_or_create(
+            code="PERMANENT_SECRETARY", defaults={"name": "Permanent Secretary"}
+        )
+        self.commissioner_role, _ = ApprovalRole.objects.update_or_create(
+            code="COMMISSIONER_EDUCATION",
+            defaults={"name": "Commissioner for Education"},
+        )
+        self.dps_hes = self._user("dps-hes", self.dps_hes_role)
+        self.dps_be = self._user("dps-be", self.dps_be_role)
+        self.ps = self._user("ps", self.ps_role)
+        self.commissioner = self._user(
+            "commissioner", self.commissioner_role
+        )
+
+    def _user(self, username, role, department=None, unit=None):
+        user = User.objects.create_user(username=username)
+        user.profile.role = role.code
+        user.profile.approval_role = role
+        user.profile.department = department
+        user.profile.department_unit = unit
+        user.profile.save()
+        return user
+
+    def _request(self, requester):
+        now = timezone.now()
+        return ExternalWorkRequest(
+            requester=requester,
+            purpose="Official duty",
+            destination="Dodoma",
+            start_time=now + timedelta(days=1),
+            end_time=now + timedelta(days=2),
+        )
+
+    def test_hes_director_routes_through_dps_hes_then_ps(self):
+        department, _ = Department.objects.update_or_create(
+            code="DSTI", defaults={"name": "Science"}
+        )
+        director = self._user("dsti-director", self.director_role, department)
+
+        req = _apply_permit_workflow_routing(
+            self._request(director), director.profile
+        )
+        self.assertEqual(req.executive_approval_chain, ["DPS_HES", "PERMANENT_SECRETARY"])
+        self.assertEqual(req.director, self.dps_hes)
+        req.save()
+
+        advanced, next_label = _advance_executive_approval(req, self.dps_hes)
+        self.assertTrue(advanced)
+        self.assertEqual(next_label, "Permanent Secretary")
+        self.assertEqual(req.status, "PENDING_DIRECTOR")
+        self.assertEqual(req.director, self.ps)
+
+        advanced, next_label = _advance_executive_approval(req, self.ps)
+        self.assertTrue(advanced)
+        self.assertEqual(next_label, "")
+        self.assertEqual(req.status, "APPROVED")
+        self.assertEqual(req.director_approved_by, self.ps)
+        self.assertEqual(len(req.executive_approval_history), 2)
+
+    def test_direct_unit_director_routes_straight_to_ps(self):
+        department, _ = Department.objects.update_or_create(
+            code="FAU", defaults={"name": "Finance"}
+        )
+        director = self._user("fau-director", self.director_role, department)
+        req = _apply_permit_workflow_routing(
+            self._request(director), director.profile
+        )
+        self.assertEqual(req.executive_approval_chain, ["PERMANENT_SECRETARY"])
+        self.assertEqual(req.director, self.ps)
+
+    def test_bed_director_ends_at_commissioner(self):
+        department, _ = Department.objects.update_or_create(
+            code="COE", defaults={"name": "Office for Commissioner of Education"}
+        )
+        bed, _ = DepartmentUnit.objects.update_or_create(
+            department=department,
+            code="BED",
+            defaults={"name": "Basic Education Division"},
+        )
+        director = self._user(
+            "bed-director", self.director_role, department, bed
+        )
+        req = _apply_permit_workflow_routing(
+            self._request(director), director.profile
+        )
+        self.assertEqual(req.executive_approval_chain, ["COMMISSIONER_EDUCATION"])
+        self.assertEqual(req.director, self.commissioner)
+        req.save()
+        _advance_executive_approval(req, self.commissioner)
+        self.assertEqual(req.status, "APPROVED")
+
+    def test_commissioner_routes_through_dps_be_then_ps(self):
+        department, _ = Department.objects.update_or_create(
+            code="COE", defaults={"name": "Office for Commissioner of Education"}
+        )
+        self.commissioner.profile.department = department
+        self.commissioner.profile.save()
+        req = _apply_permit_workflow_routing(
+            self._request(self.commissioner), self.commissioner.profile
+        )
+        self.assertEqual(req.executive_approval_chain, ["DPS_BE", "PERMANENT_SECRETARY"])
+        self.assertEqual(req.director, self.dps_be)
+
+    def test_sqad_director_routes_through_dps_be_then_ps(self):
+        department, _ = Department.objects.update_or_create(
+            code="SQAD", defaults={"name": "Quality"}
+        )
+        director = self._user("sqad-director", self.director_role, department)
+        req = _apply_permit_workflow_routing(
+            self._request(director), director.profile
+        )
+        self.assertEqual(req.executive_approval_chain, ["DPS_BE", "PERMANENT_SECRETARY"])
+        self.assertEqual(req.director, self.dps_be)
 
 
 class ModuleRoleAssignmentTests(TestCase):

@@ -276,7 +276,7 @@
 
     <div class="card">
 
-        <h2>Permit Review</h2>
+        <h2>Permit Approval Review</h2>
         <div class="subtitle">Welcome, {{ welcome_name }}</div>
 
         <div class="stats">
@@ -290,7 +290,7 @@
 
             <a href="{% url 'director_requests' %}?{% if admin_scope_query %}{{ admin_scope_query }}&amp;{% endif %}status=PENDING_DIRECTOR">
                 <div class="stat-box pending">
-                    <h3>Pending Director</h3>
+                    <h3>Pending Approval</h3>
                     <div class="number">{{ pending_director_count|default:0 }}</div>
                 </div>
             </a>

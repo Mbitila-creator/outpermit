@@ -438,8 +438,8 @@ class DirectorDecisionForm(forms.ModelForm):
             ("RETURNED_DIRECTOR", "Return for Correction"),
             ("REJECTED_DIRECTOR", "Reject Request"),
         ]
-        self.fields["status"].label = "Director Decision"
-        self.fields["director_comment"].label = "Director Comment"
+        self.fields["status"].label = "Decision"
+        self.fields["director_comment"].label = "Decision Comment"
 
     def clean(self):
         cleaned_data = super().clean()

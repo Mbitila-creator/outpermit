@@ -59,6 +59,26 @@ TANZANIA_TIMEZONE = ZoneInfo(
     "Africa/Dar_es_Salaam"
 )
 
+EXECUTIVE_APPROVER_ROLES = {
+    "PERMANENT_SECRETARY",
+    "DPS_HES",
+    "DPS_BE",
+    "COMMISSIONER_EDUCATION",
+}
+DIRECT_TO_PS_DEPARTMENTS = {
+    "FAU", "AHRM", "GCU", "IAU", "ICTU", "LSU", "PMU", "DPP", "MEU",
+}
+HES_DEPARTMENTS = {"HED", "DSTI", "DTVET"}
+BASIC_EDUCATION_EXECUTIVE_DEPARTMENTS = {"COE", "SQAD"}
+COMMISSIONER_DIRECTOR_UNITS = {"BED", "SNEU"}
+
+EXECUTIVE_ROLE_LABELS = {
+    "PERMANENT_SECRETARY": "Permanent Secretary",
+    "DPS_HES": "Deputy Permanent Secretary - Higher Education and Science",
+    "DPS_BE": "Deputy Permanent Secretary - Basic Education",
+    "COMMISSIONER_EDUCATION": "Commissioner for Education",
+}
+
 
 # ---------------------------------------------------------------------
 # Helper functions
@@ -202,6 +222,10 @@ def _get_approval_role_from_role_code(role_code):
             "DIVISION_BUDGET_OFFICER"
         ),
         "ACCOUNTANT": "ACCOUNTANT",
+        "PERMANENT_SECRETARY": "PERMANENT_SECRETARY",
+        "DPS_HES": "DPS_HES",
+        "DPS_BE": "DPS_BE",
+        "COMMISSIONER_EDUCATION": "COMMISSIONER_EDUCATION",
     }
 
     target_code = role_map.get(
@@ -243,7 +267,7 @@ def _director_level_allowed(user):
         "ADMIN",
         "DIRECTOR",
         "ASSISTANT_DIRECTOR",
-    ]
+    ] or _get_user_role(user) in EXECUTIVE_APPROVER_ROLES
 
 
 def _director_scope_queryset(user, qs):
@@ -258,6 +282,9 @@ def _director_scope_queryset(user, qs):
 
     if role == "ADMIN":
         return qs
+
+    if role in EXECUTIVE_APPROVER_ROLES:
+        return qs.filter(director=user)
 
     if role not in [
         "DIRECTOR",
@@ -313,6 +340,9 @@ def _director_can_access_request(user, req):
 
     if role == "ADMIN":
         return True
+
+    if role in EXECUTIVE_APPROVER_ROLES:
+        return req.director_id == user.id
 
     if role not in [
         "DIRECTOR",
@@ -509,6 +539,10 @@ def _resolve_display_status(req, context="detail"):
         return "Under Head of Unit Review"
 
     if raw_status == "PENDING_DIRECTOR":
+        executive_stage = getattr(req, "executive_approval_stage", "")
+        if executive_stage:
+            return f"Under {EXECUTIVE_ROLE_LABELS.get(executive_stage, executive_stage)} Review"
+
         assigned_approver = getattr(req, "director", None)
 
         if (
@@ -1208,13 +1242,21 @@ def _apply_permit_workflow_routing(req, profile):
         department=profile.department
     )
 
-    # A Director's own request cannot be routed back to the same user.
+    # Only a Director's own request escalates beyond the established
+    # departmental chain. Requests from every other officer continue to end
+    # at their respective Director.
     if requester_role == "DIRECTOR":
-        req.director = assistant_director
-        if not req.director:
-            req.director = department_director
-        req.status = "PENDING_DIRECTOR"
-        return req
+        chain = _executive_chain_for_director(profile)
+        if chain:
+            return _assign_executive_chain(req, chain)
+
+    # The Commissioner is the final approver for BED/SNEU Directors, but the
+    # Commissioner's own request proceeds through DPS-BE to the PS.
+    if requester_role == "COMMISSIONER_EDUCATION":
+        return _assign_executive_chain(
+            req,
+            ["DPS_BE", "PERMANENT_SECRETARY"],
+        )
 
     # An Assistant Director's own request goes to the final Director.
     if requester_role == "ASSISTANT_DIRECTOR":
@@ -1248,6 +1290,81 @@ def _apply_permit_workflow_routing(req, profile):
     return req
 
 
+def _executive_chain_for_director(profile):
+    department_code = str(getattr(profile.department, "code", "") or "").upper()
+    unit_code = str(getattr(profile.department_unit, "code", "") or "").upper()
+
+    if department_code == "COE" and unit_code in COMMISSIONER_DIRECTOR_UNITS:
+        return ["COMMISSIONER_EDUCATION"]
+    if department_code in DIRECT_TO_PS_DEPARTMENTS:
+        return ["PERMANENT_SECRETARY"]
+    if department_code in HES_DEPARTMENTS:
+        return ["DPS_HES", "PERMANENT_SECRETARY"]
+    if department_code in BASIC_EDUCATION_EXECUTIVE_DEPARTMENTS:
+        return ["DPS_BE", "PERMANENT_SECRETARY"]
+    return []
+
+
+def _get_executive_approver(role_code, exclude_user=None):
+    queryset = UserProfile.objects.filter(
+        user__is_active=True,
+    ).filter(
+        Q(approval_role__code=role_code) | Q(role=role_code)
+    ).select_related("user").order_by("user__username")
+    if exclude_user:
+        queryset = queryset.exclude(user=exclude_user)
+    profile = queryset.first()
+    return profile.user if profile else None
+
+
+def _assign_executive_chain(req, chain):
+    req.executive_approval_chain = list(chain)
+    req.executive_approval_history = []
+    req.executive_approval_stage = chain[0]
+    req.director = _get_executive_approver(chain[0], exclude_user=req.requester)
+    req.status = "PENDING_DIRECTOR"
+    return req
+
+
+def _advance_executive_approval(req, approver, comment=""):
+    """Record one executive approval and assign the next configured stage."""
+    current_stage = req.executive_approval_stage
+    history = list(req.executive_approval_history or [])
+    history.append({
+        "role": current_stage,
+        "approver_id": approver.pk,
+        "approver": approver.get_full_name().strip() or approver.username,
+        "comment": (comment or "").strip(),
+        "approved_at": timezone.now().isoformat(),
+    })
+    req.executive_approval_history = history
+
+    chain = list(req.executive_approval_chain or [])
+    try:
+        next_stage = chain[chain.index(current_stage) + 1]
+    except (ValueError, IndexError):
+        next_stage = ""
+
+    if next_stage:
+        next_approver = _get_executive_approver(next_stage, exclude_user=req.requester)
+        if not next_approver:
+            return False, EXECUTIVE_ROLE_LABELS.get(next_stage, next_stage)
+        req.executive_approval_stage = next_stage
+        req.director = next_approver
+        req.director_comment = ""
+        req.status = "PENDING_DIRECTOR"
+        req.save()
+        notify_director(req)
+        return True, EXECUTIVE_ROLE_LABELS.get(next_stage, next_stage)
+
+    req.executive_approval_stage = ""
+    req.status = "APPROVED"
+    req.director_approved_by = approver
+    req.director_approved_at = timezone.now()
+    req.save()
+    return True, ""
+
+
 def notify_user_email(user, subject, message):
     return notify_user(
         user=user,
@@ -1267,9 +1384,13 @@ def notify_head_of_unit(req):
 
 def notify_director(req):
     if req.director:
+        stage_label = EXECUTIVE_ROLE_LABELS.get(
+            req.executive_approval_stage,
+            "Director",
+        )
         notify_user_email(
             req.director,
-            "Permit Request Awaiting Director Approval",
+            f"Permit Request Awaiting {stage_label} Approval",
             f"Permit request {req.reference_no} is waiting for your approval."
         )
 
@@ -1290,9 +1411,7 @@ def require_role(*roles):
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
-            user_role = _get_profile(request.user).role if request.user.is_authenticated else None
-
-            print("DEBUG ROLE:", request.user.username, "|", user_role, "| allowed:", roles)
+            user_role = _get_user_role(request.user) if request.user.is_authenticated else None
 
             if request.user.is_superuser or user_role in roles:
                 return view_func(request, *args, **kwargs)
@@ -1461,7 +1580,7 @@ def role_redirect(request):
     if role in [
         "DIRECTOR",
         "ASSISTANT_DIRECTOR",
-    ]:
+    ] or role in EXECUTIVE_APPROVER_ROLES:
         return redirect("director_dashboard")
 
     return redirect("requester_dashboard")
@@ -1657,7 +1776,7 @@ def system_home(request):
         "is_director_level": role in [
             "DIRECTOR",
             "ASSISTANT_DIRECTOR",
-        ],
+        ] or role in EXECUTIVE_APPROVER_ROLES,
     }
 
     return render(
@@ -2100,7 +2219,10 @@ def change_my_password(request):
 # ---------------------------------------------------------------------
 
 @login_required
-@require_role('DIRECTOR')
+@require_role(
+    "DIRECTOR", "ASSISTANT_DIRECTOR", "PERMANENT_SECRETARY", "DPS_HES", "DPS_BE",
+    "COMMISSIONER_EDUCATION",
+)
 def director_dashboard(request):
     """
     Director Dashboard - Accessible only to users with DIRECTOR role.
@@ -2405,6 +2527,23 @@ def create_request(request):
 
             req = _apply_permit_workflow_routing(req, profile)
 
+            if req.status == "PENDING_DIRECTOR" and not req.director:
+                stage_label = EXECUTIVE_ROLE_LABELS.get(
+                    req.executive_approval_stage,
+                    "Director",
+                )
+                form.add_error(
+                    None,
+                    f"No active {stage_label} is assigned. Please ask the administrator to configure the approver before submitting.",
+                )
+                context = {
+                    "form": form,
+                    "formset": formset,
+                    "blocking_request": None,
+                }
+                context.update(_requester_org_context(profile))
+                return render(request, "permits/request_form.html", context)
+
             if req.is_group_request:
                 formset = GroupMemberFormSet(request.POST, instance=req)
                 if not formset.is_valid():
@@ -2628,6 +2767,16 @@ def resubmit_request(request, pk):
             return redirect("requester_dashboard")
 
         req = _apply_permit_workflow_routing(req, profile)
+        if req.status == "PENDING_DIRECTOR" and not req.director:
+            stage_label = EXECUTIVE_ROLE_LABELS.get(
+                req.executive_approval_stage,
+                "Director",
+            )
+            messages.error(
+                request,
+                f"No active {stage_label} is assigned. Please ask the administrator to configure the approver before re-submitting.",
+            )
+            return redirect("submission_status", pk=req.pk)
         req.resubmitted_at = timezone.now()
 
         req.save()
@@ -3373,6 +3522,10 @@ def head_of_unit_request_detail(request, pk):
     "ADMIN",
     "DIRECTOR",
     "ASSISTANT_DIRECTOR",
+    "PERMANENT_SECRETARY",
+    "DPS_HES",
+    "DPS_BE",
+    "COMMISSIONER_EDUCATION",
 )
 def director_requests(request):
     """
@@ -3497,6 +3650,10 @@ def director_requests(request):
 @require_role(
     "DIRECTOR",
     "ASSISTANT_DIRECTOR",
+    "PERMANENT_SECRETARY",
+    "DPS_HES",
+    "DPS_BE",
+    "COMMISSIONER_EDUCATION",
 )
 def director_request_detail(request, pk):
     """
@@ -3632,6 +3789,37 @@ def director_request_detail(request, pk):
                     request,
                     "Request approved and forwarded to the Director."
                 )
+                return redirect("director_requests")
+
+            if role in EXECUTIVE_APPROVER_ROLES and req.status == "APPROVED":
+                advanced, next_label = _advance_executive_approval(
+                    req,
+                    request.user,
+                    req.director_comment,
+                )
+                if not advanced:
+                    form.add_error(
+                        None,
+                        f"No active {next_label} is assigned. Please ask the administrator to assign that role.",
+                    )
+                    req.status = "PENDING_DIRECTOR"
+                    _attach_display_status(req, context="detail")
+                    return render(
+                        request,
+                        "permits/director_request_detail.html",
+                        {
+                            "req": req,
+                            "form": form,
+                            "can_take_director_action": can_take_director_action,
+                            "is_view_only": is_view_only,
+                        },
+                    )
+                if next_label:
+                    notify_requester(req, f"approved and forwarded to the {next_label}")
+                    messages.success(request, f"Request approved and forwarded to the {next_label}.")
+                else:
+                    notify_requester(req, "finally approved")
+                    messages.success(request, "Request approved successfully.")
                 return redirect("director_requests")
 
             if req.status == "RETURNED_DIRECTOR":

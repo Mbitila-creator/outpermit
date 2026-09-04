@@ -188,6 +188,17 @@ class ExternalWorkRequest(models.Model):
         related_name="director_requests"
     )
 
+    # Director-level requests may continue through an executive chain.
+    # The existing ``director`` field remains the current assigned approver,
+    # which preserves the established queues and database relationships.
+    executive_approval_stage = models.CharField(
+        max_length=40,
+        blank=True,
+        db_index=True,
+    )
+    executive_approval_chain = models.JSONField(default=list, blank=True)
+    executive_approval_history = models.JSONField(default=list, blank=True)
+
     status = models.CharField(
         max_length=30,
         choices=STATUS_CHOICES,
@@ -362,6 +373,10 @@ class UserProfile(models.Model):
         ("REGISTRATION_OFFICER", "Event Registration Officer"),
         ("ATTENDANCE_OFFICER", "Event Attendance Officer"),
         ("REPORT_OFFICER", "Event Reports Officer"),
+        ("PERMANENT_SECRETARY", "Permanent Secretary"),
+        ("DPS_HES", "Deputy Permanent Secretary - Higher Education and Science"),
+        ("DPS_BE", "Deputy Permanent Secretary - Basic Education"),
+        ("COMMISSIONER_EDUCATION", "Commissioner for Education"),
     ]
 
     UNIT_CHOICES = [

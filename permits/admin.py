@@ -66,6 +66,8 @@ class ExternalWorkRequestAdmin(admin.ModelAdmin):
         "director_approved_at",
         "rejected_at",
         "returned_at",
+        "executive_approval_chain",
+        "executive_approval_history",
     )
 
     inlines = [GroupMemberInline]
@@ -103,6 +105,8 @@ class ExternalWorkRequestAdmin(admin.ModelAdmin):
         ("Workflow Status", {
             "fields": (
                 "status",
+                "executive_approval_stage",
+                "executive_approval_chain",
                 "hou_comment",
                 "director_comment",
             )
@@ -142,6 +146,7 @@ class ExternalWorkRequestAdmin(admin.ModelAdmin):
                 "created_at",
                 "updated_at",
                 "returned_at",
+                "executive_approval_history",
                 "resubmitted_at",
             )
         }),
