@@ -5,7 +5,12 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from permits.models import ApprovalRole, Department, DepartmentUnit
+from permits.models import (
+    ApprovalRole,
+    Department,
+    DepartmentUnit,
+    ModuleRoleAssignment,
+)
 
 from .forms import TaskCreateForm
 from .models import Task, TaskAssignment
@@ -39,6 +44,9 @@ class ExecutiveTaskAccessTests(TestCase):
         )
         self.fau, _ = Department.objects.update_or_create(
             code="FAU", defaults={"name": "Finance and Accounting Unit"}
+        )
+        self.dsti, _ = Department.objects.update_or_create(
+            code="DSTI", defaults={"name": "Science Technology and Innovation"}
         )
         self.bed, _ = DepartmentUnit.objects.update_or_create(
             department=self.coe,
@@ -96,6 +104,29 @@ class ExecutiveTaskAccessTests(TestCase):
         self.assertIn(self.commissioner.pk, dpse_ids)
         self.assertIn(self.sqad_director.pk, dpse_ids)
         self.assertNotIn(self.hed_director.pk, dpse_ids)
+
+    def test_dps_hes_recognizes_existing_dsti_task_leadership_roles(self):
+        dsti_director = self._user(
+            "dsti-special-director", "REQUESTER", self.dsti
+        )
+        dsti_assistant = self._user("adsti", "REQUESTER", self.dsti)
+        ModuleRoleAssignment.objects.create(
+            user=dsti_director,
+            module=ModuleRoleAssignment.Module.TASK,
+            role_code="DIRECTOR",
+            department=self.dsti,
+        )
+        ModuleRoleAssignment.objects.create(
+            user=dsti_assistant,
+            module=ModuleRoleAssignment.Module.TASK,
+            role_code="ASSISTANT_DIRECTOR",
+            department=self.dsti,
+        )
+
+        ids = self._assignee_ids(self.dpss)
+
+        self.assertIn(dsti_director.pk, ids)
+        self.assertIn(dsti_assistant.pk, ids)
 
     def test_commissioner_can_assign_only_coe_leadership(self):
         ids = self._assignee_ids(self.commissioner)

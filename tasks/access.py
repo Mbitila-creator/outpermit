@@ -21,6 +21,27 @@ MANAGED_LEADERSHIP_ROLES = {
     "HEAD_OF_UNIT",
 }
 
+DSTI_LEGACY_ASSISTANT_USERNAMES = {"adsti", "adrd"}
+
+
+def _leadership_query():
+    """Recognize primary, approval and Task-module leadership roles."""
+    return (
+        Q(profile__approval_role__code__in=MANAGED_LEADERSHIP_ROLES)
+        | Q(profile__role__in=MANAGED_LEADERSHIP_ROLES)
+        | Q(
+            module_role_assignments__module="TASK",
+            module_role_assignments__role_code__in=MANAGED_LEADERSHIP_ROLES,
+            module_role_assignments__is_active=True,
+        )
+        # Compatibility for the established DSTI-wide Assistant Director
+        # accounts; their existing organizational structure is untouched.
+        | Q(
+            profile__department__code="DSTI",
+            username__in=DSTI_LEGACY_ASSISTANT_USERNAMES,
+        )
+    )
+
 
 def profile_role_code(profile):
     approval_role = getattr(profile, "approval_role", None)
@@ -38,14 +59,12 @@ def executive_department_codes(role_code):
 
 def executive_assignee_queryset(role_code):
     role_code = str(role_code or "").strip().upper()
-    users = User.objects.filter(is_active=True).filter(
-        Q(profile__approval_role__code__in=MANAGED_LEADERSHIP_ROLES)
-        | Q(profile__role__in=MANAGED_LEADERSHIP_ROLES)
-    )
+    users = User.objects.filter(is_active=True).filter(_leadership_query())
 
     if role_code == "PERMANENT_SECRETARY":
         users = User.objects.filter(is_active=True).filter(
-            Q(profile__approval_role__code__in=(
+            _leadership_query()
+            | Q(profile__approval_role__code__in=(
                 MANAGED_LEADERSHIP_ROLES
                 | {"DPS_HES", "DPS_BE", "COMMISSIONER_EDUCATION"}
             ))
@@ -56,7 +75,14 @@ def executive_assignee_queryset(role_code):
         )
     else:
         department_codes = executive_department_codes(role_code)
-        users = users.filter(profile__department__code__in=department_codes)
+        users = users.filter(
+            Q(profile__department__code__in=department_codes)
+            | Q(
+                module_role_assignments__module="TASK",
+                module_role_assignments__department__code__in=department_codes,
+                module_role_assignments__is_active=True,
+            )
+        )
         if role_code == "DPS_BE":
             users = users | User.objects.filter(
                 is_active=True,
