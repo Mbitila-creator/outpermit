@@ -178,6 +178,85 @@ class ExecutivePermitApprovalRoutingTests(TestCase):
         pdf = self.client.get(reverse("export_permit_reports_pdf"))
         self.assertEqual(pdf.status_code, 200)
 
+    def test_executive_organization_filters_include_scoped_hierarchy(self):
+        dsti, _ = Department.objects.update_or_create(
+            code="DSTI", defaults={"name": "Science and Technology Division"}
+        )
+        sqad, _ = Department.objects.update_or_create(
+            code="SQAD", defaults={"name": "Schools Quality Assurance Division"}
+        )
+        coe, _ = Department.objects.update_or_create(
+            code="COE", defaults={"name": "Office for Commissioner of Education"}
+        )
+        dsti_unit, _ = DepartmentUnit.objects.update_or_create(
+            department=dsti,
+            code="DTSU",
+            defaults={"name": "Digital Technologies Unit", "parent": None},
+        )
+        bed, _ = DepartmentUnit.objects.update_or_create(
+            department=coe,
+            code="BED",
+            defaults={"name": "Basic Education Division", "parent": None},
+        )
+        bed_section, _ = DepartmentUnit.objects.update_or_create(
+            department=coe,
+            code="BEPDS",
+            defaults={
+                "name": "Basic Education Policy Development Section",
+                "parent": bed,
+            },
+        )
+        sqad_section, _ = DepartmentUnit.objects.update_or_create(
+            department=sqad,
+            code="SSQAS",
+            defaults={
+                "name": "Secondary School Quality Assurance Section",
+                "parent": None,
+            },
+        )
+
+        section_staff = self._user(
+            "bed-section-staff", self.director_role, coe, bed_section
+        )
+        permit_request = self._request(section_staff)
+        permit_request.status = "APPROVED"
+        permit_request.save()
+
+        def option_values(official):
+            self.client.force_login(official)
+            response = self.client.get(reverse("permit_reports"))
+            self.assertEqual(response.status_code, 200)
+            return {
+                option["value"] for option in response.context["unit_options"]
+            }
+
+        ps_values = option_values(self.ps)
+        self.assertIn(f"unit:{dsti_unit.pk}", ps_values)
+        self.assertIn(f"unit:{bed_section.pk}", ps_values)
+        self.assertIn(f"unit:{sqad_section.pk}", ps_values)
+
+        dps_hes_values = option_values(self.dps_hes)
+        self.assertIn(f"department:{dsti.pk}", dps_hes_values)
+        self.assertIn(f"unit:{dsti_unit.pk}", dps_hes_values)
+        self.assertNotIn(f"unit:{bed_section.pk}", dps_hes_values)
+        self.assertNotIn(f"unit:{sqad_section.pk}", dps_hes_values)
+
+        dps_be_values = option_values(self.dps_be)
+        self.assertIn(f"unit:{bed_section.pk}", dps_be_values)
+        self.assertIn(f"unit:{sqad_section.pk}", dps_be_values)
+        self.assertNotIn(f"unit:{dsti_unit.pk}", dps_be_values)
+
+        commissioner_values = option_values(self.commissioner)
+        self.assertIn(f"unit:{bed.pk}", commissioner_values)
+        self.assertIn(f"unit:{bed_section.pk}", commissioner_values)
+        self.assertNotIn(f"unit:{sqad_section.pk}", commissioner_values)
+
+        self.client.force_login(self.commissioner)
+        filtered = self.client.get(
+            reverse("permit_reports"), {"unit": f"unit:{bed.pk}"}
+        )
+        self.assertEqual(filtered.context["total_requests"], 1)
+
     def test_direct_unit_director_routes_straight_to_ps(self):
         department, _ = Department.objects.update_or_create(
             code="FAU", defaults={"name": "Finance"}

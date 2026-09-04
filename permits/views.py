@@ -40,7 +40,14 @@ from core.notifications import notify_user
 from core.audit import log_action
 from forms_builder.services import generate_qr_png
 
-from .models import Department, ExternalWorkRequest, UserProfile, GroupMember, ModuleRoleAssignment
+from .models import (
+    Department,
+    DepartmentUnit,
+    ExternalWorkRequest,
+    UserProfile,
+    GroupMember,
+    ModuleRoleAssignment,
+)
 from .module_roles import set_module_roles
 from .forms import (
     LoginForm,
@@ -1594,12 +1601,74 @@ def _apply_permit_report_filters(qs, request):
         qs = qs.filter(status=status)
 
     if unit:
-        qs = qs.filter(requester__profile__unit_name=unit)
+        qs = _filter_permits_by_organization(qs, unit)
 
     if requester_id:
         qs = qs.filter(requester_id=requester_id)
 
     return qs
+
+
+def _department_unit_family_ids(unit_id):
+    """Return a unit and every nested section beneath it."""
+    family_ids = {unit_id}
+    parent_ids = {unit_id}
+    while parent_ids:
+        child_ids = set(
+            DepartmentUnit.objects.filter(
+                parent_id__in=parent_ids,
+                is_active=True,
+            ).values_list("pk", flat=True)
+        ) - family_ids
+        family_ids.update(child_ids)
+        parent_ids = child_ids
+    return family_ids
+
+
+def _filter_permits_by_organization(queryset, selector):
+    if selector.startswith("department:"):
+        department_id = selector.partition(":")[2]
+        if department_id.isdigit():
+            return queryset.filter(
+                requester__profile__department_id=department_id
+            )
+        return queryset.none()
+
+    if selector.startswith("unit:"):
+        unit_id = selector.partition(":")[2]
+        if unit_id.isdigit():
+            return queryset.filter(
+                requester__profile__department_unit_id__in=(
+                    _department_unit_family_ids(int(unit_id))
+                )
+            )
+        return queryset.none()
+
+    legacy_value = selector.partition(":")[2] if selector.startswith("legacy:") else selector
+    return queryset.filter(requester__profile__unit_name=legacy_value)
+
+
+def _filter_workers_by_organization(queryset, selector):
+    if selector.startswith("department:"):
+        department_id = selector.partition(":")[2]
+        return (
+            queryset.filter(profile__department_id=department_id)
+            if department_id.isdigit() else queryset.none()
+        )
+
+    if selector.startswith("unit:"):
+        unit_id = selector.partition(":")[2]
+        return (
+            queryset.filter(
+                profile__department_unit_id__in=(
+                    _department_unit_family_ids(int(unit_id))
+                )
+            )
+            if unit_id.isdigit() else queryset.none()
+        )
+
+    legacy_value = selector.partition(":")[2] if selector.startswith("legacy:") else selector
+    return queryset.filter(profile__unit_name=legacy_value)
 
 @login_required
 def role_redirect(request):
@@ -4097,9 +4166,9 @@ def _build_workforce_report_rows(
     selected_unit = request.GET.get("unit", "").strip()
     selected_requester = request.GET.get("requester", "").strip()
     if selected_unit:
-        workers = workers.filter(profile__unit_name=selected_unit)
-        permit_queryset = permit_queryset.filter(
-            requester__profile__unit_name=selected_unit
+        workers = _filter_workers_by_organization(workers, selected_unit)
+        permit_queryset = _filter_permits_by_organization(
+            permit_queryset, selected_unit
         )
     if selected_requester:
         workers = workers.filter(pk=selected_requester)
@@ -4143,6 +4212,80 @@ def _build_workforce_report_rows(
         else:
             at_work_rows.append(row)
     return at_work_rows, active_permission_rows
+
+
+def _report_organization_options(
+    role, profile, scoped_department=None, scoped_unit=None
+):
+    """Build a hierarchy-aware organization filter for permit reports."""
+    departments = Department.objects.filter(is_active=True)
+    if role == "ADMIN" and scoped_department:
+        departments = departments.filter(pk=scoped_department.pk)
+    elif role in {"DIRECTOR", "ASSISTANT_DIRECTOR"}:
+        departments = departments.filter(pk=profile.department_id)
+    elif role in EXECUTIVE_APPROVER_ROLES:
+        department_codes = _executive_report_department_codes(role)
+        if department_codes is not None:
+            departments = departments.filter(code__in=department_codes)
+
+    departments = list(departments.order_by("code"))
+    department_ids = [department.pk for department in departments]
+    units = list(
+        DepartmentUnit.objects.filter(
+            is_active=True,
+            department_id__in=department_ids,
+        ).select_related("department", "parent").order_by("code")
+    )
+    if scoped_unit:
+        permitted_unit_ids = _department_unit_family_ids(scoped_unit.pk)
+        units = [unit for unit in units if unit.pk in permitted_unit_ids]
+
+    children_by_parent = {}
+    for unit in units:
+        children_by_parent.setdefault(unit.parent_id, []).append(unit)
+
+    options = []
+
+    def append_unit(unit, depth=0):
+        options.append({
+            "value": f"unit:{unit.pk}",
+            "label": f"{'— ' * depth}{unit.code} — {unit.name}",
+        })
+        for child in children_by_parent.get(unit.pk, []):
+            append_unit(child, depth + 1)
+
+    for department in departments:
+        if not scoped_unit:
+            options.append({
+                "value": f"department:{department.pk}",
+                "label": f"{department.code} — {department.name}",
+            })
+            for unit in children_by_parent.get(None, []):
+                if unit.department_id == department.pk:
+                    append_unit(unit, 1)
+        elif scoped_unit.department_id == department.pk:
+            append_unit(scoped_unit)
+
+    legacy_profiles = UserProfile.objects.filter(
+        department_id__in=department_ids,
+    ).exclude(unit_name__isnull=True).exclude(unit_name="")
+    if scoped_unit:
+        legacy_profiles = legacy_profiles.filter(department_unit=scoped_unit)
+    legacy_values = legacy_profiles.values_list(
+        "unit_name", flat=True
+    ).distinct().order_by("unit_name")
+    represented_names = {
+        value.casefold()
+        for unit in units
+        for value in (unit.code, unit.name)
+    }
+    for legacy_value in legacy_values:
+        if legacy_value.casefold() not in represented_names:
+            options.append({
+                "value": f"legacy:{legacy_value}",
+                "label": legacy_value,
+            })
+    return options
 
 @login_required
 @require_role(
@@ -4321,23 +4464,15 @@ def permit_reports(request):
         *EXECUTIVE_APPROVER_ROLES,
     }
 
-    unit_profiles = (
-        UserProfile.objects
-        .exclude(unit_name__isnull=True)
-        .exclude(unit_name="")
-    )
-
     requester_options = User.objects.filter(
         work_requests__isnull=False
     )
 
     if role == "ADMIN" and scoped_department:
-        unit_profiles = unit_profiles.filter(department=scoped_department)
         requester_options = requester_options.filter(
             profile__department=scoped_department
         )
         if scoped_unit:
-            unit_profiles = unit_profiles.filter(department_unit=scoped_unit)
             requester_options = requester_options.filter(
                 profile__department_unit=scoped_unit
             )
@@ -4347,50 +4482,36 @@ def permit_reports(request):
         "ASSISTANT_DIRECTOR",
     ]:
         if profile.department_id:
-            unit_profiles = unit_profiles.filter(
-                department_id=profile.department_id
-            )
             requester_options = requester_options.filter(
                 profile__department_id=profile.department_id
             )
         else:
-            unit_profiles = unit_profiles.none()
             requester_options = requester_options.none()
 
     elif role in EXECUTIVE_APPROVER_ROLES:
         department_codes = _executive_report_department_codes(role)
         if department_codes is not None:
-            unit_profiles = unit_profiles.filter(
-                department__code__in=department_codes
-            )
             requester_options = requester_options.filter(
                 profile__department__code__in=department_codes
             )
 
     elif role == "HEAD_OF_UNIT":
         if profile.department_unit_id:
-            unit_profiles = unit_profiles.filter(
-                department_unit_id=profile.department_unit_id
-            )
             requester_options = requester_options.filter(
                 profile__department_unit_id=profile.department_unit_id
             )
         elif profile.unit_name:
-            unit_profiles = unit_profiles.filter(
-                unit_name=profile.unit_name
-            )
             requester_options = requester_options.filter(
                 profile__unit_name=profile.unit_name
             )
         else:
-            unit_profiles = unit_profiles.none()
             requester_options = requester_options.none()
 
-    unit_options = (
-        unit_profiles
-        .values_list("unit_name", flat=True)
-        .distinct()
-        .order_by("unit_name")
+    unit_options = _report_organization_options(
+        role,
+        profile,
+        scoped_department=scoped_department,
+        scoped_unit=scoped_unit,
     )
 
     requester_options = (

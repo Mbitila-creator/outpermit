@@ -387,12 +387,12 @@
         
                 {% if is_director_level %}
                 <div class="filter-group">
-                    <label>Unit</label>
+                    <label>Organizational area</label>
                     <select name="unit">
-                        <option value="">All Units</option>
+                        <option value="">All divisions, units and sections</option>
                         {% for unit in unit_options %}
-                        <option value="{{ unit }}" {% if selected_unit == unit %}selected{% endif %}>
-                            {{ unit }}
+                        <option value="{{ unit.value }}" {% if selected_unit == unit.value %}selected{% endif %}>
+                            {{ unit.label }}
                         </option>
                         {% endfor %}
                     </select>
