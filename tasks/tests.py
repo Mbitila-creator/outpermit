@@ -128,6 +128,32 @@ class ExecutiveTaskAccessTests(TestCase):
         self.assertIn(dsti_director.pk, ids)
         self.assertIn(dsti_assistant.pk, ids)
 
+    def test_duplicate_accounts_with_same_email_appear_as_one_assignee(self):
+        assistant = self._user("adrd", "REQUESTER", self.dsti)
+        assistant.first_name = "Edgar"
+        assistant.last_name = "Kasuga"
+        assistant.email = "edgar@example.go.tz"
+        assistant.save()
+        ModuleRoleAssignment.objects.create(
+            user=assistant,
+            module=ModuleRoleAssignment.Module.TASK,
+            role_code="ASSISTANT_DIRECTOR",
+            department=self.dsti,
+        )
+
+        head = self._user("edgar", "HEAD_OF_UNIT", self.dsti)
+        head.first_name = "Edgar"
+        head.last_name = "Kasuga"
+        head.email = "EDGAR@example.go.tz"
+        head.save()
+
+        queryset = TaskCreateForm(
+            user=self.dpss, assignee_scope="OTHER"
+        ).fields["assigned_users"].queryset
+
+        self.assertIn(assistant.pk, queryset.values_list("pk", flat=True))
+        self.assertNotIn(head.pk, queryset.values_list("pk", flat=True))
+
     def test_commissioner_can_assign_only_coe_leadership(self):
         ids = self._assignee_ids(self.commissioner)
         self.assertIn(self.bed_director.pk, ids)

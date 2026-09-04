@@ -89,7 +89,39 @@ def executive_assignee_queryset(role_code):
                 profile__approval_role__code="COMMISSIONER_EDUCATION",
             )
 
-    return users.select_related(
+    users = users.select_related(
         "profile", "profile__approval_role", "profile__department",
         "profile__department_unit",
     ).distinct().order_by("first_name", "last_name", "username")
+
+    # A staff member can have an older account for one office and a newer
+    # account for another role.  When those accounts use the same verified
+    # email address, show the person only once in the task recipient picker.
+    # Do not deduplicate by name: two different staff members may share one.
+    preferred_by_identity = {}
+    for user in users:
+        email = (user.email or "").strip().casefold()
+        identity = ("email", email) if email else ("user", user.pk)
+        current = preferred_by_identity.get(identity)
+        if (
+            current is None
+            or _assignee_account_priority(user)
+            > _assignee_account_priority(current)
+        ):
+            preferred_by_identity[identity] = user
+
+    preferred_ids = [user.pk for user in preferred_by_identity.values()]
+    return User.objects.filter(pk__in=preferred_ids).select_related(
+        "profile", "profile__approval_role", "profile__department",
+        "profile__department_unit",
+    ).order_by("first_name", "last_name", "username")
+
+
+def _assignee_account_priority(user):
+    """Prefer established leadership accounts without modifying user data."""
+    return (
+        user.username.strip().casefold() in DSTI_LEGACY_ASSISTANT_USERNAMES,
+        user.last_login is not None,
+        user.last_login or user.date_joined,
+        -user.pk,
+    )
