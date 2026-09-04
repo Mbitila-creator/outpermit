@@ -482,14 +482,30 @@ class AdministrationCentreTests(TestCase):
         director.profile.role = "DIRECTOR"
         director.profile.department = selected_department
         director.profile.save(update_fields=["role", "department"])
+        selected_unit = DepartmentUnit.objects.create(
+            department=selected_department,
+            code="DTVETU",
+            name="DTVET Official Unit",
+        )
+        other_unit = DepartmentUnit.objects.create(
+            department=other_department,
+            code="DSTIU",
+            name="DSTI Official Unit",
+        )
         own_unit_user = User.objects.create_user(username="dtvet-unit-user")
         own_unit_user.profile.department = selected_department
-        own_unit_user.profile.unit_name = "DTVET_ONLY_UNIT"
-        own_unit_user.profile.save(update_fields=["department", "unit_name"])
+        own_unit_user.profile.department_unit = selected_unit
+        own_unit_user.profile.unit_name = "LEGACY_DTVET_UNIT"
+        own_unit_user.profile.save(
+            update_fields=["department", "department_unit", "unit_name"]
+        )
         other_unit_user = User.objects.create_user(username="dsti-unit-user")
         other_unit_user.profile.department = other_department
-        other_unit_user.profile.unit_name = "DSTI_OTHER_UNIT"
-        other_unit_user.profile.save(update_fields=["department", "unit_name"])
+        other_unit_user.profile.department_unit = other_unit
+        other_unit_user.profile.unit_name = "LEGACY_DSTI_UNIT"
+        other_unit_user.profile.save(
+            update_fields=["department", "department_unit", "unit_name"]
+        )
 
         self.client.force_login(admin)
         director_page = self.client.get(
@@ -506,8 +522,10 @@ class AdministrationCentreTests(TestCase):
             {"department": selected_department.pk},
         )
         self.assertEqual(report.status_code, 200)
-        self.assertContains(report, "DTVET_ONLY_UNIT")
-        self.assertNotContains(report, "DSTI_OTHER_UNIT")
+        self.assertContains(report, "DTVET Official Unit")
+        self.assertNotContains(report, "DSTI Official Unit")
+        self.assertNotContains(report, "LEGACY_DTVET_UNIT")
+        self.assertNotContains(report, "LEGACY_DSTI_UNIT")
         self.assertContains(
             report,
             f'name="department" value="{selected_department.pk}"',

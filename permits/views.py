@@ -1644,8 +1644,7 @@ def _filter_permits_by_organization(queryset, selector):
             )
         return queryset.none()
 
-    legacy_value = selector.partition(":")[2] if selector.startswith("legacy:") else selector
-    return queryset.filter(requester__profile__unit_name=legacy_value)
+    return queryset.none()
 
 
 def _filter_workers_by_organization(queryset, selector):
@@ -1667,8 +1666,7 @@ def _filter_workers_by_organization(queryset, selector):
             if unit_id.isdigit() else queryset.none()
         )
 
-    legacy_value = selector.partition(":")[2] if selector.startswith("legacy:") else selector
-    return queryset.filter(profile__unit_name=legacy_value)
+    return queryset.none()
 
 @login_required
 def role_redirect(request):
@@ -4203,7 +4201,7 @@ def _build_workforce_report_rows(
             "unit": (
                 worker_profile.department_unit.name
                 if worker_profile.department_unit_id
-                else worker_profile.unit_name or "Not assigned"
+                else "Not assigned"
             ),
             "permit": permit_request,
         }
@@ -4266,25 +4264,6 @@ def _report_organization_options(
         elif scoped_unit.department_id == department.pk:
             append_unit(scoped_unit)
 
-    legacy_profiles = UserProfile.objects.filter(
-        department_id__in=department_ids,
-    ).exclude(unit_name__isnull=True).exclude(unit_name="")
-    if scoped_unit:
-        legacy_profiles = legacy_profiles.filter(department_unit=scoped_unit)
-    legacy_values = legacy_profiles.values_list(
-        "unit_name", flat=True
-    ).distinct().order_by("unit_name")
-    represented_names = {
-        value.casefold()
-        for unit in units
-        for value in (unit.code, unit.name)
-    }
-    for legacy_value in legacy_values:
-        if legacy_value.casefold() not in represented_names:
-            options.append({
-                "value": f"legacy:{legacy_value}",
-                "label": legacy_value,
-            })
     return options
 
 @login_required
@@ -4432,7 +4411,8 @@ def permit_reports(request):
         })
 
     workload_by_unit = base_qs.values(
-        "requester__profile__unit_name"
+        "requester__profile__department_unit__code",
+        "requester__profile__department_unit__name",
     ).annotate(
         total=Count("id"),
         approved=Count("id", filter=Q(status="APPROVED")),
@@ -4442,6 +4422,18 @@ def permit_reports(request):
         rejected=Count("id", filter=Q(status__in=_rejected_statuses())),
         returned=Count("id", filter=Q(status__in=_returned_statuses())),
     ).order_by("-total")
+    workload_by_unit = [
+        {
+            **row,
+            "organization_label": (
+                f'{row["requester__profile__department_unit__code"]} — '
+                f'{row["requester__profile__department_unit__name"]}'
+                if row["requester__profile__department_unit__code"]
+                else "Not Assigned"
+            ),
+        }
+        for row in workload_by_unit
+    ]
 
     workload_by_hou = base_qs.values(
         "head_of_unit__first_name",
@@ -4769,7 +4761,8 @@ def export_permit_reports_excel(request):
 
         data = (
             qs.values(
-                "unit_name"
+                "requester__profile__department_unit__code",
+                "requester__profile__department_unit__name",
             )
             .annotate(
                 total=Count("id"),
@@ -4813,8 +4806,12 @@ def export_permit_reports_excel(request):
 
         for row in data:
             ws.append([
-                row["unit_name"]
-                or "Not Assigned",
+                (
+                    f'{row["requester__profile__department_unit__code"]} — '
+                    f'{row["requester__profile__department_unit__name"]}'
+                    if row["requester__profile__department_unit__code"]
+                    else "Not Assigned"
+                ),
                 row["total"],
                 row["approved"],
                 row["pending"],
@@ -5189,7 +5186,8 @@ def export_permit_reports_pdf(request):
         ]]
 
         records = qs.values(
-            "requester__profile__unit_name"
+            "requester__profile__department_unit__code",
+            "requester__profile__department_unit__name",
         ).annotate(
             total=Count("id"),
             approved=Count("id", filter=Q(status="APPROVED")),
@@ -5202,7 +5200,12 @@ def export_permit_reports_pdf(request):
 
         for r in records:
             data.append([
-                r["requester__profile__unit_name"] or "Not Assigned",
+                (
+                    f'{r["requester__profile__department_unit__code"]} — '
+                    f'{r["requester__profile__department_unit__name"]}'
+                    if r["requester__profile__department_unit__code"]
+                    else "Not Assigned"
+                ),
                 r["total"],
                 r["approved"],
                 r["closed"],

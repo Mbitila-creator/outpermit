@@ -649,7 +649,7 @@
 
                 {% for row in workload_by_unit %}
                 <tr>
-                    <td>{{ row.requester__profile__unit_name|default:"Not Assigned" }}</td>
+                    <td>{{ row.organization_label }}</td>
                     <td>{{ row.total|default:0 }}</td>
                     <td>{{ row.approved|default:0 }}</td>
                     <td>{{ row.closed|default:0 }}</td>
