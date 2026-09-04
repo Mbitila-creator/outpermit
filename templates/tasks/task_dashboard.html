@@ -737,7 +737,7 @@
       <a href="{% url 'create_task' %}">Create Task</a>
       {% endif %}
 
-      {% if request.user.is_superuser or profile.role == "ADMIN" or profile.role == "DIRECTOR" or profile.role == "ADRD" or profile.role == "ADSTI" or profile.role == "HEAD_OF_UNIT" %}
+      {% if show_director_analytics %}
       <a href="{% url 'task_analytics' %}">Analytics</a>
       {% endif %}
 
@@ -760,7 +760,19 @@
       </h2>
 
       <p>
-        {% if request.user.is_superuser or profile.role == "ADMIN" %}
+        {% if role == "PERMANENT_SECRETARY" %}
+          You are viewing task performance across the Ministry, including both Deputy Permanent Secretaries and all organizational leadership.
+
+        {% elif role == "DPS_HES" %}
+          You are viewing task performance for HED, DSTI and DTVET leadership.
+
+        {% elif role == "DPS_BE" %}
+          You are viewing task performance for COE and SQAD leadership.
+
+        {% elif role == "COMMISSIONER_EDUCATION" %}
+          You are viewing task performance for the Office for Commissioner of Education and its leadership.
+
+        {% elif request.user.is_superuser or profile.role == "ADMIN" %}
           You are viewing tasks and assignments across all departments.
 
         {% elif profile.role == "DIRECTOR" or profile.role == "ADRD" or profile.role == "ADSTI" %}

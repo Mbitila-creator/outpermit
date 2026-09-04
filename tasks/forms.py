@@ -1,7 +1,14 @@
 from django import forms
 from django.contrib.auth.models import User
+from django.db.models import Q
 from permits.models import UserProfile, Department, DepartmentUnit
 from .models import Task, TaskAssignment, TaskUpdate
+from .access import (
+    EXECUTIVE_TASK_ROLES,
+    executive_assignee_queryset,
+    executive_department_codes,
+    profile_role_code,
+)
 
 
 class UserMultipleChoiceField(forms.ModelMultipleChoiceField):
@@ -149,9 +156,37 @@ class TaskCreateForm(forms.ModelForm):
             return
 
         profile, _ = UserProfile.objects.get_or_create(user=self.user)
-        role = profile.role
+        role = profile_role_code(profile)
 
-        if self.user.is_superuser or role == "ADMIN":
+        if role in EXECUTIVE_TASK_ROLES:
+            allowed_codes = executive_department_codes(role)
+            departments = Department.objects.filter(is_active=True)
+            if allowed_codes is not None:
+                departments = departments.filter(code__in=allowed_codes)
+            self.fields["department"].queryset = departments.order_by("code")
+            self.fields["department"].required = False
+
+            if selected_department_id:
+                try:
+                    selected_department_id = int(selected_department_id)
+                    if departments.filter(pk=selected_department_id).exists():
+                        self.fields["department_unit"].queryset = DepartmentUnit.objects.filter(
+                            department_id=selected_department_id, is_active=True
+                        ).order_by("code")
+                except (TypeError, ValueError):
+                    selected_department_id = None
+
+            users = executive_assignee_queryset(role).exclude(pk=self.user.pk)
+            if selected_department_id:
+                # Keep department-less deputies available to the PS while
+                # narrowing organizational leaders to the chosen department.
+                users = users.filter(
+                    Q(profile__department_id=selected_department_id)
+                    | Q(profile__department__isnull=True)
+                )
+            self.fields["assigned_users"].queryset = users
+
+        elif self.user.is_superuser or role == "ADMIN":
             self.fields["department"].required = True
 
             if selected_department_id:
@@ -293,9 +328,25 @@ class TaskCreateForm(forms.ModelForm):
             return cleaned_data
 
         profile, _ = UserProfile.objects.get_or_create(user=self.user)
-        role = profile.role
+        role = profile_role_code(profile)
 
-        if self.user.is_superuser or role == "ADMIN":
+        if role in EXECUTIVE_TASK_ROLES:
+            allowed_codes = executive_department_codes(role)
+            if department and allowed_codes is not None and department.code not in allowed_codes:
+                raise forms.ValidationError(
+                    "The selected department is outside your executive responsibility."
+                )
+            allowed_ids = set(
+                executive_assignee_queryset(role).exclude(pk=self.user.pk)
+                .values_list("pk", flat=True)
+            )
+            selected_ids = {user.pk for user in assigned_users or []}
+            if not selected_ids.issubset(allowed_ids):
+                raise forms.ValidationError(
+                    "One or more selected officials are outside your task-assignment responsibility."
+                )
+
+        elif self.user.is_superuser or role == "ADMIN":
             if not department:
                 raise forms.ValidationError(
                     "Please select the responsible department."
@@ -341,12 +392,12 @@ class TaskCreateForm(forms.ModelForm):
                     "Your user profile is not linked to a department."
                 )
 
-        if department_unit and department_unit.department_id != department.id:
+        if department_unit and (not department or department_unit.department_id != department.id):
             raise forms.ValidationError(
                 "The selected department unit does not belong to the responsible department."
             )
 
-        if assignee_scope == "UNIT" and assigned_users:
+        if role not in EXECUTIVE_TASK_ROLES and assignee_scope == "UNIT" and assigned_users:
             invalid_users = []
 
             for assigned_user in assigned_users:
@@ -532,10 +583,13 @@ class TaskReassignForm(forms.Form):
 
         if self.user:
             profile, _ = UserProfile.objects.get_or_create(user=self.user)
-            role = profile.role
+            role = profile_role_code(profile)
             unit_name = profile.unit_name
 
-            if self.user.is_superuser or role in ["ADMIN", "DIRECTOR", "ADRD", "ADSTI"]:
+            if role in EXECUTIVE_TASK_ROLES:
+                queryset = executive_assignee_queryset(role).exclude(pk=self.user.pk)
+
+            elif self.user.is_superuser or role in ["ADMIN", "DIRECTOR", "ADRD", "ADSTI"]:
                 queryset = queryset.order_by("first_name", "last_name", "username")
 
             elif role == "HEAD_OF_UNIT":

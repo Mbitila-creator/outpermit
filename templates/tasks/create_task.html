@@ -371,7 +371,15 @@
     <div class="info-card">
       <h2>Assignment Scope</h2>
       <p>
-        {% if request.user.profile.role == "HEAD_OF_UNIT" %}
+        {% if request.user.profile.role == "PERMANENT_SECRETARY" %}
+        You may assign tasks to the Deputy Permanent Secretaries, Commissioner, Directors, Assistant Directors and Heads of Units across the Ministry.
+        {% elif request.user.profile.role == "DPS_HES" %}
+        You may assign tasks to leadership within HED, DSTI and DTVET.
+        {% elif request.user.profile.role == "DPS_BE" %}
+        You may assign tasks to leadership within COE and SQAD.
+        {% elif request.user.profile.role == "COMMISSIONER_EDUCATION" %}
+        You may assign tasks to leadership within the Office for Commissioner of Education.
+        {% elif request.user.profile.role == "HEAD_OF_UNIT" %}
         As Head of Unit, you can assign tasks only to staff members in your unit.
         {% else %}
         You can only create tasks within your allowed access scope.

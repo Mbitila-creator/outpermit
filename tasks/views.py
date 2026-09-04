@@ -22,6 +22,11 @@ from .forms import (
     TaskReturnForm,
     TaskReassignForm,
 )
+from .access import (
+    EXECUTIVE_TASK_ROLES,
+    executive_assignee_queryset,
+    executive_department_codes,
+)
 
 
 # --------------------------------------------------
@@ -131,6 +136,10 @@ def _get_role_reason_label(user):
         "ADRD": "ADRD",
         "ADSTI": "ADSTI",
         "HEAD_OF_UNIT": "Head of Unit",
+        "PERMANENT_SECRETARY": "Permanent Secretary",
+        "DPS_HES": "Deputy Permanent Secretary - Higher Education and Science",
+        "DPS_BE": "Deputy Permanent Secretary - Basic Education",
+        "COMMISSIONER_EDUCATION": "Commissioner for Education",
     }
 
     return role_label_map.get(_get_user_role(user), "Manager")
@@ -141,7 +150,11 @@ def _is_admin(user):
 
 
 def _is_director_level(user):
-    return user.is_superuser or _get_user_role(user) in ["DIRECTOR", "ADRD", "ADSTI"]
+    return (
+        user.is_superuser
+        or _get_user_role(user) in ["DIRECTOR", "ADRD", "ADSTI"]
+        or _get_user_role(user) in EXECUTIVE_TASK_ROLES
+    )
 
 
 def _is_head_of_unit(user):
@@ -154,7 +167,7 @@ def _can_create_task(user):
         "DIRECTOR",
         "ASSISTANT_DIRECTOR",
         "HEAD_OF_UNIT",
-    ]
+    ] or _get_user_role(user) in EXECUTIVE_TASK_ROLES
 
 
 def _is_dsti_department_wide_assistant_director(user):
@@ -305,6 +318,17 @@ def _can_view_task(user, task):
 
     task_department_id = task.department_id
     task_department_unit_id = task.department_unit_id
+
+    if role in EXECUTIVE_TASK_ROLES:
+        department_codes = executive_department_codes(role)
+        if department_codes is None:
+            return True
+        return bool(
+            task.department
+            and task.department.code in department_codes
+        ) or task.assignments.filter(
+            assigned_to__profile__department__code__in=department_codes
+        ).exists()
 
     # Director: access tasks belonging to the Director's department.
     if role == "DIRECTOR":
@@ -473,6 +497,20 @@ def _get_filtered_assignments(request):
             "last_name",
             "username"
         )
+
+    elif role in EXECUTIVE_TASK_ROLES:
+        department_codes = executive_department_codes(role)
+        if department_codes is None:
+            assignments = base_assignments.all()
+            employee_choices = executive_assignee_queryset(role)
+        else:
+            assignments = base_assignments.filter(
+                Q(task__department__code__in=department_codes)
+                | Q(assigned_to__profile__department__code__in=department_codes)
+                | Q(task__created_by=request.user)
+                | Q(assigned_to=request.user)
+            ).distinct()
+            employee_choices = executive_assignee_queryset(role)
 
     # --------------------------------------------------
     # DIRECTOR
@@ -879,6 +917,14 @@ def load_department_units(request):
 
     units = DepartmentUnit.objects.none()
 
+    if role in EXECUTIVE_TASK_ROLES:
+        allowed_codes = executive_department_codes(role)
+        department = Department.objects.filter(pk=department_id, is_active=True)
+        if allowed_codes is not None:
+            department = department.filter(code__in=allowed_codes)
+        if not department.exists():
+            return JsonResponse({"units": []})
+
     if role == "ASSISTANT_DIRECTOR":
         if (
             not profile.department_id
@@ -933,13 +979,42 @@ def load_department_staff(request):
     department_unit_id = request.GET.get("department_unit")
     assignee_scope = request.GET.get("assignee_scope", "UNIT")
 
+    profile = _get_profile(request.user)
+    role = _get_user_role(request.user)
+
+    if role in EXECUTIVE_TASK_ROLES:
+        users = executive_assignee_queryset(role).exclude(pk=request.user.pk)
+        allowed_codes = executive_department_codes(role)
+        if department_id:
+            selected_department = Department.objects.filter(pk=department_id).first()
+            if (
+                not selected_department
+                or (
+                    allowed_codes is not None
+                    and selected_department.code not in allowed_codes
+                )
+            ):
+                return JsonResponse({"staff": []})
+            users = users.filter(
+                Q(profile__department_id=department_id)
+                | Q(profile__department__isnull=True)
+            )
+        if assignee_scope == "UNIT" and department_unit_id:
+            users = users.filter(profile__department_unit_id=department_unit_id)
+        return JsonResponse({
+            "staff": [
+                {
+                    "id": user.id,
+                    "name": user.get_full_name().strip() or user.username,
+                }
+                for user in users
+            ]
+        })
+
     if not department_id:
         return JsonResponse({
             "staff": []
         })
-
-    profile = _get_profile(request.user)
-    role = _get_user_role(request.user)
 
     if role == "ASSISTANT_DIRECTOR":
         if (
@@ -1081,6 +1156,25 @@ def _get_visible_task_scope(
         return (
             tasks.all(),
             assignments.all(),
+        )
+
+    if role in EXECUTIVE_TASK_ROLES:
+        department_codes = executive_department_codes(role)
+        if department_codes is None:
+            return tasks.all(), assignments.all()
+        return (
+            tasks.filter(
+                Q(department__code__in=department_codes)
+                | Q(assignments__assigned_to__profile__department__code__in=department_codes)
+                | Q(created_by=user)
+                | Q(assignments__assigned_to=user)
+            ).distinct(),
+            assignments.filter(
+                Q(task__department__code__in=department_codes)
+                | Q(assigned_to__profile__department__code__in=department_codes)
+                | Q(task__created_by=user)
+                | Q(assigned_to=user)
+            ).distinct(),
         )
 
     direct_task_access = (
@@ -1337,7 +1431,7 @@ def task_dashboard(request):
         "DIRECTOR",
         "ASSISTANT_DIRECTOR",
         "HEAD_OF_UNIT",
-    ]
+    ] or role in EXECUTIVE_TASK_ROLES
 
     overdue_tasks = visible_tasks.filter(
         due_date__lt=now
@@ -1533,6 +1627,7 @@ def my_tasks(request):
                 "ADSTI",
                 "HEAD_OF_UNIT",
             ]
+            or _get_user_role(request.user) in EXECUTIVE_TASK_ROLES
         ),
         "profile": data["profile"],
         "allow_task_export": _get_system_setting().allow_task_export,
@@ -2352,6 +2447,7 @@ def task_analytics(request):
     if not (
         request.user.is_superuser
         or _get_user_role(request.user) in ["ADMIN", "DIRECTOR", "ADRD", "ADSTI", "HEAD_OF_UNIT"]
+        or _get_user_role(request.user) in EXECUTIVE_TASK_ROLES
     ):
         return HttpResponseForbidden("You are not allowed to view analytics.")
 
@@ -2712,18 +2808,16 @@ def task_analytics_overdue_detail(request, range_key):
         "DIRECTOR",
         "ASSISTANT_DIRECTOR",
         "HEAD_OF_UNIT",
-    ]:
+    ] and role not in EXECUTIVE_TASK_ROLES:
         return HttpResponseForbidden(
             "You are not allowed to view analytics."
         )
 
     now = timezone.now()
 
-    all_tasks = Task.objects.select_related("created_by").prefetch_related(
-        "assignments",
-        "assignments__assigned_to",
-        "assignments__assigned_to__profile",
-    ).all()
+    all_tasks, _assignments = _get_visible_task_scope(
+        request.user, strict_department=True
+    )
 
     filtered_tasks = []
 
@@ -2777,7 +2871,11 @@ def task_analytics_overdue_detail(request, range_key):
 def task_analytics_completion_unit_detail(request, unit_name):
     profile = _get_profile(request.user)
 
-    if not (request.user.is_superuser or _get_user_role(request.user) == "DIRECTOR"):
+    if not (
+        request.user.is_superuser
+        or _get_user_role(request.user) == "DIRECTOR"
+        or _get_user_role(request.user) in EXECUTIVE_TASK_ROLES
+    ):
         return HttpResponseForbidden("You are not allowed to view this.")
 
     unit_name = (unit_name or "").strip()
@@ -2785,11 +2883,10 @@ def task_analytics_completion_unit_detail(request, unit_name):
         messages.error(request, "Unit name is required.")
         return redirect("task_analytics")
 
-    tasks = Task.objects.select_related("created_by").prefetch_related(
-        "assignments",
-        "assignments__assigned_to",
-        "assignments__assigned_to__profile",
-    ).filter(unit_name=unit_name).order_by("-created_at")
+    tasks, _assignments = _get_visible_task_scope(
+        request.user, strict_department=True
+    )
+    tasks = tasks.filter(unit_name=unit_name).order_by("-created_at")
 
     detail_rows = []
     for task in tasks:
@@ -2820,7 +2917,11 @@ def task_analytics_completion_unit_detail(request, unit_name):
 def task_analytics_delay_unit_detail(request, unit_name):
     profile = _get_profile(request.user)
 
-    if not (request.user.is_superuser or _get_user_role(request.user) == "DIRECTOR"):
+    if not (
+        request.user.is_superuser
+        or _get_user_role(request.user) == "DIRECTOR"
+        or _get_user_role(request.user) in EXECUTIVE_TASK_ROLES
+    ):
         return HttpResponseForbidden("You are not allowed to view this.")
 
     unit_name = (unit_name or "").strip()
@@ -2830,11 +2931,10 @@ def task_analytics_delay_unit_detail(request, unit_name):
 
     now = timezone.now()
 
-    tasks = Task.objects.select_related("created_by").prefetch_related(
-        "assignments",
-        "assignments__assigned_to",
-        "assignments__assigned_to__profile",
-    ).filter(unit_name=unit_name).order_by("-created_at")
+    tasks, _assignments = _get_visible_task_scope(
+        request.user, strict_department=True
+    )
+    tasks = tasks.filter(unit_name=unit_name).order_by("-created_at")
 
     detail_rows = []
     for task in tasks:
@@ -2882,17 +2982,21 @@ def task_analytics_delay_unit_detail(request, unit_name):
 def task_analytics_staff_detail(request, user_id):
     profile = _get_profile(request.user)
 
-    if not (request.user.is_superuser or _get_user_role(request.user) == "DIRECTOR"):
+    if not (
+        request.user.is_superuser
+        or _get_user_role(request.user) == "DIRECTOR"
+        or _get_user_role(request.user) in EXECUTIVE_TASK_ROLES
+    ):
         return HttpResponseForbidden("You are not allowed to view this.")
 
     staff_user = get_object_or_404(User.objects.select_related("profile"), pk=user_id)
 
-    assignments = TaskAssignment.objects.select_related(
-        "task",
-        "assigned_to",
-        "assigned_to__profile",
-        "assigned_by",
-    ).filter(assigned_to_id=user_id).order_by("-assigned_at")
+    _tasks, assignments = _get_visible_task_scope(
+        request.user, strict_department=True
+    )
+    assignments = assignments.filter(assigned_to_id=user_id).order_by("-assigned_at")
+    if not assignments.exists():
+        return HttpResponseForbidden("This official is outside your analytics scope.")
 
     detail_rows = []
     for assignment in assignments:
@@ -2922,16 +3026,18 @@ def task_analytics_staff_detail(request, user_id):
 def task_analytics_due_soon_detail(request):
     profile = _get_profile(request.user)
 
-    if not (request.user.is_superuser or _get_user_role(request.user) == "DIRECTOR"):
+    if not (
+        request.user.is_superuser
+        or _get_user_role(request.user) == "DIRECTOR"
+        or _get_user_role(request.user) in EXECUTIVE_TASK_ROLES
+    ):
         return HttpResponseForbidden("You are not allowed to view this.")
 
     now = timezone.now()
 
-    all_tasks = Task.objects.select_related("created_by").prefetch_related(
-        "assignments",
-        "assignments__assigned_to",
-        "assignments__assigned_to__profile",
-    ).all()
+    all_tasks, _assignments = _get_visible_task_scope(
+        request.user, strict_department=True
+    )
 
     detail_rows = []
 
@@ -2973,16 +3079,18 @@ def task_analytics_due_soon_detail(request):
 def task_analytics_stalled_detail(request):
     profile = _get_profile(request.user)
 
-    if not (request.user.is_superuser or _get_user_role(request.user) == "DIRECTOR"):
+    if not (
+        request.user.is_superuser
+        or _get_user_role(request.user) == "DIRECTOR"
+        or _get_user_role(request.user) in EXECUTIVE_TASK_ROLES
+    ):
         return HttpResponseForbidden("You are not allowed to view this.")
 
     now = timezone.now()
 
-    all_tasks = Task.objects.select_related("created_by").prefetch_related(
-        "assignments",
-        "assignments__assigned_to",
-        "assignments__assigned_to__profile",
-    ).all()
+    all_tasks, _assignments = _get_visible_task_scope(
+        request.user, strict_department=True
+    )
 
     detail_rows = []
 
@@ -3042,6 +3150,7 @@ def task_analytics_export_excel(request):
     if not (
         request.user.is_superuser
         or _get_user_role(request.user) in ["ADMIN", "DIRECTOR", "ADRD", "ADSTI", "HEAD_OF_UNIT"]
+        or _get_user_role(request.user) in EXECUTIVE_TASK_ROLES
     ):
         return HttpResponseForbidden("You are not allowed to export this.")
 
