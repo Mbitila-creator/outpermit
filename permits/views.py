@@ -3954,6 +3954,14 @@ def _get_report_base_queryset(user):
     if role == "ADMIN":
         return qs
 
+    if role in EXECUTIVE_APPROVER_ROLES:
+        department_codes = _executive_report_department_codes(role)
+        if department_codes is None:
+            return qs
+        return qs.filter(
+            requester__profile__department__code__in=department_codes
+        )
+
     if role in [
         "DIRECTOR",
         "ASSISTANT_DIRECTOR",
@@ -3993,6 +4001,19 @@ def _get_report_base_queryset(user):
         )
 
     return qs.none()
+
+
+def _executive_report_department_codes(role):
+    """Return the established permit-report scope for a top official."""
+    if role == "PERMANENT_SECRETARY":
+        return None
+    if role == "DPS_HES":
+        return HES_DEPARTMENTS
+    if role == "DPS_BE":
+        return BASIC_EDUCATION_EXECUTIVE_DEPARTMENTS
+    if role == "COMMISSIONER_EDUCATION":
+        return {"COE"}
+    return set()
 
 
 def _apply_admin_report_scope(user, request, queryset):
@@ -4058,7 +4079,13 @@ def _build_workforce_report_rows(
 
     effective_department = scoped_department
     effective_unit = scoped_unit
-    if role != "ADMIN":
+    if role in EXECUTIVE_APPROVER_ROLES:
+        department_codes = _executive_report_department_codes(role)
+        if department_codes is not None:
+            workers = workers.filter(
+                profile__department__code__in=department_codes
+            )
+    elif role != "ADMIN":
         effective_department = profile.department
         if role == "ASSISTANT_DIRECTOR" and profile.department_unit_id:
             effective_unit = profile.department_unit
@@ -4123,6 +4150,10 @@ def _build_workforce_report_rows(
     "ASSISTANT_DIRECTOR",
     "ADMIN",
     "HEAD_OF_UNIT",
+    "PERMANENT_SECRETARY",
+    "DPS_HES",
+    "DPS_BE",
+    "COMMISSIONER_EDUCATION",
 )
 def permit_reports(request):
     role = _get_user_role(request.user)
@@ -4133,6 +4164,10 @@ def permit_reports(request):
         "DIRECTOR",
         "ASSISTANT_DIRECTOR",
         "HEAD_OF_UNIT",
+        "PERMANENT_SECRETARY",
+        "DPS_HES",
+        "DPS_BE",
+        "COMMISSIONER_EDUCATION",
     ]:
         return HttpResponseForbidden("Not allowed.")
 
@@ -4143,7 +4178,10 @@ def permit_reports(request):
         "compliance",
         "workload",
     }
-    if role in {"ADMIN", "DIRECTOR", "ASSISTANT_DIRECTOR"}:
+    if role in {
+        "ADMIN", "DIRECTOR", "ASSISTANT_DIRECTOR",
+        *EXECUTIVE_APPROVER_ROLES,
+    }:
         available_reports.update({"workers_at_work", "active_permissions"})
     selected_report = request.GET.get("report", "performance")
     if selected_report not in available_reports:
@@ -4276,11 +4314,12 @@ def permit_reports(request):
 
     role = _get_user_role(request.user)
 
-    is_director_level = role in [
+    is_director_level = role in {
         "ADMIN",
         "DIRECTOR",
         "ASSISTANT_DIRECTOR",
-    ]
+        *EXECUTIVE_APPROVER_ROLES,
+    }
 
     unit_profiles = (
         UserProfile.objects
@@ -4317,6 +4356,16 @@ def permit_reports(request):
         else:
             unit_profiles = unit_profiles.none()
             requester_options = requester_options.none()
+
+    elif role in EXECUTIVE_APPROVER_ROLES:
+        department_codes = _executive_report_department_codes(role)
+        if department_codes is not None:
+            unit_profiles = unit_profiles.filter(
+                department__code__in=department_codes
+            )
+            requester_options = requester_options.filter(
+                profile__department__code__in=department_codes
+            )
 
     elif role == "HEAD_OF_UNIT":
         if profile.department_unit_id:
@@ -4416,6 +4465,10 @@ def permit_reports(request):
     "ASSISTANT_DIRECTOR",
     "ADMIN",
     "HEAD_OF_UNIT",
+    "PERMANENT_SECRETARY",
+    "DPS_HES",
+    "DPS_BE",
+    "COMMISSIONER_EDUCATION",
 )
 def export_permit_reports_excel(request):
     """
@@ -4740,6 +4793,10 @@ def export_permit_reports_excel(request):
     "ASSISTANT_DIRECTOR",
     "ADMIN",
     "HEAD_OF_UNIT",
+    "PERMANENT_SECRETARY",
+    "DPS_HES",
+    "DPS_BE",
+    "COMMISSIONER_EDUCATION",
 )
 def export_permit_reports_pdf(request):
     report_type = request.GET.get("report", "performance")
@@ -4776,6 +4833,14 @@ def export_permit_reports_pdf(request):
             else "Not Assigned"
         )
         report_scope = f"Department: {department_name}"
+    elif role in EXECUTIVE_APPROVER_ROLES:
+        department_codes = _executive_report_department_codes(role)
+        if department_codes is None:
+            report_scope = "All Departments"
+        else:
+            report_scope = "Departments: " + ", ".join(
+                sorted(department_codes)
+            )
     elif role == "HEAD_OF_UNIT":
         if profile.department_unit:
             report_scope = f"Unit: {profile.department_unit.name}"

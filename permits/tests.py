@@ -136,6 +136,48 @@ class ExecutivePermitApprovalRoutingTests(TestCase):
         detail = self.client.get(reverse("director_request_detail", args=[req.pk]))
         self.assertEqual(detail.status_code, 403)
 
+    def test_top_official_reports_follow_executive_department_scopes(self):
+        hes_department, _ = Department.objects.update_or_create(
+            code="DSTI", defaults={"name": "Science"}
+        )
+        basic_department, _ = Department.objects.update_or_create(
+            code="SQAD", defaults={"name": "Quality Assurance"}
+        )
+        commissioner_department, _ = Department.objects.update_or_create(
+            code="COE", defaults={"name": "Office for Commissioner of Education"}
+        )
+        hes_staff = self._user("hes-report-staff", self.director_role, hes_department)
+        basic_staff = self._user(
+            "basic-report-staff", self.director_role, basic_department
+        )
+        commissioner_staff = self._user(
+            "commissioner-report-staff", self.director_role,
+            commissioner_department,
+        )
+        for requester in (hes_staff, basic_staff, commissioner_staff):
+            permit_request = self._request(requester)
+            permit_request.status = "APPROVED"
+            permit_request.save()
+
+        expected_totals = (
+            (self.dps_hes, 1),
+            (self.dps_be, 2),
+            (self.commissioner, 1),
+            (self.ps, 3),
+        )
+        for official, expected_total in expected_totals:
+            with self.subTest(official=official.username):
+                self.client.force_login(official)
+                response = self.client.get(reverse("permit_reports"))
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.context["total_requests"], expected_total)
+
+        self.client.force_login(self.dps_hes)
+        excel = self.client.get(reverse("export_permit_reports_excel"))
+        self.assertEqual(excel.status_code, 200)
+        pdf = self.client.get(reverse("export_permit_reports_pdf"))
+        self.assertEqual(pdf.status_code, 200)
+
     def test_direct_unit_director_routes_straight_to_ps(self):
         department, _ = Department.objects.update_or_create(
             code="FAU", defaults={"name": "Finance"}
