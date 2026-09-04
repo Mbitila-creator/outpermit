@@ -139,7 +139,7 @@ def _get_role_reason_label(user):
         "PERMANENT_SECRETARY": "Permanent Secretary",
         "DPS_HES": "Deputy Permanent Secretary - Higher Education and Science",
         "DPS_BE": "Deputy Permanent Secretary - Basic Education",
-        "COMMISSIONER_EDUCATION": "Commissioner for Education",
+        "COMMISSIONER_EDUCATION": "Commissioner of Education",
     }
 
     return role_label_map.get(_get_user_role(user), "Manager")

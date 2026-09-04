@@ -24,7 +24,7 @@ class ExecutiveTaskAccessTests(TestCase):
             ("PERMANENT_SECRETARY", "Permanent Secretary"),
             ("DPS_HES", "DPS HES"),
             ("DPS_BE", "DPS BE"),
-            ("COMMISSIONER_EDUCATION", "Commissioner for Education"),
+            ("COMMISSIONER_EDUCATION", "Commissioner of Education"),
             ("DIRECTOR", "Director"),
             ("HEAD_OF_UNIT", "Head of Unit"),
             ("REQUESTER", "Requester"),

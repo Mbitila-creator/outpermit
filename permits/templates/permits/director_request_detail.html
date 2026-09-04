@@ -11,7 +11,7 @@
         {% elif request.user.profile.approval_role.code == "DPS_HES" or request.user.profile.approval_role.code == "DPS_BE" %}
         Deputy Permanent Secretary Review
         {% elif request.user.profile.approval_role.code == "COMMISSIONER_EDUCATION" %}
-        Commissioner for Education Review
+        Commissioner of Education Review
         {% else %}
         Director Review
         {% endif %}
@@ -293,7 +293,7 @@
             {% elif request.user.profile.approval_role.code == "DPS_HES" or request.user.profile.approval_role.code == "DPS_BE" %}
             Deputy Permanent Secretary Review
             {% elif request.user.profile.approval_role.code == "COMMISSIONER_EDUCATION" %}
-            Commissioner for Education Review
+            Commissioner of Education Review
             {% else %}
             Director Review
             {% endif %}

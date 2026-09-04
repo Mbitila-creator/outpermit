@@ -39,7 +39,7 @@ class ExecutivePermitApprovalRoutingTests(TestCase):
         )
         self.commissioner_role, _ = ApprovalRole.objects.update_or_create(
             code="COMMISSIONER_EDUCATION",
-            defaults={"name": "Commissioner for Education"},
+            defaults={"name": "Commissioner of Education"},
         )
         self.dps_hes = self._user("dps-hes", self.dps_hes_role)
         self.dps_be = self._user("dps-be", self.dps_be_role)
