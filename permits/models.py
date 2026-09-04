@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.db.models import Max
 from django.utils import timezone
 from django.db.models.signals import post_save
@@ -32,6 +33,13 @@ class DepartmentUnit(models.Model):
     )
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=30)
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sections",
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -45,8 +53,22 @@ class DepartmentUnit(models.Model):
             self.department.save(update_fields=["has_units"])
         super().save(*args, **kwargs)
 
+    def clean(self):
+        super().clean()
+        if self.parent_id == self.pk and self.pk is not None:
+            raise ValidationError({"parent": "A unit cannot be its own parent."})
+        if self.parent and self.parent.department_id != self.department_id:
+            raise ValidationError(
+                {"parent": "A parent unit must belong to the same department."}
+            )
+
     def __str__(self):
-        return f"{self.department.code} - {self.code} - {self.name}"
+        unit_code = (
+            f"{self.parent.code}/{self.code}"
+            if self.parent_id
+            else self.code
+        )
+        return f"{self.department.code} - {unit_code} - {self.name}"
 
 
 class ApprovalRole(models.Model):

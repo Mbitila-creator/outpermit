@@ -1831,7 +1831,7 @@ def user_management(request):
 
     department_units = DepartmentUnit.objects.filter(
         is_active=True
-    ).select_related("department")
+    ).select_related("department", "parent")
 
     if department_filter.isdigit():
         department_units = department_units.filter(
@@ -1840,6 +1840,7 @@ def user_management(request):
 
     department_units = department_units.order_by(
         "department__code",
+        "parent__code",
         "code",
         "name",
     )

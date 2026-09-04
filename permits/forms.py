@@ -503,7 +503,7 @@ class AdminUserCreateForm(forms.Form):
     )
 
     department_unit = forms.ModelChoiceField(
-        queryset=DepartmentUnit.objects.filter(is_active=True).select_related("department").order_by("department__code", "code"),
+        queryset=DepartmentUnit.objects.filter(is_active=True).select_related("department", "parent").order_by("department__code", "parent__code", "code"),
         required=False,
         empty_label="Select Unit"
     )
@@ -596,7 +596,7 @@ class AdminUserUpdateForm(forms.Form):
     )
 
     department_unit = forms.ModelChoiceField(
-        queryset=DepartmentUnit.objects.filter(is_active=True).select_related("department").order_by("department__code", "code"),
+        queryset=DepartmentUnit.objects.filter(is_active=True).select_related("department", "parent").order_by("department__code", "parent__code", "code"),
         required=False,
         empty_label="Select Unit"
     )
