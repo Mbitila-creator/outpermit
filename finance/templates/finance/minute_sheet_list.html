@@ -164,7 +164,7 @@
                     <td class="col-no">{{ forloop.counter }}</td>
                     <td>{{ item.reference_no }}</td>
                     <td class="col-subject">{{ item.subject }}</td>
-                    <td>{{ item.unit_name }}</td>
+                    <td>{{ item.department_unit.name|default:"-" }}</td>
                     <td class="num">{{ item.requested_amount|floatformat:2|intcomma }}</td>
                     <td>{{ item.created_at|date:"d/m/Y H:i" }}</td>
                     <td><span class="status">{{ item.status }}</span></td>

@@ -370,7 +370,7 @@
       <h2>Task Visibility</h2>
       <p>
         {% if request.user.profile.role == "HEAD_OF_UNIT" %}
-          You are viewing all assignments and tasks assigned to staff who belong to your unit{% if request.user.profile.unit_name %}: <strong>{{ request.user.profile.unit_name }}</strong>{% endif %}.
+          You are viewing all assignments and tasks assigned to staff who belong to your unit{% if request.user.profile.department_unit %}: <strong>{{ request.user.profile.department_unit.name }}</strong>{% endif %}.
         {% elif request.user.profile.role == "DIRECTOR" or request.user.profile.role == "ADRD" or request.user.profile.role == "ADSTI" or request.user.profile.role == "ADMIN" or request.user.is_superuser %}
           You are viewing tasks and assignments across all staff.
         {% else %}

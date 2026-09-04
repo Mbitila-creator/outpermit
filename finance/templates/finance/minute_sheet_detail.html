@@ -229,7 +229,7 @@
                     {{ minute_sheet.requested_by.get_full_name|default:minute_sheet.requested_by.username }}
                 </p>
                 <p><strong>Department:</strong> {{ minute_sheet.department.name|default:"-" }}</p>
-                <p><strong>Unit:</strong> {{ minute_sheet.department_unit.name|default:minute_sheet.unit_name|default:"-" }}</p>
+                <p><strong>Unit:</strong> {{ minute_sheet.department_unit.name|default:"-" }}</p>
                 <p><strong>Reference No:</strong> {{ minute_sheet.reference_no }}</p>
                 {% if finance_request %}
                     <p><strong>Finance Request No:</strong> {{ finance_request.request_no }}</p>

@@ -17,14 +17,17 @@ class MinuteSheetAdmin(admin.ModelAdmin):
     list_display = (
         "reference_no",
         "title",
-        "unit_name",
+        "department_unit",
         "requested_amount",
         "director_approved_amount",
         "status",
         "created_at",
     )
-    search_fields = ("reference_no", "title", "unit_name")
-    list_filter = ("status", "unit_name", "created_at")
+    search_fields = (
+        "reference_no", "title", "department_unit__code",
+        "department_unit__name",
+    )
+    list_filter = ("status", "department", "department_unit", "created_at")
 
 
 @admin.register(FinanceRequest)

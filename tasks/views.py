@@ -334,13 +334,7 @@ def _can_view_task(user, task):
     if role == "DIRECTOR":
         if user_department_id and task_department_id:
             return task_department_id == user_department_id
-
-        # Backward compatibility for older tasks.
-        return bool(
-            profile.unit_name
-            and task.unit_name
-            and task.unit_name == profile.unit_name
-        )
+        return False
 
     # Assistant Director scope.
     if role == "ASSISTANT_DIRECTOR":
@@ -386,12 +380,7 @@ def _can_view_task(user, task):
         if user_department_id and task_department_id:
             return task_department_id == user_department_id
 
-        # Backward compatibility for older tasks.
-        return bool(
-            profile.unit_name
-            and task.unit_name
-            and task.unit_name == profile.unit_name
-        )
+        return False
 
     # Ordinary staff reach this point only when the task was neither
     # created by them nor directly assigned to them.
@@ -416,7 +405,10 @@ def _can_manage_task(user, task):
         return True
 
     if role == "HEAD_OF_UNIT":
-        return task.unit_name == profile.unit_name
+        return bool(
+            profile.department_unit_id
+            and task.department_unit_id == profile.department_unit_id
+        )
 
     if task.created_by == user:
         return True
@@ -518,24 +510,8 @@ def _get_filtered_assignments(request):
     # --------------------------------------------------
     elif role == "DIRECTOR":
         if profile.department_id:
-            department_unit_codes = list(
-                DepartmentUnit.objects.filter(
-                    department_id=profile.department_id,
-                    is_active=True,
-                ).values_list("code", flat=True)
-            )
-
-            legacy_scope_codes = department_unit_codes[:]
-
-            if profile.department:
-                legacy_scope_codes.append(profile.department.code)
-
             assignments = base_assignments.filter(
-                Q(task__department_id=profile.department_id)
-                | Q(
-                    task__department__isnull=True,
-                    task__unit_name__in=legacy_scope_codes,
-                )
+                task__department_id=profile.department_id
             ).distinct()
 
             employee_choices = User.objects.filter(
@@ -545,25 +521,6 @@ def _get_filtered_assignments(request):
                 "profile",
                 "profile__department",
                 "profile__department_unit",
-            ).order_by(
-                "first_name",
-                "last_name",
-                "username"
-            )
-
-        elif profile.unit_name:
-            # Backward compatibility for older tasks
-            # that do not yet have a Department record.
-            assignments = base_assignments.filter(
-                task__department__isnull=True,
-                task__unit_name=profile.unit_name
-            )
-
-            employee_choices = User.objects.filter(
-                is_active=True,
-                profile__unit_name=profile.unit_name
-            ).select_related(
-                "profile"
             ).order_by(
                 "first_name",
                 "last_name",
@@ -670,18 +627,6 @@ def _get_filtered_assignments(request):
         if profile.department_unit_id:
             unit_id = profile.department_unit_id
 
-            legacy_unit_codes = []
-
-            if profile.department_unit:
-                legacy_unit_codes.append(
-                    profile.department_unit.code
-                )
-
-            if profile.unit_name:
-                legacy_unit_codes.append(
-                    profile.unit_name
-                )
-
             assignments = base_assignments.filter(
                 Q(task__department_unit_id=unit_id)
                 |
@@ -692,11 +637,6 @@ def _get_filtered_assignments(request):
                 Q(task__created_by=request.user)
                 |
                 Q(assigned_to=request.user)
-                |
-                Q(
-                    task__department__isnull=True,
-                    task__unit_name__in=legacy_unit_codes,
-                )
             ).distinct()
 
             employee_choices = User.objects.filter(
@@ -732,33 +672,6 @@ def _get_filtered_assignments(request):
                 "profile",
                 "profile__department",
                 "profile__department_unit",
-            ).order_by(
-                "first_name",
-                "last_name",
-                "username"
-            )
-
-        elif profile.unit_name:
-            assignments = base_assignments.filter(
-                Q(
-                    task__department__isnull=True,
-                    task__unit_name=profile.unit_name,
-                )
-                |
-                Q(
-                    assigned_to__profile__unit_name=profile.unit_name
-                )
-                |
-                Q(task__created_by=request.user)
-                |
-                Q(assigned_to=request.user)
-            ).distinct()
-
-            employee_choices = User.objects.filter(
-                is_active=True,
-                profile__unit_name=profile.unit_name
-            ).select_related(
-                "profile"
             ).order_by(
                 "first_name",
                 "last_name",
@@ -1485,18 +1398,16 @@ def task_dashboard(request):
 
         units = (
             analytics_tasks
-            .exclude(unit_name__isnull=True)
-            .exclude(unit_name="")
-            .values_list("unit_name", flat=True)
+            .exclude(department_unit__isnull=True)
+            .values_list("department_unit__name", flat=True)
             .distinct()
-            .order_by("unit_name")
+            .order_by("department_unit__name")
         )
 
         task_counts = (
             analytics_tasks
-            .exclude(unit_name__isnull=True)
-            .exclude(unit_name="")
-            .values("unit_name")
+            .exclude(department_unit__isnull=True)
+            .values("department_unit__name")
             .annotate(
                 total=Count("id"),
                 completed=Count(
@@ -1507,7 +1418,7 @@ def task_dashboard(request):
         )
 
         task_map = {
-            row["unit_name"]: row
+            row["department_unit__name"]: row
             for row in task_counts
         }
 
@@ -1543,7 +1454,7 @@ def task_dashboard(request):
                 "assigned_to__username",
                 "assigned_to__first_name",
                 "assigned_to__last_name",
-                "assigned_to__profile__unit_name",
+                "assigned_to__profile__department_unit__name",
             )
             .annotate(
                 total_assignments=Count("id"),
@@ -1568,7 +1479,7 @@ def task_dashboard(request):
                     f"{row['assigned_to__last_name']}"
                 ).strip() or row["assigned_to__username"],
                 "unit_name": (
-                    row["assigned_to__profile__unit_name"] or "-"
+                    row["assigned_to__profile__department_unit__name"] or "-"
                 ),
                 "total_assignments": row["total_assignments"],
                 "completed_assignments": row["completed_assignments"],
@@ -1686,7 +1597,7 @@ def export_tasks_excel(request):
         ws.append([
             item.task.title,
             assigned_user.get_full_name() or assigned_user.username,
-            getattr(assigned_profile, "unit_name", "") or "",
+            getattr(getattr(assigned_profile, "department_unit", None), "name", "") or "",
             item.assigned_by.get_full_name() or item.assigned_by.username,
             item.task.created_by.get_full_name() or item.task.created_by.username,
             item.task.get_status_display(),
@@ -1694,7 +1605,7 @@ def export_tasks_excel(request):
             item.task.get_priority_display(),
             item.progress_percent,
             item.task.progress_percent,
-            item.task.unit_name or "",
+            (item.task.department_unit.name if item.task.department_unit_id else item.task.department.name if item.task.department_id else ""),
             item.task.start_date.strftime("%Y-%m-%d %H:%M") if item.task.start_date else "",
             item.task.due_date.strftime("%Y-%m-%d %H:%M") if item.task.due_date else "",
             item.assigned_at.strftime("%Y-%m-%d %H:%M") if item.assigned_at else "",
@@ -1853,20 +1764,6 @@ def create_task(request):
             # Save the new department structure
             task.department = selected_department
             task.department_unit = selected_department_unit
-
-            # Preserve the old unit_name field for compatibility
-            cleaned_unit_name = (
-                form.cleaned_data.get("unit_name") or ""
-            ).strip()
-
-            if cleaned_unit_name:
-                task.unit_name = cleaned_unit_name
-            elif profile.department_unit:
-                task.unit_name = profile.department_unit.code[:20]
-            elif profile.department:
-                task.unit_name = profile.department.code[:20]
-            else:
-                task.unit_name = profile.unit_name
 
             attachment = request.FILES.get("attachment")
             if attachment:
@@ -2517,7 +2414,7 @@ def task_analytics(request):
             due_soon_list.append({
                 "task_id": task.id,
                 "title": task.title,
-                "unit_name": task.unit_name or "-",
+                "unit_name": task.department_unit.name if task.department_unit_id else task.department.name if task.department_id else "-",
                 "assignee_name": _safe_full_name(latest_assignment.assigned_to) if latest_assignment else "-",
                 "progress": task.progress_percent or 0,
                 "due_date": timezone.localtime(task.due_date).strftime("%Y-%m-%d %H:%M") if timezone.is_aware(task.due_date) else task.due_date.strftime("%Y-%m-%d %H:%M"),
@@ -2546,18 +2443,16 @@ def task_analytics(request):
 
     units = (
         all_tasks
-        .exclude(unit_name__isnull=True)
-        .exclude(unit_name="")
-        .values_list("unit_name", flat=True)
+        .exclude(department_unit__isnull=True)
+        .values_list("department_unit__name", flat=True)
         .distinct()
-        .order_by("unit_name")
+        .order_by("department_unit__name")
     )
 
     task_counts = (
         all_tasks
-        .exclude(unit_name__isnull=True)
-        .exclude(unit_name="")
-        .values("unit_name")
+        .exclude(department_unit__isnull=True)
+        .values("department_unit__name")
         .annotate(
             total=Count("id"),
             completed=Count("id", filter=Q(status="COMPLETED")),
@@ -2565,7 +2460,7 @@ def task_analytics(request):
     )
 
     task_map = {
-        row["unit_name"]: row
+        row["department_unit__name"]: row
         for row in task_counts
     }
 
@@ -2594,7 +2489,7 @@ def task_analytics(request):
     delay_by_unit = []
 
     for unit in units:
-        unit_tasks = [task for task in all_tasks if (task.unit_name or "") == unit]
+        unit_tasks = [task for task in all_tasks if task.department_unit_id and task.department_unit.name == unit]
         unit_total_completed = 0
         unit_on_time_completed = 0
         unit_late_completed = 0
@@ -2638,7 +2533,7 @@ def task_analytics(request):
             "assigned_to__username",
             "assigned_to__first_name",
             "assigned_to__last_name",
-            "assigned_to__profile__unit_name",
+            "assigned_to__profile__department_unit__name",
         )
         .annotate(
             total_assignments=Count("id"),
@@ -2655,7 +2550,7 @@ def task_analytics(request):
                 f"{row['assigned_to__first_name']} {row['assigned_to__last_name']}".strip()
                 or row["assigned_to__username"]
             ),
-            "unit_name": row["assigned_to__profile__unit_name"] or "-",
+            "unit_name": row["assigned_to__profile__department_unit__name"] or "-",
             "total_assignments": row["total_assignments"],
             "completed_assignments": row["completed_assignments"],
             "avg_progress": round(row["avg_progress"] or 0, 1),
@@ -2673,7 +2568,8 @@ def task_analytics(request):
         if not user:
             continue
 
-        unit_name = getattr(getattr(user, "profile", None), "unit_name", "") or "-"
+        profile = getattr(user, "profile", None)
+        unit_name = getattr(getattr(profile, "department_unit", None), "name", "") or "-"
         key = user.id
 
         if key not in staff_delay_map:
@@ -2756,7 +2652,7 @@ def task_analytics(request):
             stalled_tasks.append({
                 "task_id": task.id,
                 "title": task.title,
-                "unit_name": task.unit_name or "-",
+                "unit_name": task.department_unit.name if task.department_unit_id else task.department.name if task.department_id else "-",
                 "assignee_name": _safe_full_name(latest_assignment.assigned_to) if latest_assignment else "-",
                 "progress": progress,
                 "due_date": timezone.localtime(task.due_date).strftime("%Y-%m-%d %H:%M") if timezone.is_aware(task.due_date) else task.due_date.strftime("%Y-%m-%d %H:%M"),
@@ -2847,7 +2743,7 @@ def task_analytics_overdue_detail(request, range_key):
             filtered_tasks.append({
                 "task_id": task.id,
                 "title": task.title,
-                "unit_name": task.unit_name or "-",
+                "unit_name": task.department_unit.name if task.department_unit_id else task.department.name if task.department_id else "-",
                 "assignee_name": _safe_full_name(latest_assignment.assigned_to) if latest_assignment else "-",
                 "progress": task.progress_percent or 0,
                 "due_date": timezone.localtime(task.due_date).strftime("%Y-%m-%d %H:%M")
@@ -2886,7 +2782,7 @@ def task_analytics_completion_unit_detail(request, unit_name):
     tasks, _assignments = _get_visible_task_scope(
         request.user, strict_department=True
     )
-    tasks = tasks.filter(unit_name=unit_name).order_by("-created_at")
+    tasks = tasks.filter(department_unit__name=unit_name).order_by("-created_at")
 
     detail_rows = []
     for task in tasks:
@@ -2934,7 +2830,7 @@ def task_analytics_delay_unit_detail(request, unit_name):
     tasks, _assignments = _get_visible_task_scope(
         request.user, strict_department=True
     )
-    tasks = tasks.filter(unit_name=unit_name).order_by("-created_at")
+    tasks = tasks.filter(department_unit__name=unit_name).order_by("-created_at")
 
     detail_rows = []
     for task in tasks:
@@ -3003,7 +2899,7 @@ def task_analytics_staff_detail(request, user_id):
         detail_rows.append({
             "task_id": assignment.task.id,
             "task_title": assignment.task.title,
-            "unit_name": assignment.task.unit_name or "-",
+            "unit_name": assignment.task.department_unit.name if assignment.task.department_unit_id else assignment.task.department.name if assignment.task.department_id else "-",
             "assignment_status": assignment.get_status_display(),
             "task_status": assignment.task.get_status_display(),
             "progress": assignment.progress_percent or 0,
@@ -3015,7 +2911,7 @@ def task_analytics_staff_detail(request, user_id):
     return render(request, "tasks/analytics_staff_detail.html", {
         "page_title": f"Staff Assignment Details - {_safe_full_name(staff_user)}",
         "staff_name": _safe_full_name(staff_user),
-        "staff_unit": getattr(getattr(staff_user, "profile", None), "unit_name", "") or "-",
+        "staff_unit": getattr(getattr(getattr(staff_user, "profile", None), "department_unit", None), "name", "") or "-",
         "detail_rows": detail_rows,
     })
 
@@ -3056,7 +2952,7 @@ def task_analytics_due_soon_detail(request):
             detail_rows.append({
                 "task_id": task.id,
                 "title": task.title,
-                "unit_name": task.unit_name or "-",
+                "unit_name": task.department_unit.name if task.department_unit_id else task.department.name if task.department_id else "-",
                 "assignee_name": _safe_full_name(latest_assignment.assigned_to) if latest_assignment else "-",
                 "progress": task.progress_percent or 0,
                 "due_date": timezone.localtime(task.due_date).strftime("%Y-%m-%d %H:%M")
@@ -3122,7 +3018,7 @@ def task_analytics_stalled_detail(request):
             detail_rows.append({
                 "task_id": task.id,
                 "title": task.title,
-                "unit_name": task.unit_name or "-",
+                "unit_name": task.department_unit.name if task.department_unit_id else task.department.name if task.department_id else "-",
                 "assignee_name": _safe_full_name(latest_assignment.assigned_to) if latest_assignment else "-",
                 "progress": progress,
                 "due_date": timezone.localtime(task.due_date).strftime("%Y-%m-%d %H:%M")
@@ -3337,25 +3233,23 @@ def task_analytics_export_excel(request):
     def build_completion_rate_by_unit(row_num):
         units = (
             all_tasks
-            .exclude(unit_name__isnull=True)
-            .exclude(unit_name="")
-            .values_list("unit_name", flat=True)
+            .exclude(department_unit__isnull=True)
+            .values_list("department_unit__name", flat=True)
             .distinct()
-            .order_by("unit_name")
+            .order_by("department_unit__name")
         )
 
         task_counts = (
             all_tasks
-            .exclude(unit_name__isnull=True)
-            .exclude(unit_name="")
-            .values("unit_name")
+            .exclude(department_unit__isnull=True)
+            .values("department_unit__name")
             .annotate(
                 total=Count("id"),
                 completed=Count("id", filter=Q(status="COMPLETED")),
             )
         )
 
-        task_map = {row["unit_name"]: row for row in task_counts}
+        task_map = {row["department_unit__name"]: row for row in task_counts}
 
         style_title(row_num, "Completion Rate by Unit", merge_to_col=4)
         row_num += 1
@@ -3375,17 +3269,16 @@ def task_analytics_export_excel(request):
     def build_delay_by_unit(row_num):
         units = (
             all_tasks
-            .exclude(unit_name__isnull=True)
-            .exclude(unit_name="")
-            .values_list("unit_name", flat=True)
+            .exclude(department_unit__isnull=True)
+            .values_list("department_unit__name", flat=True)
             .distinct()
-            .order_by("unit_name")
+            .order_by("department_unit__name")
         )
 
         delay_by_unit = []
 
         for unit in units:
-            unit_tasks = [task for task in all_tasks if (task.unit_name or "") == unit]
+            unit_tasks = [task for task in all_tasks if task.department_unit_id and task.department_unit.name == unit]
             unit_total_completed = 0
             unit_on_time_completed = 0
             unit_late_completed = 0
@@ -3450,7 +3343,7 @@ def task_analytics_export_excel(request):
                 "assigned_to__username",
                 "assigned_to__first_name",
                 "assigned_to__last_name",
-                "assigned_to__profile__unit_name",
+                "assigned_to__profile__department_unit__name",
             )
             .annotate(
                 total_assignments=Count("id"),
@@ -3478,7 +3371,7 @@ def task_analytics_export_excel(request):
             style_data_row(row_num, [
                 counter,
                 name,
-                row["assigned_to__profile__unit_name"] or "-",
+                row["assigned_to__profile__department_unit__name"] or "-",
                 completed_assignments,
                 total_assignments,
                 avg_progress,
@@ -3496,7 +3389,8 @@ def task_analytics_export_excel(request):
             if not user:
                 continue
 
-            unit_name = getattr(getattr(user, "profile", None), "unit_name", "") or "-"
+            profile = getattr(user, "profile", None)
+            unit_name = getattr(getattr(profile, "department_unit", None), "name", "") or "-"
             key = user.id
 
             if key not in staff_delay_map:
@@ -3586,7 +3480,7 @@ def task_analytics_export_excel(request):
                 latest_assignment = _latest_assignment_for_task(task)
                 due_soon_list.append({
                     "title": task.title,
-                    "unit_name": task.unit_name or "-",
+                    "unit_name": task.department_unit.name if task.department_unit_id else task.department.name if task.department_id else "-",
                     "assignee_name": _safe_full_name(latest_assignment.assigned_to) if latest_assignment else "-",
                     "progress": task.progress_percent or 0,
                     "due_date": timezone.localtime(task.due_date).strftime("%Y-%m-%d %H:%M") if timezone.is_aware(task.due_date) else task.due_date.strftime("%Y-%m-%d %H:%M"),
@@ -3638,7 +3532,7 @@ def task_analytics_export_excel(request):
                 latest_assignment = _latest_assignment_for_task(task)
                 stalled_tasks.append({
                     "title": task.title,
-                    "unit_name": task.unit_name or "-",
+                    "unit_name": task.department_unit.name if task.department_unit_id else task.department.name if task.department_id else "-",
                     "assignee_name": _safe_full_name(latest_assignment.assigned_to) if latest_assignment else "-",
                     "progress": progress,
                     "due_date": timezone.localtime(task.due_date).strftime("%Y-%m-%d %H:%M") if timezone.is_aware(task.due_date) else task.due_date.strftime("%Y-%m-%d %H:%M"),

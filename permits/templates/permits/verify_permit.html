@@ -100,7 +100,7 @@
         </tr>
         <tr>
             <td class="label">Unit</td>
-            <td>{{ req.unit_name|default:"N/A" }}</td>
+            <td>{{ req.requester.profile.department_unit.name|default:"N/A" }}</td>
         </tr>
         <tr>
             <td class="label">Request Type</td>

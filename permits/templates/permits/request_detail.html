@@ -279,7 +279,7 @@
         </div>
         <div class="info-row"><strong>Requester:</strong> {{ req.requester_name }}</div>
         <div class="info-row"><strong>Requester Employee ID:</strong> {{ req.requester_employee_id|default:"Not assigned" }}</div>
-        <div class="info-row"><strong>Unit:</strong> {{ req.requester.profile.get_unit_name_display|default:"Not assigned" }}</div>
+        <div class="info-row"><strong>Unit:</strong> {{ req.requester.profile.department_unit.name|default:"Not assigned" }}</div>
         <div class="info-row"><strong>Head of Unit:</strong> {{ req.requester.profile.head_of_unit|default:"Not assigned" }}</div>
         <div class="info-row"><strong>Phone Number:</strong> {{ req.requester.profile.phone_number|default:"Not assigned" }}</div>
         <div class="info-row"><strong>Check Number:</strong> {{ req.requester.profile.check_number|default:"Not assigned" }}</div>

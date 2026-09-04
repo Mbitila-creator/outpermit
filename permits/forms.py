@@ -478,16 +478,6 @@ class LoginForm(AuthenticationForm):
 class AdminUserCreateForm(forms.Form):
     ROLE_CHOICES = UserProfile.ROLE_CHOICES
 
-    UNIT_CHOICES = [
-        ("", "Select Legacy DSTI Unit"),
-        ("KTIU", "Knowledge Translation and Impact Unit"),
-        ("IMCU", "Infrastructure Management and Coordination Unit"),
-        ("LSU", "Linkage and Support Unit"),
-        ("RICU", "Regional and International Cooperation Unit"),
-        ("DTSU", "Digital Technologies and STEM Unit"),
-        ("CCU", "Crosscutting Unit"),
-    ]
-
     username = forms.CharField(max_length=150)
     first_name = forms.CharField(max_length=150, required=False)
     last_name = forms.CharField(max_length=150, required=False)
@@ -507,8 +497,6 @@ class AdminUserCreateForm(forms.Form):
         required=False,
         empty_label="Select Unit"
     )
-
-    unit_name = forms.ChoiceField(choices=UNIT_CHOICES, required=False)
 
     head_of_unit = forms.ModelChoiceField(
         queryset=User.objects.filter(profile__role="HEAD_OF_UNIT").order_by("first_name", "last_name", "username"),
@@ -539,7 +527,6 @@ class AdminUserCreateForm(forms.Form):
         role = cleaned_data.get("role")
         department = cleaned_data.get("department")
         department_unit = cleaned_data.get("department_unit")
-        unit_name = cleaned_data.get("unit_name")
         has_module_role = any(
             cleaned_data.get(field)
             for field in ("event_role", "finance_role", "task_role")
@@ -548,7 +535,7 @@ class AdminUserCreateForm(forms.Form):
         if password and confirm_password and password != confirm_password:
             self.add_error("confirm_password", "Passwords do not match.")
 
-        if role == "HEAD_OF_UNIT" and not department_unit and not unit_name:
+        if role == "HEAD_OF_UNIT" and not department_unit:
             self.add_error(
                 "department_unit",
                 "Head of Unit must have a department unit assigned."
@@ -572,16 +559,6 @@ class AdminUserCreateForm(forms.Form):
 class AdminUserUpdateForm(forms.Form):
     ROLE_CHOICES = UserProfile.ROLE_CHOICES
 
-    UNIT_CHOICES = [
-        ("", "Select Legacy DSTI Unit"),
-        ("KTIU", "Knowledge Translation and Impact Unit"),
-        ("IMCU", "Infrastructure Management and Coordination Unit"),
-        ("LSU", "Linkage and Support Unit"),
-        ("RICU", "Regional and International Cooperation Unit"),
-        ("DTSU", "Digital Technologies and STEM Unit"),
-        ("CCU", "Crosscutting Unit"),
-    ]
-
     first_name = forms.CharField(max_length=150, required=False)
     last_name = forms.CharField(max_length=150, required=False)
     email = forms.EmailField(required=False)
@@ -601,8 +578,6 @@ class AdminUserUpdateForm(forms.Form):
         empty_label="Select Unit"
     )
 
-    unit_name = forms.ChoiceField(choices=UNIT_CHOICES, required=False)
-
     head_of_unit = forms.ModelChoiceField(
         queryset=User.objects.filter(profile__role="HEAD_OF_UNIT").order_by("first_name", "last_name", "username"),
         required=False,
@@ -620,13 +595,12 @@ class AdminUserUpdateForm(forms.Form):
         role = cleaned_data.get("role")
         department = cleaned_data.get("department")
         department_unit = cleaned_data.get("department_unit")
-        unit_name = cleaned_data.get("unit_name")
         has_module_role = any(
             cleaned_data.get(field)
             for field in ("event_role", "finance_role", "task_role")
         )
 
-        if role == "HEAD_OF_UNIT" and not department_unit and not unit_name:
+        if role == "HEAD_OF_UNIT" and not department_unit:
             self.add_error(
                 "department_unit",
                 "Head of Unit must have a department unit assigned."

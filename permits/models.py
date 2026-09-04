@@ -170,8 +170,6 @@ class ExternalWorkRequest(models.Model):
     acting_officer_employee_id = models.CharField(max_length=50, blank=True)
     acting_officer_phone = models.CharField(max_length=30, blank=True)
 
-    unit_name = models.CharField(max_length=20, blank=True, null=True, db_index=True)
-
     head_of_unit = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -379,15 +377,6 @@ class UserProfile(models.Model):
         ("COMMISSIONER_EDUCATION", "Commissioner of Education"),
     ]
 
-    UNIT_CHOICES = [
-        ("KTIU", "Knowledge Translation and Impact Unit"),
-        ("IMCU", "Infrastructure Management and Coordination Unit"),
-        ("LSU", "Linkage and Support Unit"),
-        ("RICU", "Regional and International Cooperation Unit"),
-        ("DTSU", "Digital Technologies and STEM Unit"),
-        ("CCU", "Crosscutting Unit"),
-    ]
-
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
@@ -427,14 +416,6 @@ class UserProfile(models.Model):
         null=True,
         blank=True,
         related_name="user_profiles"
-    )
-
-    unit_name = models.CharField(
-        max_length=20,
-        choices=UNIT_CHOICES,
-        blank=True,
-        null=True,
-        db_index=True
     )
 
     head_of_unit = models.ForeignKey(

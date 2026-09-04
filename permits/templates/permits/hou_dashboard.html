@@ -4,7 +4,7 @@
 <div style="border:1px solid #ccc; padding:15px; margin-bottom:15px;">
     <p><strong>Request ID:</strong> {{ permit.id }}</p>
     <p><strong>Requester:</strong> {{ permit.requester.username }}</p>
-    <p><strong>Unit:</strong> {{ permit.unit_name }}</p>
+    <p><strong>Unit:</strong> {{ permit.requester.profile.department_unit.name|default:"Not assigned" }}</p>
     <p><strong>Status:</strong> {{ permit.get_status_display }}</p>
 
     <form method="post" action="{% url 'approve_by_hou' permit.id %}">

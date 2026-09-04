@@ -65,7 +65,7 @@ class TaskAdmin(admin.ModelAdmin):
     list_display = (
         "title",
         "created_by",
-        "unit_name",
+        "department_unit",
         "priority",
         "status",
         "progress_percent",
@@ -79,7 +79,8 @@ class TaskAdmin(admin.ModelAdmin):
     list_filter = (
         "priority",
         "status",
-        "unit_name",
+        "department",
+        "department_unit",
         "created_at",
         "due_date",
         "management_note_updated_at",
@@ -106,7 +107,8 @@ class TaskAdmin(admin.ModelAdmin):
         "title",
         "description",
         "created_by",
-        "unit_name",
+        "department",
+        "department_unit",
         "priority",
         "status",
         "progress_percent",

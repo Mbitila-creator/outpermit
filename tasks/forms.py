@@ -51,7 +51,6 @@ class TaskCreateForm(forms.ModelForm):
             "description",
             "department",
             "department_unit",
-            "unit_name",
             "priority",
             "start_date",
             "due_date",
@@ -79,8 +78,6 @@ class TaskCreateForm(forms.ModelForm):
                 "class": "form-control",
                 "id": "id_department_unit",
             }),
-
-            "unit_name": forms.HiddenInput(),
 
             "priority": forms.Select(attrs={
                 "class": "form-control"
@@ -436,13 +433,6 @@ class TaskCreateForm(forms.ModelForm):
                     "Director-level users can assign tasks only within their own department."
                 )
 
-        if department_unit:
-            cleaned_data["unit_name"] = department_unit.code[:20]
-        elif department:
-            cleaned_data["unit_name"] = department.code[:20]
-        else:
-            cleaned_data["unit_name"] = ""
-
         return cleaned_data
 
 
@@ -584,8 +574,6 @@ class TaskReassignForm(forms.Form):
         if self.user:
             profile, _ = UserProfile.objects.get_or_create(user=self.user)
             role = profile_role_code(profile)
-            unit_name = profile.unit_name
-
             if role in EXECUTIVE_TASK_ROLES:
                 queryset = executive_assignee_queryset(role).exclude(pk=self.user.pk)
 
@@ -594,7 +582,7 @@ class TaskReassignForm(forms.Form):
 
             elif role == "HEAD_OF_UNIT":
                 queryset = queryset.filter(
-                    profile__unit_name=unit_name
+                    profile__department_unit_id=profile.department_unit_id
                 ).order_by("first_name", "last_name", "username")
 
             else:

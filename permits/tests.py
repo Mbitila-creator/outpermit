@@ -383,7 +383,6 @@ class ModuleRoleAssignmentTests(TestCase):
                 "phone_number": "",
                 "department": "",
                 "department_unit": "",
-                "unit_name": "",
                 "head_of_unit": "",
                 "role": "REQUESTER",
                 "event_role": ["EVENT_ADMIN"],
@@ -495,16 +494,14 @@ class AdministrationCentreTests(TestCase):
         own_unit_user = User.objects.create_user(username="dtvet-unit-user")
         own_unit_user.profile.department = selected_department
         own_unit_user.profile.department_unit = selected_unit
-        own_unit_user.profile.unit_name = "LEGACY_DTVET_UNIT"
         own_unit_user.profile.save(
-            update_fields=["department", "department_unit", "unit_name"]
+            update_fields=["department", "department_unit"]
         )
         other_unit_user = User.objects.create_user(username="dsti-unit-user")
         other_unit_user.profile.department = other_department
         other_unit_user.profile.department_unit = other_unit
-        other_unit_user.profile.unit_name = "LEGACY_DSTI_UNIT"
         other_unit_user.profile.save(
-            update_fields=["department", "department_unit", "unit_name"]
+            update_fields=["department", "department_unit"]
         )
 
         self.client.force_login(admin)
@@ -524,8 +521,6 @@ class AdministrationCentreTests(TestCase):
         self.assertEqual(report.status_code, 200)
         self.assertContains(report, "DTVET Official Unit")
         self.assertNotContains(report, "DSTI Official Unit")
-        self.assertNotContains(report, "LEGACY_DTVET_UNIT")
-        self.assertNotContains(report, "LEGACY_DSTI_UNIT")
         self.assertContains(
             report,
             f'name="department" value="{selected_department.pk}"',

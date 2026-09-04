@@ -212,19 +212,7 @@ def get_user_unit(user):
     if department_unit:
         return department_unit.name
 
-    profile = get_user_profile(user)
-
-    if not profile:
-        return ""
-
-    return (
-        getattr(
-            profile,
-            "unit_name",
-            "",
-        )
-        or ""
-    )
+    return ""
 
 
 def can_see_all_finance(user):
@@ -943,7 +931,6 @@ def minute_sheet_create(request):
             minute_sheet.requested_by = request.user
             apply_user_ownership(minute_sheet, request.user)
 
-            minute_sheet.unit_name = get_user_unit(request.user)
             minute_sheet.title = minute_sheet.subject
             minute_sheet.description = minute_sheet.activity_series
             minute_sheet.estimated_total = (

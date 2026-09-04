@@ -336,22 +336,9 @@ def _director_scope_queryset(user, qs):
         role == "ASSISTANT_DIRECTOR"
         and profile.department_unit_id
     ):
-        unit_values = {
-            str(profile.department_unit.code or "").strip(),
-            str(profile.department_unit.name or "").strip(),
-            str(profile.unit_name or "").strip(),
-        }
-        unit_values.discard("")
-
         qs = qs.filter(
-            Q(
-                requester__profile__department_unit_id=(
-                    profile.department_unit_id
-                )
-            )
-            | Q(
-                requester__profile__department_unit__isnull=True,
-                requester__profile__unit_name__in=unit_values,
+            requester__profile__department_unit_id=(
+                profile.department_unit_id
             )
         )
 
@@ -410,18 +397,7 @@ def _director_can_access_request(user, req):
         ):
             return True
 
-        allowed_unit_values = {
-            str(profile.department_unit.code or "").strip().lower(),
-            str(profile.department_unit.name or "").strip().lower(),
-            str(profile.unit_name or "").strip().lower(),
-        }
-        allowed_unit_values.discard("")
-
-        requester_unit_name = str(
-            requester_profile.unit_name or ""
-        ).strip().lower()
-
-        return requester_unit_name in allowed_unit_values
+        return False
 
     return True
 
@@ -457,22 +433,9 @@ def _head_of_unit_scope_queryset(user, qs):
     )
 
     if profile.department_unit_id:
-        unit_values = {
-            str(profile.department_unit.code or "").strip(),
-            str(profile.department_unit.name or "").strip(),
-            str(profile.unit_name or "").strip(),
-        }
-        unit_values.discard("")
-
         qs = qs.filter(
-            Q(
-                requester__profile__department_unit_id=(
-                    profile.department_unit_id
-                )
-            )
-            | Q(
-                requester__profile__department_unit__isnull=True,
-                requester__profile__unit_name__in=unit_values,
+            requester__profile__department_unit_id=(
+                profile.department_unit_id
             )
         )
 
@@ -935,14 +898,12 @@ def get_director_user(department=None):
 def get_head_of_unit_for_unit(
     department=None,
     department_unit=None,
-    unit_name="",
 ):
     """
     Return the active Head of Unit assigned to the exact department
     and department unit.
 
-    The legacy unit_name fallback is retained only for older permit
-    records that do not yet contain department_unit.
+    Organizational matching uses the official DepartmentUnit relationship.
     """
     if not department:
         return None
@@ -967,22 +928,12 @@ def get_head_of_unit_for_unit(
 
         return profile.user if profile else None
 
-    if unit_name:
-        profile = queryset.filter(
-            unit_name=unit_name
-        ).order_by(
-            "user__username"
-        ).first()
-
-        return profile.user if profile else None
-
     return None
 
 
 def get_assistant_director_for_unit(
     department=None,
     department_unit=None,
-    unit_name="",
 ):
     """
     Return the active Assistant Director for the exact unit.
@@ -1010,31 +961,13 @@ def get_assistant_director_for_unit(
     )
 
     if department_unit:
-        unit_values = {
-            str(department_unit.code or "").strip(),
-            str(department_unit.name or "").strip(),
-        }
-        unit_values.discard("")
-
         profile = queryset.filter(
-            Q(department_unit=department_unit)
-            | Q(unit_name__in=unit_values)
+            department_unit=department_unit
         ).first()
 
         return profile.user if profile else None
 
-    legacy_unit_name = (unit_name or "").strip()
-
-    if not legacy_unit_name:
-        return None
-
-    profile = queryset.filter(
-        Q(unit_name__iexact=legacy_unit_name)
-        | Q(department_unit__name__iexact=legacy_unit_name)
-        | Q(department_unit__code__iexact=legacy_unit_name)
-    ).first()
-
-    return profile.user if profile else None
+    return None
 
 
 def _get_profile_approval_role_code(profile):
@@ -1194,16 +1127,9 @@ def _apply_legacy_permit_routing(req, profile):
         profile
     )
 
-    req.unit_name = (
-        profile.department_unit.name
-        if profile.department_unit
-        else profile.unit_name
-    )
-
     req.head_of_unit = get_head_of_unit_for_unit(
         department=profile.department,
         department_unit=profile.department_unit,
-        unit_name=profile.unit_name,
     )
 
     req.director = get_director_user(
@@ -1213,7 +1139,6 @@ def _apply_legacy_permit_routing(req, profile):
     assistant_director = get_assistant_director_for_unit(
         department=profile.department,
         department_unit=profile.department_unit,
-        unit_name=profile.unit_name,
     )
 
     direct_to_director_roles = [
@@ -1260,11 +1185,6 @@ def _apply_permit_workflow_routing(req, profile):
     request is waiting for whichever director-level user is stored in
     req.director (Assistant Director or final Director).
     """
-    req.unit_name = (
-        profile.department_unit.name
-        if profile.department_unit
-        else profile.unit_name
-    )
     req.head_of_unit = None
     req.director = None
 
@@ -1275,12 +1195,10 @@ def _apply_permit_workflow_routing(req, profile):
     unit_head = get_head_of_unit_for_unit(
         department=profile.department,
         department_unit=profile.department_unit,
-        unit_name=profile.unit_name,
     )
     assistant_director = get_assistant_director_for_unit(
         department=profile.department,
         department_unit=profile.department_unit,
-        unit_name=profile.unit_name,
     )
     department_director = get_director_user(
         department=profile.department
@@ -2124,7 +2042,6 @@ def create_user_account(request):
         profile.phone_number = form.cleaned_data["phone_number"]
         profile.department = form.cleaned_data["department"]
         profile.department_unit = form.cleaned_data["department_unit"]
-        profile.unit_name = ""
         profile.head_of_unit = form.cleaned_data["head_of_unit"]
         profile.save()
 
@@ -2194,7 +2111,6 @@ def edit_user_account(request, user_id):
             profile.phone_number = form.cleaned_data["phone_number"]
             profile.department = form.cleaned_data["department"]
             profile.department_unit = form.cleaned_data["department_unit"]
-            profile.unit_name = ""
             profile.head_of_unit = form.cleaned_data["head_of_unit"]
             profile.save()
 
@@ -2236,7 +2152,6 @@ def edit_user_account(request, user_id):
             "phone_number": profile.phone_number,
             "department": profile.department,
             "department_unit": profile.department_unit,
-            "unit_name": profile.unit_name,
             "head_of_unit": profile.head_of_unit,
             "role": profile.role,
             "event_role": assigned_roles.get(ModuleRoleAssignment.Module.EVENT, []),
@@ -2439,26 +2354,12 @@ def assistant_director_dashboard(request):
     # Unit-specific Assistant Director:
     # for example DTVET/VTU, DTVET/FDU or DTVET/TEU.
     elif profile.department_unit_id:
-        unit_values = {
-            str(profile.department_unit.code or "").strip(),
-            str(profile.department_unit.name or "").strip(),
-            str(profile.unit_name or "").strip(),
-        }
-        unit_values.discard("")
-
         visible_requests = visible_requests.filter(
             requester__profile__department_id=(
                 profile.department_id
             ),
-        ).filter(
-            Q(
-                requester__profile__department_unit_id=(
-                    profile.department_unit_id
-                )
-            )
-            | Q(
-                requester__profile__department_unit__isnull=True,
-                requester__profile__unit_name__in=unit_values,
+            requester__profile__department_unit_id=(
+                profile.department_unit_id
             )
         )
 
@@ -3101,7 +3002,6 @@ def export_permit_pdf(request, pk):
     department_code = requester_department.code if requester_department else "MoEST"
     department_name = requester_department.name if requester_department else "Ministry of Education, Science and Technology"
     department_unit_name = requester_department_unit.name if requester_department_unit else ""
-    legacy_unit_name = req.unit_name or ""
 
     permit_header = f"MoEST - {department_code}" if department_code else "MoEST"
 
@@ -3144,12 +3044,6 @@ def export_permit_pdf(request, pk):
         body_blocks.append({
             "text": _build_pdf_field("Department Unit", department_unit_name),
             "measure_text": f"Department Unit: {department_unit_name}",
-            "justify": False
-        })
-    elif legacy_unit_name:
-        body_blocks.append({
-            "text": _build_pdf_field("Unit", legacy_unit_name),
-            "measure_text": f"Unit: {legacy_unit_name}",
             "justify": False
         })
 
@@ -3486,7 +3380,6 @@ def head_of_unit_request_detail(request, pk):
                 department_unit=(
                     requester_profile.department_unit
                 ),
-                unit_name=requester_profile.unit_name,
             )
 
             req.director = (
@@ -4053,16 +3946,6 @@ def _get_report_base_queryset(user):
                 | Q(head_of_unit=user)
             ).distinct()
 
-        if profile.unit_name:
-            return qs.filter(
-                Q(
-                    requester__profile__unit_name=(
-                        profile.unit_name
-                    )
-                )
-                | Q(head_of_unit=user)
-            ).distinct()
-
         return qs.filter(
             head_of_unit=user
         )
@@ -4491,10 +4374,6 @@ def permit_reports(request):
         if profile.department_unit_id:
             requester_options = requester_options.filter(
                 profile__department_unit_id=profile.department_unit_id
-            )
-        elif profile.unit_name:
-            requester_options = requester_options.filter(
-                profile__unit_name=profile.unit_name
             )
         else:
             requester_options = requester_options.none()
@@ -4963,7 +4842,7 @@ def export_permit_reports_pdf(request):
         if profile.department_unit:
             report_scope = f"Unit: {profile.department_unit.name}"
         else:
-            report_scope = f"Unit: {profile.unit_name or 'Not Assigned'}"
+            report_scope = "Unit: Not Assigned"
     else:
         report_scope = "Restricted"
 

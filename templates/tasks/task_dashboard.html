@@ -915,18 +915,18 @@
                   Staff Unit:
                   {{ item.assigned_to.profile.department_unit.code }}
                   <br>
-                {% elif item.assigned_to.profile.unit_name %}
+                {% elif item.assigned_to.profile.department_unit %}
                   Staff Unit:
-                  {{ item.assigned_to.profile.unit_name }}
+                  {{ item.assigned_to.profile.department_unit.name }}
                   <br>
                 {% endif %}
 
                 {% if item.task.department_unit %}
                   Task Unit:
                   {{ item.task.department_unit.code }}
-                {% elif item.task.unit_name %}
+                {% elif item.task.department_unit %}
                   Task Unit:
-                  {{ item.task.unit_name }}
+                  {{ item.task.department_unit.name }}
                 {% endif %}
               </div>
 
@@ -1027,8 +1027,8 @@
 
                 {% if task.department_unit %}
                   Task Unit: {{ task.department_unit.code }}
-                {% elif task.unit_name %}
-                  Task Unit: {{ task.unit_name }}
+                {% elif task.department_unit %}
+                  Task Unit: {{ task.department_unit.name }}
                 {% endif %}
               </div>
 

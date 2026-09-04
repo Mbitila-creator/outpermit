@@ -27,8 +27,6 @@ class Task(models.Model):
 
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="created_tasks")
 
-    unit_name = models.CharField(max_length=20, blank=True, null=True, db_index=True)
-
     department = models.ForeignKey(
         Department,
         on_delete=models.SET_NULL,

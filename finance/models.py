@@ -79,9 +79,6 @@ class MinuteSheet(TimeStampedModel):
         related_name="finance_minute_sheets",
     )
 
-    # Kept temporarily for compatibility with existing templates and data.
-    unit_name = models.CharField(max_length=255, blank=True, default="")
-
     budget_line = models.ForeignKey(
         "finance.BudgetLine",
         on_delete=models.SET_NULL,
@@ -167,9 +164,6 @@ class MinuteSheet(TimeStampedModel):
 
         if not self.department_unit_id:
             self.department_unit = getattr(profile, "department_unit", None)
-
-        if not self.unit_name and self.department_unit:
-            self.unit_name = self.department_unit.name
 
     def clean(self):
         super().clean()

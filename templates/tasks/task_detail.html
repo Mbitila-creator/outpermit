@@ -442,7 +442,7 @@
       <h2>Task Visibility</h2>
       <p>
         {% if request.user.profile.role == "HEAD_OF_UNIT" %}
-        You are viewing this task because it is assigned to at least one staff member who belongs to your unit{% if request.user.profile.unit_name %}: <strong>{{ request.user.profile.unit_name }}</strong>{% endif %}.
+        You are viewing this task because it is assigned to at least one staff member who belongs to your unit{% if request.user.profile.department_unit %}: <strong>{{ request.user.profile.department_unit.name }}</strong>{% endif %}.
         {% elif request.user.profile.role == "DIRECTOR" or request.user.profile.role == "ADRD" or request.user.profile.role == "ADSTI" or request.user.profile.role == "ADMIN" or request.user.is_superuser %}
         You are viewing this task with full cross-unit access.
         {% else %}
@@ -483,7 +483,7 @@
               <strong>Title:</strong> {{ task.title }}<br>
               <strong>Description:</strong> {{ task.description|default:"N/A" }}<br>
               <strong>Created by:</strong> {{ task.created_by.get_full_name|default:task.created_by.username }}<br>
-              <strong>Task Unit:</strong> {{ task.unit_name|default:"N/A" }}<br>
+              <strong>Task Unit:</strong> {{ task.department_unit.name|default:task.department.name|default:"N/A" }}<br>
               <strong>Priority:</strong> <span class="badge">{{ task.get_priority_display }}</span><br>
               <strong>Status:</strong>
               <span class="badge {% if task.status == 'COMPLETED' %}badge-success{% elif task.status == 'RETURNED' %}badge-warning{% elif task.is_overdue %}badge-danger{% elif task.status == 'IN_PROGRESS' or task.status == 'ON_HOLD' %}badge-warning{% endif %}">
@@ -707,8 +707,8 @@
                   {% if item.is_overdue %}
                   <span class="badge badge-danger">Overdue</span><br>
                   {% endif %}
-                  {% if item.assigned_to.profile.unit_name %}
-                  Staff Unit: {{ item.assigned_to.profile.unit_name }}<br>
+                  {% if item.assigned_to.profile.department_unit %}
+                  Staff Unit: {{ item.assigned_to.profile.department_unit.name }}<br>
                   {% endif %}
                   Assigned at: {{ item.assigned_at }}<br>
                   Accepted at: {{ item.accepted_at|default:"N/A" }}<br>
