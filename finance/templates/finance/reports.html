@@ -178,6 +178,7 @@
 
         <!-- 🔹 FILTERS -->
         <form method="get" class="filters">
+            {% if is_read_only_executive %}<select name="department"><option value="">All departments in my scope</option>{% for department in departments %}<option value="{{ department.pk }}"{% if selected_department == department.pk|stringformat:"s" %} selected{% endif %}>{{ department.code }} — {{ department.name }}</option>{% endfor %}</select>{% endif %}
             <input type="text" name="search" placeholder="Search..." value="{{ request.GET.search }}">
 
             <select name="month">
@@ -211,7 +212,7 @@
             <button onclick="window.print()">Print (PDF)</button>
 
             <!-- Excel Export -->
-            <a href="?search={{ request.GET.search }}&month={{ request.GET.month }}&financial_year={{ request.GET.financial_year }}&date_from={{ request.GET.date_from }}&date_to={{ request.GET.date_to }}&export=excel">Export Excel</a>
+            <a href="?department={{ request.GET.department }}&search={{ request.GET.search }}&month={{ request.GET.month }}&financial_year={{ request.GET.financial_year }}&date_from={{ request.GET.date_from }}&date_to={{ request.GET.date_to }}&export=excel">Export Excel</a>
         </div>
 
         <!-- 🔹 CARDS -->

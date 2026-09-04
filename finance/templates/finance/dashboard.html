@@ -62,6 +62,9 @@
             margin-bottom: 18px;
         }
 
+        .scope-filter {background:#fff;border:1px solid #dbe3ef;border-radius:10px;padding:14px;margin-bottom:18px;display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+        .scope-filter label{display:flex;flex-direction:column;gap:6px;font-weight:700}.scope-filter select{min-width:300px;padding:9px;border:1px solid #b9c9d9;border-radius:7px}.scope-filter button{padding:9px 13px;border:0;border-radius:7px;background:#0b5ed7;color:#fff;font-weight:700}
+
         .actions a {
             background: #0b5ed7;
             color: white;
@@ -220,8 +223,23 @@
             {% endfor %}
         {% endif %}
 
+        {% if is_read_only_executive %}
+        <form method="get" class="scope-filter">
+            <label>Department
+                <select name="department">
+                    <option value="">All departments in my scope</option>
+                    {% for department in departments %}<option value="{{ department.pk }}"{% if selected_department == department.pk|stringformat:"s" %} selected{% endif %}>{{ department.code }} — {{ department.name }}</option>{% endfor %}
+                </select>
+            </label>
+            <button type="submit">Apply filter</button>
+            <a href="{% url 'finance:dashboard' %}" class="nav-btn">Clear</a>
+        </form>
+        {% endif %}
+
         <div class="actions">
+            {% if not is_read_only_executive %}
             <a href="{% url 'finance:minute_sheet_create' %}">Create Minute Sheet</a>
+            {% endif %}
             <a href="{% url 'finance:minute_sheet_list' %}">View Minute Sheets</a>
 
             {% if can_view_budget_lines %}
@@ -239,7 +257,7 @@
                 </a>
             {% endif %}
 
-            <a href="{% url 'finance:retirement_create' %}">Add Retirement</a>
+            {% if not is_read_only_executive %}<a href="{% url 'finance:retirement_create' %}">Add Retirement</a>{% endif %}
             <a href="{% url 'finance:retirement_list' %}">View Retirements</a>
 
             {% if can_view_reports %}

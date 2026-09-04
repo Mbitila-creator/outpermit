@@ -1,5 +1,7 @@
 from django.core.exceptions import PermissionDenied
 
+from permits.executive_scope import executive_department_codes, is_executive_viewer
+
 from .models import Event
 
 
@@ -26,6 +28,11 @@ def events_visible_to(user):
     queryset = Event.objects.all()
     if is_system_event_administrator(user):
         return queryset
+    if is_executive_viewer(user):
+        department_codes = executive_department_codes(user)
+        if department_codes is None:
+            return queryset
+        return queryset.filter(owning_department__code__in=department_codes)
     department = user_department(user)
     if not department:
         return queryset.none()

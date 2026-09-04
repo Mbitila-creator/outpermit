@@ -43,7 +43,7 @@ class DepartmentEventAccessTests(TestCase):
             code="DSTI", name="Department of Science Technology and Innovation"
         )
         self.dhe = Department.objects.create(
-            code="DHE", name="Department of Higher Education"
+            code="HED", name="Higher Education Division"
         )
         self.category = EventCategory.objects.create(
             code="CONFERENCE", name_sw="Kongamano", name_en="Conference"
@@ -92,6 +92,37 @@ class DepartmentEventAccessTests(TestCase):
             username="system-admin", email="admin@example.test", password="safe-password"
         )
         self.assertEqual(events_visible_to(admin).count(), 2)
+
+    def test_permanent_secretary_can_view_all_events_read_only(self):
+        user = self._staff("ps-events", self.dsti)
+        user.profile.role = "PERMANENT_SECRETARY"
+        user.profile.save(update_fields=["role"])
+
+        self.assertEqual(events_visible_to(user).count(), 2)
+        self.client.force_login(user)
+        response = self.client.get(reverse("events:department_event_list"))
+        self.assertContains(response, "NESIF-2026")
+        self.assertContains(response, "DHE-2026")
+        self.assertContains(response, "View event")
+        self.assertNotContains(response, "Create event")
+
+    def test_higher_education_deputy_sees_only_assigned_departments(self):
+        user = self._staff("dps-hes-events", self.dsti)
+        user.profile.role = "DPS_HES"
+        user.profile.save(update_fields=["role"])
+        unrelated = Department.objects.create(code="FAU", name="Finance Unit")
+        Event.objects.create(
+            owning_department=unrelated,
+            category=self.category,
+            code="FAU-2026",
+            title_sw="FAU",
+            title_en="FAU",
+            starts_at=timezone.now(),
+            ends_at=timezone.now() + timedelta(days=1),
+        )
+
+        visible_codes = set(events_visible_to(user).values_list("code", flat=True))
+        self.assertEqual(visible_codes, {"NESIF-2026", "DHE-2026"})
 
     def test_public_event_home_opens_without_a_selected_event(self):
         self.dsti_event.is_public = True

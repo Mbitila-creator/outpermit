@@ -9,6 +9,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from forms_builder.models import EventForm
+from permits.executive_scope import is_executive_viewer
+from permits.models import Department
 from forms_builder.services import (
     certificate_qr_logo_path,
     event_date_range,
@@ -58,16 +60,29 @@ def can_manage_department_event(user):
 @login_required
 def department_event_list(request):
     department = user_department(request.user)
+    executive_viewer = is_executive_viewer(request.user)
     events = (
         events_visible_to(request.user)
         .select_related("owning_department", "category", "venue")
         .order_by("-starts_at", "code")
     )
+    selected_department = request.GET.get("department", "").strip()
+    if selected_department and executive_viewer:
+        events = events.filter(owning_department_id=selected_department)
+    visible_department_ids = events_visible_to(request.user).values_list(
+        "owning_department_id", flat=True
+    )
+    departments = Department.objects.filter(
+        id__in=visible_department_ids, is_active=True
+    ).distinct().order_by("code")
     return render(request, "events/department_event_list.html", {
         "events": events,
         "department": department,
         "is_system_event_administrator": is_system_event_administrator(request.user),
         "can_create_event": can_create_department_event(request.user),
+        "is_executive_viewer": executive_viewer,
+        "departments": departments,
+        "selected_department": selected_department,
     })
 
 
@@ -79,7 +94,8 @@ def department_event_detail(request, event_slug):
         ),
         slug=event_slug,
     )
-    can_manage = can_manage_department_event(request.user)
+    executive_viewer = is_executive_viewer(request.user)
+    can_manage = can_manage_department_event(request.user) and not executive_viewer
     can_manage_registrations = can_manage or has_event_role(
         request.user, {EventRole.REGISTRATION_OFFICER}
     )
@@ -87,7 +103,7 @@ def department_event_detail(request, event_slug):
         EventRole.REGISTRATION_OFFICER,
         EventRole.ATTENDANCE_OFFICER,
     })
-    can_view_reports = can_manage or has_event_role(
+    can_view_reports = executive_viewer or can_manage or has_event_role(
         request.user, {EventRole.REPORT_OFFICER}
     )
     registration_form = event.forms.filter(
@@ -110,6 +126,7 @@ def department_event_detail(request, event_slug):
             and event.owning_department.code.strip().upper() == "DSTI"
         ),
         "can_manage": can_manage,
+        "is_executive_viewer": executive_viewer,
         "can_manage_registrations": can_manage_registrations,
         "can_check_in": can_check_in,
         "can_view_registration_records": can_manage_registrations or can_check_in,

@@ -210,6 +210,7 @@
         </div>
 
         <div class="filter-box">
+            {% if is_read_only_executive %}<div><label>Department</label><select id="departmentFilter"><option value="">All departments in my scope</option>{% for department in departments %}<option value="{{ department.pk }}"{% if selected_department == department.pk|stringformat:"s" %} selected{% endif %}>{{ department.code }} — {{ department.name }}</option>{% endfor %}</select></div>{% endif %}
             <div>
                 <label>Show Table</label>
                 <select id="tableFilter">
@@ -349,12 +350,14 @@
             const search = document.getElementById("searchInput").value;
             const month = document.getElementById("monthFilter").value;
             const financialYear = document.getElementById("financialYear").value;
+            const department = document.getElementById("departmentFilter");
 
             const params = new URLSearchParams();
             params.set("table", table);
             params.set("search", search);
             params.set("month", month);
             params.set("financial_year", financialYear);
+            if (department) params.set("department", department.value);
 
             return params.toString();
         }

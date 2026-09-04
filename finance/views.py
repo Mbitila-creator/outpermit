@@ -18,7 +18,8 @@ from core.workflow import (
     reject_current_finance_step,
     return_current_finance_step,
 )
-from permits.models import ModuleRoleAssignment
+from permits.executive_scope import executive_department_codes, is_executive_viewer
+from permits.models import Department, ModuleRoleAssignment
 from permits.module_roles import module_role
 
 from .forms import (
@@ -285,7 +286,7 @@ def is_retirement_director(user):
 
 
 def can_view_finance_reports(user):
-    return get_user_role(user) in [
+    return is_executive_viewer(user) or get_user_role(user) in [
         "ADMIN",
         "DIVISION_BUDGET_OFFICER",
         "ACCOUNTANT",
@@ -293,6 +294,26 @@ def can_view_finance_reports(user):
         "ASSISTANT_DIRECTOR",
         "DIRECTOR",
     ]
+
+
+def apply_executive_finance_scope(queryset, user, department_field="department"):
+    """Limit read-only executive visibility to the official reporting chain."""
+    if not is_executive_viewer(user):
+        return queryset
+    department_codes = executive_department_codes(user)
+    if department_codes is None:
+        return queryset
+    return queryset.filter(**{f"{department_field}__code__in": department_codes})
+
+
+def executive_finance_departments(user):
+    if not is_executive_viewer(user):
+        return Department.objects.none()
+    departments = Department.objects.filter(is_active=True)
+    department_codes = executive_department_codes(user)
+    if department_codes is not None:
+        departments = departments.filter(code__in=department_codes)
+    return departments.order_by("code")
 
 
 def get_current_financial_year(today=None):
@@ -395,6 +416,9 @@ def get_visible_minute_sheets(user):
     ]:
         return base_qs.order_by("-created_at")
 
+    if is_executive_viewer(user):
+        return apply_executive_finance_scope(base_qs, user).order_by("-created_at")
+
     department = get_user_department(user)
     department_unit = get_user_department_unit(user)
 
@@ -451,6 +475,9 @@ def get_visible_finance_requests(user):
     ]:
         return base_qs.order_by("-created_at")
 
+    if is_executive_viewer(user):
+        return apply_executive_finance_scope(base_qs, user).order_by("-created_at")
+
     department = get_user_department(user)
     department_unit = get_user_department_unit(user)
 
@@ -503,6 +530,11 @@ def get_visible_retirements(user):
 
     if can_see_all_finance(user):
         return base_qs.order_by("-created_at")
+
+    if is_executive_viewer(user):
+        return apply_executive_finance_scope(
+            base_qs, user, "finance_request__department"
+        ).order_by("-created_at")
 
     department = get_user_department(user)
     department_unit = get_user_department_unit(user)
@@ -566,6 +598,11 @@ def get_visible_budget_lines(user):
             "financial_year",
             "month",
             "task_code",
+        )
+
+    if is_executive_viewer(user):
+        return apply_executive_finance_scope(base_qs, user).order_by(
+            "financial_year", "month", "task_code"
         )
 
     department = get_user_department(user)
@@ -645,12 +682,15 @@ def get_filtered_budget_lines(request):
     date_from = request.GET.get("date_from", "").strip()
     date_to = request.GET.get("date_to", "").strip()
     financial_year = request.GET.get("financial_year", "").strip()
+    department_filter = request.GET.get("department", "").strip()
 
     if not financial_year:
         financial_year = get_current_financial_year()
 
     budget_lines = list(
-        get_visible_budget_lines(request.user).order_by(
+        get_visible_budget_lines(request.user).filter(
+            **({"department_id": department_filter} if department_filter and is_executive_viewer(request.user) else {})
+        ).order_by(
             "financial_year",
             "month",
             "task_code",
@@ -815,12 +855,32 @@ def build_finance_analytics_data(budget_lines):
 def finance_dashboard(request):
     role = get_user_role(request.user)
     current_financial_year = get_current_financial_year()
+    executive_viewer = is_executive_viewer(request.user)
+    selected_department = request.GET.get("department", "").strip()
 
-    minute_sheets = get_visible_minute_sheets(request.user)[:10]
-    finance_requests = get_visible_finance_requests(request.user)[:10]
-    retirements = get_visible_retirements(request.user)[:10]
+    minute_sheets = get_visible_minute_sheets(request.user)
+    finance_requests = get_visible_finance_requests(request.user)
+    retirements = get_visible_retirements(request.user)
 
     visible_budget_lines = get_visible_budget_lines(request.user)
+
+    if selected_department and executive_viewer:
+        allowed_departments = executive_finance_departments(request.user)
+        if allowed_departments.filter(pk=selected_department).exists():
+            minute_sheets = minute_sheets.filter(department_id=selected_department)
+            finance_requests = finance_requests.filter(department_id=selected_department)
+            retirements = retirements.filter(
+                finance_request__department_id=selected_department
+            )
+            visible_budget_lines = visible_budget_lines.filter(
+                department_id=selected_department
+            )
+        else:
+            selected_department = ""
+
+    minute_sheets = minute_sheets[:10]
+    finance_requests = finance_requests[:10]
+    retirements = retirements[:10]
 
     budget_lines = visible_budget_lines.only(
         "task_code",
@@ -882,6 +942,7 @@ def finance_dashboard(request):
         ),
         "can_view_budget_lines": (
             request.user.is_superuser
+            or executive_viewer
             or is_dbo(request.user)
             or is_director(request.user)
             or is_assistant_director(request.user)
@@ -902,6 +963,9 @@ def finance_dashboard(request):
         "total_monthly_approved": total_monthly_approved,
         "total_disbursed": total_disbursed,
         "balance": balance,
+        "is_read_only_executive": executive_viewer,
+        "departments": executive_finance_departments(request.user),
+        "selected_department": selected_department,
     }
 
     return render(request, "finance/dashboard.html", context)
@@ -910,6 +974,8 @@ def finance_dashboard(request):
 @login_required
 @transaction.atomic
 def minute_sheet_create(request):
+    if is_executive_viewer(request.user):
+        raise PermissionDenied("Executive access to Finance is read-only.")
     user_department = get_user_department(request.user)
 
     if not user_department:
@@ -997,6 +1063,8 @@ def minute_sheet_detail(request, pk):
         pk=pk,
     )
     role = get_user_role(request.user)
+    if request.method == "POST" and is_executive_viewer(request.user):
+        raise PermissionDenied("Executive access to Finance is read-only.")
     available_fund = get_budget_available_fund(
         minute_sheet.budget_line
     )
@@ -1348,6 +1416,8 @@ def minute_sheet_detail(request, pk):
 @login_required
 @transaction.atomic
 def finance_request_create(request):
+    if is_executive_viewer(request.user):
+        raise PermissionDenied("Executive access to Finance is read-only.")
     user_department = get_user_department(request.user)
 
     if not user_department:
@@ -1401,6 +1471,9 @@ def finance_request_detail(request, pk):
     )
     budget_lines = finance_request.budget_lines.all()
     role = get_user_role(request.user)
+
+    if request.method == "POST" and is_executive_viewer(request.user):
+        raise PermissionDenied("Executive access to Finance is read-only.")
 
     if request.method == "POST":
         action = request.POST.get("action")
@@ -1496,6 +1569,7 @@ def budget_line_list(request):
 
     if not (
         request.user.is_superuser
+        or is_executive_viewer(request.user)
         or is_dbo(request.user)
         or is_director(request.user)
         or is_assistant_director(request.user)
@@ -1814,6 +1888,9 @@ def finance_reports(request):
         "date_to": request.GET.get("date_to", ""),
         "financial_years": financial_years,
         "months": MONTH_ORDER,
+        "departments": executive_finance_departments(request.user),
+        "selected_department": request.GET.get("department", ""),
+        "is_read_only_executive": is_executive_viewer(request.user),
     }
 
     return render(request, "finance/reports.html", context)
@@ -2130,6 +2207,9 @@ def finance_analytics(request):
         "search_query": request.GET.get("search", ""),
         "selected_month": request.GET.get("month", "all"),
         "financial_year": request.GET.get("financial_year", ""),
+        "departments": executive_finance_departments(request.user),
+        "selected_department": request.GET.get("department", ""),
+        "is_read_only_executive": is_executive_viewer(request.user),
         **analytics_data,
     }
 
@@ -2607,6 +2687,8 @@ def retirement_detail(request, pk):
     )
 
     role = get_user_role(request.user)
+    if request.method == "POST" and is_executive_viewer(request.user):
+        raise PermissionDenied("Executive access to Finance is read-only.")
 
     can_accountant_review = (
         is_accountant(request.user)
@@ -2742,6 +2824,8 @@ def retirement_detail(request, pk):
 
 @login_required
 def retirement_create(request):
+    if is_executive_viewer(request.user):
+        raise PermissionDenied("Executive access to Finance is read-only.")
     if request.method == "POST":
         form = RetirementForm(
             request.POST,
@@ -2838,6 +2922,8 @@ def get_finance_request_amount(request):
 
 @login_required
 def edit_retirement(request, pk):
+    if is_executive_viewer(request.user):
+        raise PermissionDenied("Executive access to Finance is read-only.")
     retirement = get_object_or_404(
         Retirement.objects.filter(submitted_by=request.user),
         pk=pk,

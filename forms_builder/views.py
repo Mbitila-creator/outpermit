@@ -145,10 +145,13 @@ def run_due_reminders(request):
 
 
 def can_view_evaluation_reports(user):
+    from permits.executive_scope import is_executive_viewer
+
     return bool(
         user.is_authenticated
         and (
             user.is_superuser
+            or is_executive_viewer(user)
             or has_event_role(user, EVALUATION_REPORT_ROLES)
         )
     )

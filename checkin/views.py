@@ -19,6 +19,7 @@ from pypdf import PdfReader, PdfWriter
 from events.auth import User, has_event_role
 from events.models import Event
 from events.access import events_visible_to
+from permits.executive_scope import is_executive_viewer
 from forms_builder.models import CertificateRecord, EventForm, FormSubmission
 from forms_builder.models import NotificationLog
 from forms_builder.notifications import send_submission_notification
@@ -76,6 +77,7 @@ def can_view_reports(user):
         user.is_authenticated
         and (
             user.is_superuser
+            or is_executive_viewer(user)
             or has_event_role(user, REPORT_ROLES)
         )
     )
