@@ -178,6 +178,21 @@ def _get_user_role(user):
     return "STAFF"
 
 
+def _get_primary_role_label(user, role_code=None):
+    """Return a readable role name without changing the stored role code."""
+    profile = _get_profile(user)
+    approval_role = getattr(profile, "approval_role", None)
+    if approval_role and approval_role.name:
+        return approval_role.name
+
+    normalized_code = role_code or _get_user_role(user)
+    role_labels = dict(UserProfile.ROLE_CHOICES)
+    return role_labels.get(
+        normalized_code,
+        str(normalized_code or "").replace("_", " ").title(),
+    )
+
+
 def _requester_org_context(profile):
     department = getattr(
         profile,
@@ -1770,6 +1785,7 @@ def system_home(request):
 
     context = {
         "role": role,
+        "role_display": _get_primary_role_label(request.user, role),
         "module_roles": module_roles,
         "is_admin": role == "ADMIN",
         "is_head_of_unit": role == "HEAD_OF_UNIT",

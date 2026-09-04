@@ -145,7 +145,7 @@
       <h2>Welcome, {{ request.user.get_full_name|default:request.user.username }}</h2>
       <p>
         Use the modules below to continue.
-        {% if role %}Primary role: <strong>{{ role }}</strong>.{% endif %}
+        {% if role %}Primary role: <strong>{{ role_display }}</strong>.{% endif %}
         {% if module_roles %}
           Additional roles:
           {% for assignment in module_roles %}

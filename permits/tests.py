@@ -453,3 +453,27 @@ class AdministrationCentreTests(TestCase):
         self.assertIn("Workers with Active Permission Report", active_text)
         self.assertIn("Permission Starts", active_text)
         self.assertIn("Permission Ends", active_text)
+
+
+class PrimaryRoleDisplayTests(TestCase):
+    def test_system_home_displays_role_name_instead_of_stored_code(self):
+        role, _ = ApprovalRole.objects.update_or_create(
+            code="PERMANENT_SECRETARY",
+            defaults={"name": "Permanent Secretary", "is_active": True},
+        )
+        user = User.objects.create_user(
+            username="primary-role-display",
+            first_name="Carolyne",
+            last_name="Nombo",
+        )
+        user.profile.role = "PERMANENT_SECRETARY"
+        user.profile.approval_role = role
+        user.profile.save(update_fields=["role", "approval_role"])
+
+        self.client.force_login(user)
+        response = self.client.get(reverse("system_home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Primary role:")
+        self.assertContains(response, "Permanent Secretary")
+        self.assertNotContains(response, "PERMANENT_SECRETARY")
