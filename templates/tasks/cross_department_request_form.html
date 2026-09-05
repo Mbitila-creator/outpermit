@@ -5,4 +5,47 @@
 <form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.non_field_errors }}
 {% for field in form %}<label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% endfor %}
 <button class="btn" type="submit">Send Request</button> <a class="btn alt" href="{% url 'cross_department_requests' %}">Cancel</a></form>
-</main></body></html>
+</main>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const leaderField = document.getElementById("id_group_leader");
+  const staffCheckboxes = Array.from(
+    document.querySelectorAll('input[name="requesting_staff"]')
+  );
+
+  if (!leaderField || !staffCheckboxes.length) return;
+
+  function staffName(checkbox) {
+    const label = checkbox.closest("label");
+    return label ? label.textContent.trim() : checkbox.value;
+  }
+
+  function syncTeamLeaderChoices() {
+    const previousValue = leaderField.value;
+    const selectedStaff = staffCheckboxes.filter(function (checkbox) {
+      return checkbox.checked;
+    });
+
+    leaderField.innerHTML = '<option value="">Select the team leader</option>';
+    selectedStaff.forEach(function (checkbox) {
+      const option = document.createElement("option");
+      option.value = checkbox.value;
+      option.textContent = staffName(checkbox);
+      option.selected = checkbox.value === previousValue;
+      leaderField.appendChild(option);
+    });
+
+    if (!selectedStaff.some(function (checkbox) {
+      return checkbox.value === previousValue;
+    })) {
+      leaderField.value = "";
+    }
+  }
+
+  staffCheckboxes.forEach(function (checkbox) {
+    checkbox.addEventListener("change", syncTeamLeaderChoices);
+  });
+  syncTeamLeaderChoices();
+});
+</script>
+</body></html>

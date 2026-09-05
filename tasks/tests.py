@@ -421,6 +421,35 @@ class CrossDepartmentTaskRequestTests(TestCase):
         self.assertIn(self.fau_head.pk, ids)
         self.assertNotIn(self.other_head.pk, ids)
 
+    def test_team_leader_choices_include_only_checked_requesting_staff(self):
+        second_staff = self._user(
+            "staff-a-2", "REQUESTER", self.department_a
+        )
+        unbound_form = CrossDepartmentTaskRequestForm(user=self.director_a)
+        self.assertFalse(unbound_form.fields["group_leader"].queryset.exists())
+
+        bound_form = CrossDepartmentTaskRequestForm(
+            data={
+                "requesting_staff": [self.staff_a.pk],
+                "group_leader": self.staff_a.pk,
+            },
+            user=self.director_a,
+        )
+        leader_ids = set(
+            bound_form.fields["group_leader"].queryset.values_list(
+                "pk", flat=True
+            )
+        )
+        self.assertEqual(leader_ids, {self.staff_a.pk})
+        self.assertNotIn(second_staff.pk, leader_ids)
+
+    def test_cross_department_request_page_filters_leader_choices_live(self):
+        self.client.force_login(self.director_a)
+        response = self.client.get(reverse("create_cross_department_request"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "syncTeamLeaderChoices")
+        self.assertContains(response, 'input[name="requesting_staff"]')
+
     def test_task_datetime_widgets_close_after_selection(self):
         forms = [
             TaskCreateForm(user=self.director_a),

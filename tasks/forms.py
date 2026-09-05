@@ -119,7 +119,22 @@ class CrossDepartmentTaskRequestForm(forms.ModelForm):
             "profile", "profile__department_unit"
         ).order_by("first_name", "last_name", "username")
         self.fields["requesting_staff"].queryset = internal_staff
-        self.fields["group_leader"].queryset = internal_staff
+        selected_staff_ids = []
+        if self.is_bound:
+            if hasattr(self.data, "getlist"):
+                raw_staff_ids = self.data.getlist("requesting_staff")
+            else:
+                raw_staff_ids = self.data.get("requesting_staff", [])
+                if not isinstance(raw_staff_ids, (list, tuple)):
+                    raw_staff_ids = [raw_staff_ids]
+            for staff_id in raw_staff_ids:
+                try:
+                    selected_staff_ids.append(int(staff_id))
+                except (TypeError, ValueError):
+                    continue
+        self.fields["group_leader"].queryset = internal_staff.filter(
+            pk__in=selected_staff_ids
+        )
         self.fields["start_date"].input_formats = ["%Y-%m-%dT%H:%M"]
         self.fields["due_date"].input_formats = ["%Y-%m-%dT%H:%M"]
 
