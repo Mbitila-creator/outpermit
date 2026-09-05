@@ -384,6 +384,8 @@ class CrossDepartmentTaskRequestTests(TestCase):
             "start_date": now.strftime("%Y-%m-%dT%H:%M"),
             "due_date": (now + timedelta(days=4)).strftime("%Y-%m-%dT%H:%M"),
             "providing_director": self.director_b.pk,
+            "requesting_staff": [self.staff_a.pk],
+            "group_leader": self.staff_a.pk,
         })
         self.assertEqual(response.status_code, 302)
         return CrossDepartmentTaskRequest.objects.get()
@@ -404,7 +406,6 @@ class CrossDepartmentTaskRequestTests(TestCase):
             {
                 "action": "approve",
                 "assigned_users": [self.staff_b1.pk, self.staff_b2.pk],
-                "group_leader": self.staff_b1.pk,
                 "decision_note": "Staff are available.",
             },
         )
@@ -416,17 +417,33 @@ class CrossDepartmentTaskRequestTests(TestCase):
         self.assertEqual(cross_request.task.department, self.department_a)
         self.assertEqual(
             set(cross_request.task.assignments.values_list("assigned_to_id", flat=True)),
-            {self.staff_b1.pk, self.staff_b2.pk},
+            {self.staff_a.pk, self.staff_b1.pk, self.staff_b2.pk},
         )
         self.assertEqual(
             cross_request.task.assignments.get(is_group_leader=True).assigned_to,
-            self.staff_b1,
+            self.staff_a,
         )
 
         director_a_tasks, _ = _get_visible_task_scope(self.director_a)
         director_b_tasks, _ = _get_visible_task_scope(self.director_b)
         self.assertIn(cross_request.task, director_a_tasks)
         self.assertIn(cross_request.task, director_b_tasks)
+
+        self.client.force_login(self.director_a)
+        response_a = self.client.get(reverse("task_dashboard"))
+        performers_a = {
+            row["user_id"] for row in response_a.context["top_performers"]
+        }
+        self.assertIn(self.staff_a.pk, performers_a)
+        self.assertNotIn(self.staff_b1.pk, performers_a)
+
+        self.client.force_login(self.director_b)
+        response_b = self.client.get(reverse("task_dashboard"))
+        performers_b = {
+            row["user_id"] for row in response_b.context["top_performers"]
+        }
+        self.assertIn(self.staff_b1.pk, performers_b)
+        self.assertNotIn(self.staff_a.pk, performers_b)
 
     def test_providing_director_cannot_assign_requesting_department_staff(self):
         cross_request = self._create_request()

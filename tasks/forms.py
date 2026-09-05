@@ -76,12 +76,21 @@ class DirectorChoiceField(UserChoiceField):
 
 class CrossDepartmentTaskRequestForm(forms.ModelForm):
     providing_director = DirectorChoiceField(queryset=User.objects.none())
+    requesting_staff = UserMultipleChoiceField(
+        queryset=User.objects.none(), widget=forms.CheckboxSelectMultiple,
+        label="Staff from your department already on this task",
+    )
+    group_leader = UserChoiceField(
+        queryset=User.objects.none(), label="Team leader from your department",
+        empty_label="Select the team leader",
+    )
 
     class Meta:
         model = CrossDepartmentTaskRequest
         fields = [
             "title", "description", "priority", "start_date", "due_date",
             "attachment", "providing_director",
+            "requesting_staff", "group_leader",
         ]
         widgets = {
             "description": forms.Textarea(attrs={"rows": 5}),
@@ -100,6 +109,14 @@ class CrossDepartmentTaskRequestForm(forms.ModelForm):
         self.fields["providing_director"].queryset = department_director_queryset(
             exclude_department_id=getattr(profile, "department_id", None)
         )
+        internal_staff = User.objects.filter(
+            is_active=True,
+            profile__department_id=getattr(profile, "department_id", None),
+        ).exclude(pk=self.user.pk).select_related(
+            "profile", "profile__department_unit"
+        ).order_by("first_name", "last_name", "username")
+        self.fields["requesting_staff"].queryset = internal_staff
+        self.fields["group_leader"].queryset = internal_staff
         self.fields["start_date"].input_formats = ["%Y-%m-%dT%H:%M"]
         self.fields["due_date"].input_formats = ["%Y-%m-%dT%H:%M"]
 
@@ -108,6 +125,12 @@ class CrossDepartmentTaskRequestForm(forms.ModelForm):
         start, due = cleaned.get("start_date"), cleaned.get("due_date")
         if start and due and due < start:
             self.add_error("due_date", "Due date cannot be before start date.")
+        staff = cleaned.get("requesting_staff") or []
+        leader = cleaned.get("group_leader")
+        if leader and leader.pk not in {user.pk for user in staff}:
+            self.add_error(
+                "group_leader", "The team leader must be selected as internal staff."
+            )
         return cleaned
 
 
@@ -115,10 +138,6 @@ class CrossDepartmentTaskDecisionForm(forms.Form):
     assigned_users = UserMultipleChoiceField(
         queryset=User.objects.none(), widget=forms.CheckboxSelectMultiple,
         label="Staff supplied by your department",
-    )
-    group_leader = UserChoiceField(
-        queryset=User.objects.none(), required=False,
-        empty_label="Select the group leader",
     )
     decision_note = forms.CharField(
         required=False, widget=forms.Textarea(attrs={"rows": 3})
@@ -134,19 +153,9 @@ class CrossDepartmentTaskDecisionForm(forms.Form):
             "profile", "profile__department_unit"
         ).order_by("first_name", "last_name", "username")
         self.fields["assigned_users"].queryset = staff
-        self.fields["group_leader"].queryset = staff
 
     def clean(self):
         cleaned = super().clean()
-        users = cleaned.get("assigned_users") or []
-        leader = cleaned.get("group_leader")
-        ids = {user.pk for user in users}
-        if len(ids) > 1 and not leader:
-            self.add_error("group_leader", "Select one assignee as group leader.")
-        elif leader and leader.pk not in ids:
-            self.add_error("group_leader", "The group leader must be an assignee.")
-        elif len(ids) <= 1:
-            cleaned["group_leader"] = None
         return cleaned
 
 

@@ -235,6 +235,7 @@ class CrossDepartmentTaskRequestAdmin(admin.ModelAdmin):
         "title", "requested_by__username", "providing_director__username",
     )
     readonly_fields = ("created_at", "updated_at", "decided_at", "task")
+    filter_horizontal = ("requesting_staff",)
 
 
 # --------------------------------------------------

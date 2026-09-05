@@ -388,6 +388,13 @@ class CrossDepartmentTaskRequest(models.Model):
         User, on_delete=models.PROTECT,
         related_name="cross_task_requests_received",
     )
+    requesting_staff = models.ManyToManyField(
+        User, related_name="cross_task_requests_as_internal_staff"
+    )
+    group_leader = models.ForeignKey(
+        User, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="cross_task_requests_led",
+    )
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default="PENDING", db_index=True
     )

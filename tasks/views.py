@@ -1364,6 +1364,28 @@ def _get_visible_task_scope(
         ).distinct(),
     )
 
+def _departmental_performer_assignments(user, assignments):
+    """Credit rankings only to each assignee's home organizational scope."""
+    profile = _get_profile(user)
+    role = _get_user_role(user)
+    if role == "ADMIN" or user.is_superuser:
+        return assignments
+    if role in EXECUTIVE_TASK_ROLES:
+        codes = executive_department_codes(role)
+        return assignments if codes is None else assignments.filter(
+            assigned_to__profile__department__code__in=codes
+        )
+    if role == "HEAD_OF_UNIT" and profile.department_unit_id:
+        return assignments.filter(
+            assigned_to__profile__department_unit_id=profile.department_unit_id
+        )
+    if profile.department_id:
+        return assignments.filter(
+            assigned_to__profile__department_id=profile.department_id
+        )
+    return assignments.none()
+
+
 # --------------------------------------------------
 # Dashboard
 # --------------------------------------------------
@@ -1505,7 +1527,9 @@ def task_dashboard(request):
             })
 
         top_performers_rows = (
-            analytics_assignments
+            _departmental_performer_assignments(
+                request.user, analytics_assignments
+            )
             .values(
                 "assigned_to__id",
                 "assigned_to__username",
@@ -1737,6 +1761,9 @@ def create_cross_department_request(request):
         )
         cross_request.full_clean()
         cross_request.save()
+        cross_request.requesting_staff.set(
+            form.cleaned_data["requesting_staff"]
+        )
         messages.success(
             request,
             "Cross-department task request sent to the providing director.",
@@ -1781,7 +1808,6 @@ def decide_cross_department_request(request, pk):
             return redirect("cross_department_requests")
         if action == "approve" and form.is_valid():
             users = form.cleaned_data["assigned_users"]
-            leader = form.cleaned_data.get("group_leader")
             with transaction.atomic():
                 task = Task.objects.create(
                     title=cross_request.title,
@@ -1796,14 +1822,21 @@ def decide_cross_department_request(request, pk):
                     approved_at=timezone.now(),
                     approval_decision_note=form.cleaned_data["decision_note"],
                 )
+                for user in cross_request.requesting_staff.all():
+                    TaskAssignment.objects.create(
+                        task=task,
+                        assigned_to=user,
+                        assigned_by=cross_request.requested_by,
+                        is_group_leader=(
+                            user.pk == cross_request.group_leader_id
+                        ),
+                    )
                 for user in users:
                     TaskAssignment.objects.create(
                         task=task,
                         assigned_to=user,
                         assigned_by=cross_request.providing_director,
-                        is_group_leader=bool(
-                            leader and leader.pk == user.pk
-                        ),
+                        is_group_leader=False,
                     )
                 cross_request.task = task
                 cross_request.status = "APPROVED"
@@ -2833,7 +2866,7 @@ def task_analytics(request):
     delay_by_unit = sorted(delay_by_unit, key=lambda x: (-x["overdue"], -x["late_completed"], -x["avg_delay_days"], x["unit_name"]))
 
     top_performers = (
-        all_assignments
+        _departmental_performer_assignments(request.user, all_assignments)
         .values(
             "assigned_to__id",
             "assigned_to__username",
@@ -3643,7 +3676,7 @@ def task_analytics_export_excel(request):
 
     def build_top_performers(row_num):
         top_performers = (
-            all_assignments
+            _departmental_performer_assignments(request.user, all_assignments)
             .values(
                 "assigned_to__id",
                 "assigned_to__username",
