@@ -199,8 +199,8 @@
 
             <input type="text" name="financial_year" placeholder="Financial Year" value="{{ request.GET.financial_year }}">
 
-            <input type="date" name="date_from" value="{{ request.GET.date_from }}">
-            <input type="date" name="date_to" value="{{ request.GET.date_to }}">
+            <input type="date" name="date_from" value="{{ request.GET.date_from }}" onchange="this.blur()">
+            <input type="date" name="date_to" value="{{ request.GET.date_to }}" onchange="this.blur()">
 
             <button type="submit">Apply</button>
             <a href="{% url 'finance:finance_reports' %}" class="reset-btn">Reset</a>

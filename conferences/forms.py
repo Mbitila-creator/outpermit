@@ -100,8 +100,8 @@ class ConferencePresentationScheduleForm(forms.ModelForm):
             "venue_name", "status", "manager_notes",
         )
         widgets = {
-            "starts_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
-            "ends_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "starts_at": forms.DateTimeInput(attrs={"type": "datetime-local", "onchange": "this.blur()"}),
+            "ends_at": forms.DateTimeInput(attrs={"type": "datetime-local", "onchange": "this.blur()"}),
             "manager_notes": forms.Textarea(attrs={"rows": 3}),
         }
 
@@ -203,4 +203,3 @@ class ConferenceFeedbackForm(forms.ModelForm):
         elif not (cleaned_data.get("respondent_name") or "").strip():
             self.add_error("respondent_name", "Enter your name or submit anonymously.")
         return cleaned_data
-

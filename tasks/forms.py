@@ -41,10 +41,10 @@ class TaskProposalForm(forms.ModelForm):
         widgets = {
             "description": forms.Textarea(attrs={"rows": 5}),
             "start_date": forms.DateTimeInput(
-                attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
+                attrs={"type": "datetime-local", "onchange": "this.blur()"}, format="%Y-%m-%dT%H:%M"
             ),
             "due_date": forms.DateTimeInput(
-                attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
+                attrs={"type": "datetime-local", "onchange": "this.blur()"}, format="%Y-%m-%dT%H:%M"
             ),
         }
 
@@ -75,7 +75,10 @@ class DirectorChoiceField(UserChoiceField):
 
 
 class CrossDepartmentTaskRequestForm(forms.ModelForm):
-    providing_director = DirectorChoiceField(queryset=User.objects.none())
+    providing_director = DirectorChoiceField(
+        queryset=User.objects.none(),
+        label="Providing Director or Head",
+    )
     requesting_staff = UserMultipleChoiceField(
         queryset=User.objects.none(), widget=forms.CheckboxSelectMultiple,
         label="Staff from your department already on this task",
@@ -95,10 +98,10 @@ class CrossDepartmentTaskRequestForm(forms.ModelForm):
         widgets = {
             "description": forms.Textarea(attrs={"rows": 5}),
             "start_date": forms.DateTimeInput(
-                attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
+                attrs={"type": "datetime-local", "onchange": "this.blur()"}, format="%Y-%m-%dT%H:%M"
             ),
             "due_date": forms.DateTimeInput(
-                attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
+                attrs={"type": "datetime-local", "onchange": "this.blur()"}, format="%Y-%m-%dT%H:%M"
             ),
         }
 
@@ -231,7 +234,8 @@ class TaskCreateForm(forms.ModelForm):
                 attrs={
                     "type": "datetime-local",
                     "class": "form-control",
-                    "id": "id_start_date"
+                    "id": "id_start_date",
+                    "onchange": "this.blur()"
                 },
                 format="%Y-%m-%dT%H:%M"
             ),
@@ -240,7 +244,8 @@ class TaskCreateForm(forms.ModelForm):
                 attrs={
                     "type": "datetime-local",
                     "class": "form-control",
-                    "id": "id_due_date"
+                    "id": "id_due_date",
+                    "onchange": "this.blur()"
                 },
                 format="%Y-%m-%dT%H:%M"
             ),

@@ -200,6 +200,14 @@
                 languageForm.submit();
             }
         });
+
+        document.querySelectorAll(
+            'input[type="date"], input[type="datetime-local"], input[type="time"]'
+        ).forEach(function (field) {
+            field.addEventListener("change", function () {
+                this.blur();
+            });
+        });
     });
 </script>
 

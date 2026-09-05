@@ -82,7 +82,7 @@ class MeetingWorkflowForm(forms.Form):
         input_formats=[DATETIME_FORMAT],
         widget=forms.DateTimeInput(
             format=DATETIME_FORMAT,
-            attrs={"type": "datetime-local"},
+            attrs={"type": "datetime-local", "onchange": "this.blur()"},
         ),
     )
     ends_at = forms.DateTimeField(
@@ -90,7 +90,7 @@ class MeetingWorkflowForm(forms.Form):
         input_formats=[DATETIME_FORMAT],
         widget=forms.DateTimeInput(
             format=DATETIME_FORMAT,
-            attrs={"type": "datetime-local"},
+            attrs={"type": "datetime-local", "onchange": "this.blur()"},
         ),
     )
     status = forms.ChoiceField(label=_("Status"), choices=Event.Status.choices)
@@ -144,7 +144,7 @@ class MeetingWorkflowForm(forms.Form):
         input_formats=[DATETIME_FORMAT],
         widget=forms.DateTimeInput(
             format=DATETIME_FORMAT,
-            attrs={"type": "datetime-local"},
+            attrs={"type": "datetime-local", "onchange": "this.blur()"},
         ),
     )
     checkin_closes_at = forms.DateTimeField(
@@ -153,7 +153,7 @@ class MeetingWorkflowForm(forms.Form):
         input_formats=[DATETIME_FORMAT],
         widget=forms.DateTimeInput(
             format=DATETIME_FORMAT,
-            attrs={"type": "datetime-local"},
+            attrs={"type": "datetime-local", "onchange": "this.blur()"},
         ),
     )
     evaluation_enabled = forms.BooleanField(
@@ -167,7 +167,7 @@ class MeetingWorkflowForm(forms.Form):
         input_formats=[DATETIME_FORMAT],
         widget=forms.DateTimeInput(
             format=DATETIME_FORMAT,
-            attrs={"type": "datetime-local"},
+            attrs={"type": "datetime-local", "onchange": "this.blur()"},
         ),
     )
     chairperson_name = forms.CharField(label=_("Chairperson"), max_length=200)
@@ -187,7 +187,7 @@ class MeetingWorkflowForm(forms.Form):
         input_formats=[DATETIME_FORMAT],
         widget=forms.DateTimeInput(
             format=DATETIME_FORMAT,
-            attrs={"type": "datetime-local"},
+            attrs={"type": "datetime-local", "onchange": "this.blur()"},
         ),
     )
     objectives_sw = forms.CharField(
@@ -590,7 +590,7 @@ class MeetingActionItemForm(forms.ModelForm):
         widgets = {
             "description_sw": forms.Textarea(attrs={"rows": 3}),
             "description_en": forms.Textarea(attrs={"rows": 3}),
-            "due_date": forms.DateInput(attrs={"type": "date"}),
+            "due_date": forms.DateInput(attrs={"type": "date", "onchange": "this.blur()"}),
             "progress_notes": forms.Textarea(attrs={"rows": 2}),
         }
 
@@ -806,7 +806,7 @@ class MeetingOccurrenceForm(forms.Form):
         input_formats=[DATETIME_FORMAT],
         widget=forms.DateTimeInput(
             format=DATETIME_FORMAT,
-            attrs={"type": "datetime-local"},
+            attrs={"type": "datetime-local", "onchange": "this.blur()"},
         ),
     )
     invitation_deadline = forms.DateTimeField(
@@ -815,7 +815,7 @@ class MeetingOccurrenceForm(forms.Form):
         input_formats=[DATETIME_FORMAT],
         widget=forms.DateTimeInput(
             format=DATETIME_FORMAT,
-            attrs={"type": "datetime-local"},
+            attrs={"type": "datetime-local", "onchange": "this.blur()"},
         ),
     )
     status = forms.ChoiceField(label=_("Status"), choices=Event.Status.choices)

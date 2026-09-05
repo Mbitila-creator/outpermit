@@ -12,7 +12,9 @@ from permits.models import (
     ModuleRoleAssignment,
 )
 
-from .forms import TaskCreateForm, TaskProposalForm
+from .forms import (
+    TaskCreateForm, TaskProposalForm, CrossDepartmentTaskRequestForm,
+)
 from .models import Task, TaskAssignment, CrossDepartmentTaskRequest
 from .views import _get_visible_task_scope
 
@@ -365,6 +367,18 @@ class CrossDepartmentTaskRequestTests(TestCase):
         self.staff_b1 = self._user("staff-b1", "REQUESTER", self.department_b, self.unit_b)
         self.staff_b2 = self._user("staff-b2", "REQUESTER", self.department_b, self.unit_b)
         self.staff_a = self._user("staff-a", "REQUESTER", self.department_a)
+        self.fau = Department.objects.create(
+            code="FAU", name="Finance and Accounting Unit"
+        )
+        self.fau_head = self._user(
+            "fau-head", "HEAD_OF_UNIT", self.fau
+        )
+        self.other_department = Department.objects.create(
+            code="OTHER", name="Other Department"
+        )
+        self.other_head = self._user(
+            "other-head", "HEAD_OF_UNIT", self.other_department
+        )
 
     def _user(self, username, role, department, unit=None):
         user = User.objects.create_user(username=username, password="safe-pass")
@@ -397,6 +411,30 @@ class CrossDepartmentTaskRequestTests(TestCase):
         self.assertEqual(cross_request.providing_director, self.director_b)
         self.assertEqual(cross_request.status, "PENDING")
         self.assertIsNone(cross_request.task)
+
+    def test_ps_direct_head_is_available_but_other_department_head_is_not(self):
+        queryset = CrossDepartmentTaskRequestForm(
+            user=self.director_a
+        ).fields["providing_director"].queryset
+        ids = set(queryset.values_list("pk", flat=True))
+        self.assertIn(self.director_b.pk, ids)
+        self.assertIn(self.fau_head.pk, ids)
+        self.assertNotIn(self.other_head.pk, ids)
+
+    def test_task_datetime_widgets_close_after_selection(self):
+        forms = [
+            TaskCreateForm(user=self.director_a),
+            CrossDepartmentTaskRequestForm(user=self.director_a),
+        ]
+        for form in forms:
+            self.assertEqual(
+                form.fields["start_date"].widget.attrs["onchange"],
+                "this.blur()",
+            )
+            self.assertEqual(
+                form.fields["due_date"].widget.attrs["onchange"],
+                "this.blur()",
+            )
 
     def test_providing_director_selects_only_own_staff_and_approves(self):
         cross_request = self._create_request()

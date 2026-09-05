@@ -45,8 +45,8 @@
         </select>
 
         <input type="text" name="module" value="{{ module }}" placeholder="Module">
-        <input type="date" name="start_date" value="{{ start_date }}">
-        <input type="date" name="end_date" value="{{ end_date }}">
+        <input type="date" name="start_date" value="{{ start_date }}" onchange="this.blur()">
+        <input type="date" name="end_date" value="{{ end_date }}" onchange="this.blur()">
         <button class="btn" type="submit">Filter</button>
     </form>
 

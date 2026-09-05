@@ -56,7 +56,7 @@
 
 {% elif question.question_type == "DATE" %}
     <input
-        type="date"
+        type="date" onchange="this.blur()"
         id="question-{{ question.id }}"
         name="question_{{ question.id }}"
         {% if question.is_required %}required{% endif %}
@@ -64,7 +64,7 @@
 
 {% elif question.question_type == "DATETIME" %}
     <input
-        type="datetime-local"
+        type="datetime-local" onchange="this.blur()"
         id="question-{{ question.id }}"
         name="question_{{ question.id }}"
         {% if question.is_required %}required{% endif %}

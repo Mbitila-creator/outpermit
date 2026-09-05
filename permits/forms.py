@@ -201,11 +201,11 @@ class ExternalWorkRequestForm(forms.ModelForm):
                 }
             ),
             "start_time": forms.DateTimeInput(
-                attrs={"type": "datetime-local"},
+                attrs={"type": "datetime-local", "onchange": "this.blur()"},
                 format="%Y-%m-%dT%H:%M"
             ),
             "end_time": forms.DateTimeInput(
-                attrs={"type": "datetime-local"},
+                attrs={"type": "datetime-local", "onchange": "this.blur()"},
                 format="%Y-%m-%dT%H:%M"
             ),
         }

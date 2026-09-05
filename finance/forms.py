@@ -118,10 +118,10 @@ class MinuteSheetForm(BaseStyledForm):
                 attrs={"rows": 5}
             ),
             "start_date": forms.DateInput(
-                attrs={"type": "date"}
+                attrs={"type": "date", "onchange": "this.blur()"}
             ),
             "end_date": forms.DateInput(
-                attrs={"type": "date"}
+                attrs={"type": "date", "onchange": "this.blur()"}
             ),
             "requested_amount": forms.NumberInput(
                 attrs={

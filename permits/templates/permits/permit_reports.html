@@ -377,12 +377,12 @@
         
                 <div class="filter-group">
                     <label>From</label>
-                    <input type="date" name="start_date" value="{{ selected_start_date }}">
+                    <input type="date" name="start_date" value="{{ selected_start_date }}" onchange="this.blur()">
                 </div>
         
                 <div class="filter-group">
                     <label>To</label>
-                    <input type="date" name="end_date" value="{{ selected_end_date }}">
+                    <input type="date" name="end_date" value="{{ selected_end_date }}" onchange="this.blur()">
                 </div>
         
                 {% if is_director_level %}

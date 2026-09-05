@@ -23,6 +23,13 @@ MANAGED_LEADERSHIP_ROLES = {
 
 DSTI_LEGACY_ASSISTANT_USERNAMES = {"adsti", "adrd"}
 
+# These organizational heads report directly to the Permanent Secretary.
+# They act as the providing authority for cross-department task requests
+# even where their primary role is Head of Unit rather than Director.
+PS_DIRECT_REPORT_DEPARTMENT_CODES = {
+    "FAU", "AHRM", "GCU", "IAU", "ICTU", "LSU", "PMU", "DPP", "MEU",
+}
+
 
 def _leadership_query():
     """Recognize primary, approval and Task-module leadership roles."""
@@ -50,6 +57,20 @@ def department_director_queryset(exclude_department_id=None):
         | Q(
             module_role_assignments__module="TASK",
             module_role_assignments__role_code="DIRECTOR",
+            module_role_assignments__is_active=True,
+        )
+        | Q(
+            profile__department__code__in=PS_DIRECT_REPORT_DEPARTMENT_CODES,
+            profile__approval_role__code="HEAD_OF_UNIT",
+        )
+        | Q(
+            profile__department__code__in=PS_DIRECT_REPORT_DEPARTMENT_CODES,
+            profile__role="HEAD_OF_UNIT",
+        )
+        | Q(
+            profile__department__code__in=PS_DIRECT_REPORT_DEPARTMENT_CODES,
+            module_role_assignments__module="TASK",
+            module_role_assignments__role_code="HEAD_OF_UNIT",
             module_role_assignments__is_active=True,
         )
     )

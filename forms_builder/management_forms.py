@@ -58,8 +58,8 @@ class QuestionnaireForm(StyledModelForm):
             "introduction_sw": forms.Textarea(attrs={"rows": 3}),
             "success_message_en": forms.Textarea(attrs={"rows": 2}),
             "success_message_sw": forms.Textarea(attrs={"rows": 2}),
-            "opens_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
-            "closes_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "opens_at": forms.DateTimeInput(attrs={"type": "datetime-local", "onchange": "this.blur()"}),
+            "closes_at": forms.DateTimeInput(attrs={"type": "datetime-local", "onchange": "this.blur()"}),
         }
 
     def clean(self):

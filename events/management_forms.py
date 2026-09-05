@@ -98,10 +98,10 @@ class DepartmentEventForm(forms.ModelForm):
             "payment_enabled", "participation_fee", "payment_currency",
         )
         widgets = {
-            "registration_opens_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
-            "registration_closes_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
-            "starts_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
-            "ends_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "registration_opens_at": forms.DateTimeInput(attrs={"type": "datetime-local", "onchange": "this.blur()"}),
+            "registration_closes_at": forms.DateTimeInput(attrs={"type": "datetime-local", "onchange": "this.blur()"}),
+            "starts_at": forms.DateTimeInput(attrs={"type": "datetime-local", "onchange": "this.blur()"}),
+            "ends_at": forms.DateTimeInput(attrs={"type": "datetime-local", "onchange": "this.blur()"}),
             "description_sw": forms.Textarea(attrs={"rows": 3}),
             "description_en": forms.Textarea(attrs={"rows": 3}),
         }
