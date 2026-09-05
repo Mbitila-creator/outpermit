@@ -14,7 +14,7 @@ from openpyxl.utils import get_column_letter
 from permits.models import UserProfile, Department, DepartmentUnit, ModuleRoleAssignment
 from permits.module_roles import module_role
 from system_admin.models import SystemSetting
-from .models import Task, TaskAssignment, TaskUpdate
+from .models import Task, TaskAssignment, TaskUpdate, CrossDepartmentTaskRequest
 from .forms import (
     TaskCreateForm,
     TaskProposalForm,
@@ -22,6 +22,8 @@ from .forms import (
     TaskManagementNoteForm,
     TaskReturnForm,
     TaskReassignForm,
+    CrossDepartmentTaskRequestForm,
+    CrossDepartmentTaskDecisionForm,
 )
 from .access import (
     EXECUTIVE_TASK_ROLES,
@@ -319,6 +321,13 @@ def _can_view_task(user, task):
     if task.created_by == user:
         return True
 
+    cross_request = getattr(task, "cross_department_request", None)
+    if cross_request and (
+        cross_request.requested_by_id == user.id
+        or cross_request.providing_director_id == user.id
+    ):
+        return True
+
     if task.proposed_by_id == user.id or task.approver_id == user.id:
         return True
 
@@ -346,7 +355,16 @@ def _can_view_task(user, task):
     # Director: access tasks belonging to the Director's department.
     if role == "DIRECTOR":
         if user_department_id and task_department_id:
-            return task_department_id == user_department_id
+            return (
+                task_department_id == user_department_id
+                or task.assignments.filter(
+                    assigned_to__profile__department_id=user_department_id
+                ).exists()
+                or (
+                    cross_request
+                    and cross_request.providing_department_id == user_department_id
+                )
+            )
         return False
 
     # Assistant Director scope.
@@ -1110,6 +1128,8 @@ def _get_visible_task_scope(
         | Q(proposed_by=user)
         | Q(approver=user)
         | Q(assignments__assigned_to=user)
+        | Q(cross_department_request__requested_by=user)
+        | Q(cross_department_request__providing_director=user)
     )
 
     direct_assignment_access = (
@@ -1117,6 +1137,8 @@ def _get_visible_task_scope(
         | Q(task__proposed_by=user)
         | Q(task__approver=user)
         | Q(assigned_to=user)
+        | Q(task__cross_department_request__requested_by=user)
+        | Q(task__cross_department_request__providing_director=user)
     )
 
     # --------------------------------------------------
@@ -1142,10 +1164,14 @@ def _get_visible_task_scope(
 
         task_scope = Q(
             department_id=profile.department_id
+        ) | Q(
+            cross_department_request__providing_department_id=profile.department_id
         )
 
         assignment_scope = Q(
             task__department_id=profile.department_id
+        ) | Q(
+            task__cross_department_request__providing_department_id=profile.department_id
         )
 
         if not strict_department:
@@ -1411,6 +1437,12 @@ def task_dashboard(request):
         "pending_approval_count": pending_approvals.count(),
         "show_director_analytics": show_director_analytics,
         "can_propose_task": task_approver_queryset(request.user).exists(),
+        "can_request_cross_department": (
+            role == "DIRECTOR" and bool(profile.department_id)
+        ),
+        "pending_cross_department_count": CrossDepartmentTaskRequest.objects.filter(
+            providing_director=request.user, status="PENDING"
+        ).count(),
     }
 
     if show_director_analytics:
@@ -1664,6 +1696,134 @@ def export_tasks_excel(request):
 # --------------------------------------------------
 # Create Task
 # --------------------------------------------------
+@login_required
+def cross_department_requests(request):
+    profile = _get_profile(request.user)
+    role = _get_user_role(request.user)
+    if role not in ["DIRECTOR", "ADMIN"] and not request.user.is_superuser:
+        return HttpResponseForbidden(
+            "Only directors may access cross-department task requests."
+        )
+    requests = CrossDepartmentTaskRequest.objects.select_related(
+        "requesting_department", "providing_department", "requested_by",
+        "providing_director", "task",
+    )
+    if role != "ADMIN" and not request.user.is_superuser:
+        requests = requests.filter(
+            Q(requested_by=request.user) | Q(providing_director=request.user)
+        )
+    return render(request, "tasks/cross_department_requests.html", {
+        "cross_requests": requests,
+        "can_create": role == "DIRECTOR" and bool(profile.department_id),
+    })
+
+
+@login_required
+def create_cross_department_request(request):
+    profile = _get_profile(request.user)
+    if _get_user_role(request.user) != "DIRECTOR" or not profile.department_id:
+        return HttpResponseForbidden(
+            "Only a department director may request staff from another department."
+        )
+    form = CrossDepartmentTaskRequestForm(
+        request.POST or None, request.FILES or None, user=request.user
+    )
+    if request.method == "POST" and form.is_valid():
+        cross_request = form.save(commit=False)
+        cross_request.requested_by = request.user
+        cross_request.requesting_department = profile.department
+        cross_request.providing_department = (
+            form.cleaned_data["providing_director"].profile.department
+        )
+        cross_request.full_clean()
+        cross_request.save()
+        messages.success(
+            request,
+            "Cross-department task request sent to the providing director.",
+        )
+        return redirect("cross_department_requests")
+    return render(
+        request, "tasks/cross_department_request_form.html", {"form": form}
+    )
+
+
+@login_required
+def decide_cross_department_request(request, pk):
+    cross_request = get_object_or_404(
+        CrossDepartmentTaskRequest.objects.select_related(
+            "requested_by", "requesting_department", "providing_department",
+            "providing_director",
+        ), pk=pk,
+    )
+    if request.user != cross_request.providing_director:
+        return HttpResponseForbidden(
+            "Only the selected providing director may decide this request."
+        )
+    if cross_request.status != "PENDING":
+        messages.error(request, "This request has already been decided.")
+        return redirect("cross_department_requests")
+
+    form = CrossDepartmentTaskDecisionForm(
+        request.POST or None, cross_request=cross_request
+    )
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "reject":
+            cross_request.status = "REJECTED"
+            cross_request.decision_note = request.POST.get(
+                "decision_note", ""
+            ).strip()
+            cross_request.decided_at = timezone.now()
+            cross_request.save(update_fields=[
+                "status", "decision_note", "decided_at", "updated_at"
+            ])
+            messages.success(request, "Cross-department task request rejected.")
+            return redirect("cross_department_requests")
+        if action == "approve" and form.is_valid():
+            users = form.cleaned_data["assigned_users"]
+            leader = form.cleaned_data.get("group_leader")
+            with transaction.atomic():
+                task = Task.objects.create(
+                    title=cross_request.title,
+                    description=cross_request.description,
+                    created_by=cross_request.requested_by,
+                    department=cross_request.requesting_department,
+                    priority=cross_request.priority,
+                    start_date=cross_request.start_date,
+                    due_date=cross_request.due_date,
+                    attachment=cross_request.attachment,
+                    approval_status="APPROVED",
+                    approved_at=timezone.now(),
+                    approval_decision_note=form.cleaned_data["decision_note"],
+                )
+                for user in users:
+                    TaskAssignment.objects.create(
+                        task=task,
+                        assigned_to=user,
+                        assigned_by=cross_request.providing_director,
+                        is_group_leader=bool(
+                            leader and leader.pk == user.pk
+                        ),
+                    )
+                cross_request.task = task
+                cross_request.status = "APPROVED"
+                cross_request.decision_note = form.cleaned_data["decision_note"]
+                cross_request.decided_at = timezone.now()
+                cross_request.save(update_fields=[
+                    "task", "status", "decision_note", "decided_at", "updated_at"
+                ])
+            messages.success(
+                request,
+                "Request approved and the task assigned to your selected staff.",
+            )
+            return redirect("task_detail", pk=task.pk)
+    return render(
+        request,
+        "tasks/cross_department_request_decision.html",
+        {"cross_request": cross_request, "form": form},
+    )
+
+
 @login_required
 def create_task(request):
     setting = _get_system_setting()

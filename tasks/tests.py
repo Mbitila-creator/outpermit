@@ -13,7 +13,7 @@ from permits.models import (
 )
 
 from .forms import TaskCreateForm, TaskProposalForm
-from .models import Task, TaskAssignment
+from .models import Task, TaskAssignment, CrossDepartmentTaskRequest
 from .views import _get_visible_task_scope
 
 
@@ -351,3 +351,100 @@ class StaffTaskProposalTests(TestCase):
         task.refresh_from_db()
         self.assertEqual(task.approval_status, "PENDING")
         self.assertFalse(task.assignments.exists())
+
+
+class CrossDepartmentTaskRequestTests(TestCase):
+    def setUp(self):
+        self.department_a = Department.objects.create(code="DEPA", name="Department A")
+        self.department_b = Department.objects.create(code="DEPB", name="Department B")
+        self.unit_b = DepartmentUnit.objects.create(
+            department=self.department_b, code="UNITB", name="Unit B"
+        )
+        self.director_a = self._user("director-a", "DIRECTOR", self.department_a)
+        self.director_b = self._user("director-b", "DIRECTOR", self.department_b)
+        self.staff_b1 = self._user("staff-b1", "REQUESTER", self.department_b, self.unit_b)
+        self.staff_b2 = self._user("staff-b2", "REQUESTER", self.department_b, self.unit_b)
+        self.staff_a = self._user("staff-a", "REQUESTER", self.department_a)
+
+    def _user(self, username, role, department, unit=None):
+        user = User.objects.create_user(username=username, password="safe-pass")
+        user.profile.role = role
+        user.profile.department = department
+        user.profile.department_unit = unit
+        user.profile.save()
+        return user
+
+    def _create_request(self):
+        now = timezone.localtime().replace(second=0, microsecond=0)
+        self.client.force_login(self.director_a)
+        response = self.client.post(reverse("create_cross_department_request"), {
+            "title": "Joint technical review",
+            "description": "Provide two technical officers.",
+            "priority": "HIGH",
+            "start_date": now.strftime("%Y-%m-%dT%H:%M"),
+            "due_date": (now + timedelta(days=4)).strftime("%Y-%m-%dT%H:%M"),
+            "providing_director": self.director_b.pk,
+        })
+        self.assertEqual(response.status_code, 302)
+        return CrossDepartmentTaskRequest.objects.get()
+
+    def test_request_routes_to_selected_other_department_director(self):
+        cross_request = self._create_request()
+        self.assertEqual(cross_request.requesting_department, self.department_a)
+        self.assertEqual(cross_request.providing_department, self.department_b)
+        self.assertEqual(cross_request.providing_director, self.director_b)
+        self.assertEqual(cross_request.status, "PENDING")
+        self.assertIsNone(cross_request.task)
+
+    def test_providing_director_selects_only_own_staff_and_approves(self):
+        cross_request = self._create_request()
+        self.client.force_login(self.director_b)
+        response = self.client.post(
+            reverse("decide_cross_department_request", args=[cross_request.pk]),
+            {
+                "action": "approve",
+                "assigned_users": [self.staff_b1.pk, self.staff_b2.pk],
+                "group_leader": self.staff_b1.pk,
+                "decision_note": "Staff are available.",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        cross_request.refresh_from_db()
+        self.assertEqual(cross_request.status, "APPROVED")
+        self.assertIsNotNone(cross_request.task)
+        self.assertEqual(cross_request.task.created_by, self.director_a)
+        self.assertEqual(cross_request.task.department, self.department_a)
+        self.assertEqual(
+            set(cross_request.task.assignments.values_list("assigned_to_id", flat=True)),
+            {self.staff_b1.pk, self.staff_b2.pk},
+        )
+        self.assertEqual(
+            cross_request.task.assignments.get(is_group_leader=True).assigned_to,
+            self.staff_b1,
+        )
+
+        director_a_tasks, _ = _get_visible_task_scope(self.director_a)
+        director_b_tasks, _ = _get_visible_task_scope(self.director_b)
+        self.assertIn(cross_request.task, director_a_tasks)
+        self.assertIn(cross_request.task, director_b_tasks)
+
+    def test_providing_director_cannot_assign_requesting_department_staff(self):
+        cross_request = self._create_request()
+        self.client.force_login(self.director_b)
+        response = self.client.post(
+            reverse("decide_cross_department_request", args=[cross_request.pk]),
+            {"action": "approve", "assigned_users": [self.staff_a.pk]},
+        )
+        self.assertEqual(response.status_code, 200)
+        cross_request.refresh_from_db()
+        self.assertEqual(cross_request.status, "PENDING")
+        self.assertIsNone(cross_request.task)
+
+    def test_requesting_director_cannot_approve_own_request(self):
+        cross_request = self._create_request()
+        self.client.force_login(self.director_a)
+        response = self.client.post(
+            reverse("decide_cross_department_request", args=[cross_request.pk]),
+            {"action": "reject"},
+        )
+        self.assertEqual(response.status_code, 403)

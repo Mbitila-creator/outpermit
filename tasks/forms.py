@@ -2,13 +2,14 @@ from django import forms
 from django.contrib.auth.models import User
 from django.db.models import Q
 from permits.models import UserProfile, Department, DepartmentUnit
-from .models import Task, TaskAssignment, TaskUpdate
+from .models import Task, TaskAssignment, TaskUpdate, CrossDepartmentTaskRequest
 from .access import (
     EXECUTIVE_TASK_ROLES,
     executive_assignee_queryset,
     executive_department_codes,
     profile_role_code,
     task_approver_queryset,
+    department_director_queryset,
 )
 
 
@@ -63,6 +64,89 @@ class TaskProposalForm(forms.ModelForm):
             self.add_error("due_date", "Due date cannot be before start date.")
         if approver and not task_approver_queryset(self.user).filter(pk=approver.pk).exists():
             self.add_error("approver", "Select a leader within your reporting hierarchy.")
+        return cleaned
+
+
+class DirectorChoiceField(UserChoiceField):
+    def label_from_instance(self, obj):
+        name = super().label_from_instance(obj)
+        department = getattr(getattr(obj, "profile", None), "department", None)
+        return f"{department.code} — {name}" if department else name
+
+
+class CrossDepartmentTaskRequestForm(forms.ModelForm):
+    providing_director = DirectorChoiceField(queryset=User.objects.none())
+
+    class Meta:
+        model = CrossDepartmentTaskRequest
+        fields = [
+            "title", "description", "priority", "start_date", "due_date",
+            "attachment", "providing_director",
+        ]
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 5}),
+            "start_date": forms.DateTimeInput(
+                attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
+            ),
+            "due_date": forms.DateTimeInput(
+                attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user")
+        super().__init__(*args, **kwargs)
+        profile = getattr(self.user, "profile", None)
+        self.fields["providing_director"].queryset = department_director_queryset(
+            exclude_department_id=getattr(profile, "department_id", None)
+        )
+        self.fields["start_date"].input_formats = ["%Y-%m-%dT%H:%M"]
+        self.fields["due_date"].input_formats = ["%Y-%m-%dT%H:%M"]
+
+    def clean(self):
+        cleaned = super().clean()
+        start, due = cleaned.get("start_date"), cleaned.get("due_date")
+        if start and due and due < start:
+            self.add_error("due_date", "Due date cannot be before start date.")
+        return cleaned
+
+
+class CrossDepartmentTaskDecisionForm(forms.Form):
+    assigned_users = UserMultipleChoiceField(
+        queryset=User.objects.none(), widget=forms.CheckboxSelectMultiple,
+        label="Staff supplied by your department",
+    )
+    group_leader = UserChoiceField(
+        queryset=User.objects.none(), required=False,
+        empty_label="Select the group leader",
+    )
+    decision_note = forms.CharField(
+        required=False, widget=forms.Textarea(attrs={"rows": 3})
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.cross_request = kwargs.pop("cross_request")
+        super().__init__(*args, **kwargs)
+        staff = User.objects.filter(
+            is_active=True,
+            profile__department=self.cross_request.providing_department,
+        ).exclude(pk=self.cross_request.providing_director_id).select_related(
+            "profile", "profile__department_unit"
+        ).order_by("first_name", "last_name", "username")
+        self.fields["assigned_users"].queryset = staff
+        self.fields["group_leader"].queryset = staff
+
+    def clean(self):
+        cleaned = super().clean()
+        users = cleaned.get("assigned_users") or []
+        leader = cleaned.get("group_leader")
+        ids = {user.pk for user in users}
+        if len(ids) > 1 and not leader:
+            self.add_error("group_leader", "Select one assignee as group leader.")
+        elif leader and leader.pk not in ids:
+            self.add_error("group_leader", "The group leader must be an assignee.")
+        elif len(ids) <= 1:
+            cleaned["group_leader"] = None
         return cleaned
 
 

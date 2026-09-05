@@ -43,6 +43,25 @@ def _leadership_query():
     )
 
 
+def department_director_queryset(exclude_department_id=None):
+    users = User.objects.filter(is_active=True).filter(
+        Q(profile__approval_role__code="DIRECTOR")
+        | Q(profile__role="DIRECTOR")
+        | Q(
+            module_role_assignments__module="TASK",
+            module_role_assignments__role_code="DIRECTOR",
+            module_role_assignments__is_active=True,
+        )
+    )
+    if exclude_department_id:
+        users = users.exclude(profile__department_id=exclude_department_id)
+    return users.filter(profile__department__isnull=False).select_related(
+        "profile", "profile__department"
+    ).distinct().order_by(
+        "profile__department__code", "first_name", "last_name", "username"
+    )
+
+
 def task_approver_queryset(user):
     """Leaders in the staff member's actual reporting hierarchy."""
     profile = getattr(user, "profile", None)

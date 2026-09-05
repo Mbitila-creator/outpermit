@@ -354,6 +354,80 @@ class TaskAssignment(models.Model):
         return f"{self.task.title} -> {self.assigned_to.username}"
 
 
+class CrossDepartmentTaskRequest(models.Model):
+    STATUS_CHOICES = [
+        ("PENDING", "Pending providing director approval"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+        ("CANCELLED", "Cancelled"),
+    ]
+
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    priority = models.CharField(
+        max_length=20, choices=Task.PRIORITY_CHOICES, default="MEDIUM"
+    )
+    start_date = models.DateTimeField(blank=True, null=True)
+    due_date = models.DateTimeField(blank=True, null=True)
+    attachment = models.FileField(
+        upload_to="task_cross_department_requests/", blank=True, null=True
+    )
+    requesting_department = models.ForeignKey(
+        Department, on_delete=models.PROTECT,
+        related_name="outgoing_cross_task_requests",
+    )
+    providing_department = models.ForeignKey(
+        Department, on_delete=models.PROTECT,
+        related_name="incoming_cross_task_requests",
+    )
+    requested_by = models.ForeignKey(
+        User, on_delete=models.PROTECT,
+        related_name="cross_task_requests_made",
+    )
+    providing_director = models.ForeignKey(
+        User, on_delete=models.PROTECT,
+        related_name="cross_task_requests_received",
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="PENDING", db_index=True
+    )
+    decision_note = models.TextField(blank=True)
+    decided_at = models.DateTimeField(blank=True, null=True)
+    task = models.OneToOneField(
+        Task, on_delete=models.SET_NULL, blank=True, null=True,
+        related_name="cross_department_request",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def clean(self):
+        if (
+            self.requesting_department_id
+            and self.providing_department_id
+            and self.requesting_department_id == self.providing_department_id
+        ):
+            raise ValidationError(
+                "Use normal task assignment for staff in your own department."
+            )
+        if (
+            self.providing_department_id
+            and
+            self.providing_director_id
+            and getattr(self.providing_director, "profile", None)
+            and self.providing_director.profile.department_id
+            != self.providing_department_id
+        ):
+            raise ValidationError(
+                "The providing director must belong to the providing department."
+            )
+
+    def __str__(self):
+        return f"{self.requesting_department.code} → {self.providing_department.code}: {self.title}"
+
+
 class TaskUpdate(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="updates")
 

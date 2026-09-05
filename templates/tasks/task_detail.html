@@ -485,6 +485,7 @@
               <strong>Created by:</strong> {{ task.created_by.get_full_name|default:task.created_by.username }}<br>
               {% if task.proposed_by %}<strong>Originally proposed by:</strong> {{ task.proposed_by.get_full_name|default:task.proposed_by.username }}<br>{% endif %}
               {% if task.approver %}<strong>Selected approver:</strong> {{ task.approver.get_full_name|default:task.approver.username }}<br><strong>Approval status:</strong> {{ task.get_approval_status_display }}<br>{% endif %}
+              {% if task.cross_department_request %}<strong>Cross-department task:</strong> {{ task.cross_department_request.requesting_department.code }} requested staff from {{ task.cross_department_request.providing_department.code }}<br><strong>Providing director:</strong> {{ task.cross_department_request.providing_director.get_full_name|default:task.cross_department_request.providing_director.username }}<br>{% endif %}
               <strong>Task Unit:</strong> {{ task.department_unit.name|default:task.department.name|default:"N/A" }}<br>
               <strong>Priority:</strong> <span class="badge">{{ task.get_priority_display }}</span><br>
               <strong>Status:</strong>

@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.utils import timezone
-from .models import Task, TaskAssignment, TaskUpdate
+from .models import (
+    Task, TaskAssignment, TaskUpdate, CrossDepartmentTaskRequest,
+)
 
 
 # --------------------------------------------------
@@ -220,6 +222,19 @@ class TaskAssignmentAdmin(admin.ModelAdmin):
         )
     is_overdue_display.boolean = True
     is_overdue_display.short_description = "Overdue"
+
+
+@admin.register(CrossDepartmentTaskRequest)
+class CrossDepartmentTaskRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "title", "requesting_department", "providing_department",
+        "requested_by", "providing_director", "status", "created_at",
+    )
+    list_filter = ("status", "requesting_department", "providing_department")
+    search_fields = (
+        "title", "requested_by__username", "providing_director__username",
+    )
+    readonly_fields = ("created_at", "updated_at", "decided_at", "task")
 
 
 # --------------------------------------------------
