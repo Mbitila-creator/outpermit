@@ -985,6 +985,27 @@ class DepartmentEventAccessTests(TestCase):
         self.assertContains(response, "@page conference-analysis")
         self.assertNotContains(response, "Feedback responses")
 
+    def test_dps_hes_can_view_scoped_conference_evaluation(self):
+        registration_form = EventForm.objects.create(
+            event=self.dsti_event,
+            name_sw="Usajili wa kongamano",
+            name_en="Conference registration",
+            form_type=EventForm.FormType.REGISTRATION,
+            is_active=True,
+        )
+        deputy = self._staff("dpss-conference-report", self.dsti)
+        deputy.profile.role = "DPS_HES"
+        deputy.profile.save(update_fields=["role"])
+        self.client.force_login(deputy)
+
+        response = self.client.get(reverse(
+            "conferences:feedback_dashboard",
+            kwargs={"form_id": registration_form.pk},
+        ))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Conference event evaluation")
+
     def test_event_without_evaluation_offers_evaluation_setup(self):
         seminar_category = EventCategory.objects.create(
             code="SEMINAR",

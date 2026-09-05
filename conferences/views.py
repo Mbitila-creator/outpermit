@@ -21,6 +21,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from events.auth import User, has_event_role
+from permits.executive_scope import is_executive_viewer
 from events.models import Event
 from events.access import events_visible_to
 from forms_builder.models import EventForm, FormSubmission, NotificationLog
@@ -88,7 +89,11 @@ def _require_access(user):
     if not (
         user.is_authenticated
         and user.is_active
-        and (user.is_superuser or has_event_role(user, CONFERENCE_VIEW_ROLES))
+        and (
+            user.is_superuser
+            or is_executive_viewer(user)
+            or has_event_role(user, CONFERENCE_VIEW_ROLES)
+        )
     ):
         raise PermissionDenied
 
