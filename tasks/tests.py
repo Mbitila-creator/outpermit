@@ -451,6 +451,7 @@ class CrossDepartmentTaskRequestTests(TestCase):
         self.assertContains(response, 'input[name="requesting_staff"]')
         self.assertContains(response, "datePickerDismissTarget")
         self.assertContains(response, "closeDateTimePicker")
+        self.assertContains(response, 'field.addEventListener("input"')
 
     def test_task_datetime_widgets_close_after_selection(self):
         forms = [
