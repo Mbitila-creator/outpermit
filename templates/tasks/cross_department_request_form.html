@@ -6,8 +6,34 @@
 {% for field in form %}<label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% endfor %}
 <button class="btn" type="submit">Send Request</button> <a class="btn alt" href="{% url 'cross_department_requests' %}">Cancel</a></form>
 </main>
+<button id="datePickerDismissTarget" type="button" tabindex="-1" aria-hidden="true"
+        style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;padding:0;border:0"></button>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+  const dismissTarget = document.getElementById("datePickerDismissTarget");
+
+  function closeDateTimePicker(field) {
+    window.setTimeout(function () {
+      field.blur();
+      if (dismissTarget) {
+        try {
+          dismissTarget.focus({preventScroll: true});
+        } catch (error) {
+          dismissTarget.focus();
+        }
+        dismissTarget.blur();
+      }
+    }, 0);
+  }
+
+  ["id_start_date", "id_due_date"].forEach(function (fieldId) {
+    const field = document.getElementById(fieldId);
+    if (!field) return;
+    field.addEventListener("change", function () {
+      closeDateTimePicker(field);
+    });
+  });
+
   const leaderField = document.getElementById("id_group_leader");
   const staffCheckboxes = Array.from(
     document.querySelectorAll('input[name="requesting_staff"]')
