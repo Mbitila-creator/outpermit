@@ -714,6 +714,7 @@
               <div class="item">
                 <div class="item-title">
                   {{ item.assigned_to.get_full_name|default:item.assigned_to.username }}
+                  {% if item.is_group_leader %}<span class="badge badge-success">Group Leader</span>{% endif %}
                 </div>
                 <div class="item-meta">
                   Assigned by: {{ item.assigned_by.get_full_name|default:item.assigned_by.username }}<br>

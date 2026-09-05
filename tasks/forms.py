@@ -79,6 +79,14 @@ class TaskCreateForm(forms.ModelForm):
         label="Assign To"
     )
 
+    group_leader = UserChoiceField(
+        queryset=User.objects.none(),
+        required=False,
+        label="Group Leader",
+        empty_label="Select the group leader",
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
     assignee_scope = forms.ChoiceField(
         choices=ASSIGNEE_SCOPE_CHOICES,
         required=False,
@@ -349,6 +357,10 @@ class TaskCreateForm(forms.ModelForm):
                 is_active=True
             )
 
+        self.fields["group_leader"].queryset = self.fields[
+            "assigned_users"
+        ].queryset
+
     def clean(self):
         cleaned_data = super().clean()
 
@@ -358,11 +370,26 @@ class TaskCreateForm(forms.ModelForm):
         department_unit = cleaned_data.get("department_unit")
         assignee_scope = cleaned_data.get("assignee_scope") or "UNIT"
         assigned_users = cleaned_data.get("assigned_users")
+        group_leader = cleaned_data.get("group_leader")
 
         if start and due and due < start:
             raise forms.ValidationError(
                 "Due date cannot be before start date."
             )
+
+        selected_user_ids = {user.pk for user in assigned_users or []}
+        if len(selected_user_ids) > 1 and not group_leader:
+            self.add_error(
+                "group_leader",
+                "Select one of the assignees as group leader for a shared task.",
+            )
+        elif group_leader and group_leader.pk not in selected_user_ids:
+            self.add_error(
+                "group_leader",
+                "The group leader must also be selected as an assignee.",
+            )
+        elif len(selected_user_ids) <= 1:
+            cleaned_data["group_leader"] = None
 
         if not self.user:
             return cleaned_data

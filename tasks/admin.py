@@ -21,6 +21,7 @@ class TaskAssignmentInline(admin.TabularInline):
     fields = (
         "assigned_to",
         "assigned_by",
+        "is_group_leader",
         "status",
         "progress_percent",
         "assigned_at",
@@ -155,6 +156,7 @@ class TaskAssignmentAdmin(admin.ModelAdmin):
         "task",
         "assigned_to",
         "assigned_by",
+        "is_group_leader",
         "status",
         "progress_percent",
         "is_overdue_display",
@@ -166,6 +168,7 @@ class TaskAssignmentAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
+        "is_group_leader",
         "status",
         "assigned_at",
         "accepted_at",

@@ -296,6 +296,10 @@ def _configure_assistant_director_task_form(form, user):
         form.fields["assigned_users"].queryset = (
             _get_assistant_director_task_staff_queryset(user)
         )
+        if "group_leader" in form.fields:
+            form.fields["group_leader"].queryset = (
+                form.fields["assigned_users"].queryset
+            )
 
     return form
 
@@ -1746,6 +1750,7 @@ def create_task(request):
             assigned_users = form.cleaned_data[
                 "assigned_users"
             ]
+            group_leader = form.cleaned_data.get("group_leader")
 
             if role == "ASSISTANT_DIRECTOR":
                 allowed_staff = (
@@ -1829,6 +1834,9 @@ def create_task(request):
                         status="ASSIGNED",
                         progress_percent=0,
                         carried_forward_progress=0,
+                        is_group_leader=bool(
+                            group_leader and user.pk == group_leader.pk
+                        ),
                     )
 
             task.refresh_from_assignments()
@@ -2420,7 +2428,14 @@ def reassign_returned_task(request, pk):
             else:
                 inherited_progress = task.progress_percent or 0
 
+            was_group_leader = bool(
+                latest_returned and latest_returned.is_group_leader
+            )
+
             with transaction.atomic():
+                if was_group_leader:
+                    latest_returned.is_group_leader = False
+                    latest_returned.save(update_fields=["is_group_leader"])
                 TaskAssignment.objects.create(
                     task=task,
                     assigned_to=new_user,
@@ -2432,6 +2447,7 @@ def reassign_returned_task(request, pk):
                     started_at=None,
                     last_updated_at=None,
                     completed_at=None,
+                    is_group_leader=was_group_leader,
                 )
 
                 task.status = "PENDING"

@@ -94,6 +94,84 @@ class ExecutiveTaskAccessTests(TestCase):
         self.assertTrue({self.dpss.pk, self.dpse.pk, self.hed_director.pk}.issubset(ids))
         self.assertNotIn(self.ordinary_staff.pk, ids)
 
+    def _shared_task_form(self, group_leader=""):
+        now = timezone.localtime().replace(second=0, microsecond=0)
+        return TaskCreateForm(
+            data={
+                "title": "Executive shared task",
+                "description": "Complete this task as a group.",
+                "department": self.hed.pk,
+                "priority": "MEDIUM",
+                "start_date": now.strftime("%Y-%m-%dT%H:%M"),
+                "due_date": (now + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M"),
+                "assigned_users": [self.dpss.pk, self.dpse.pk],
+                "group_leader": group_leader,
+                "assignee_scope": "OTHER",
+            },
+            user=self.ps,
+        )
+
+    def test_shared_task_requires_selected_assignee_as_group_leader(self):
+        form = self._shared_task_form()
+        self.assertFalse(form.is_valid())
+        self.assertIn("group_leader", form.errors)
+
+        form = self._shared_task_form(group_leader=self.hed_director.pk)
+        self.assertFalse(form.is_valid())
+        self.assertIn("group_leader", form.errors)
+
+    def test_shared_task_accepts_one_selected_group_leader(self):
+        form = self._shared_task_form(group_leader=self.dpss.pk)
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_shared_task_creation_marks_exactly_one_group_leader(self):
+        form = self._shared_task_form(group_leader=self.dpss.pk)
+        self.client.force_login(self.ps)
+        response = self.client.post(reverse("create_task"), form.data)
+        self.assertEqual(response.status_code, 302)
+        task = Task.objects.get(title="Executive shared task")
+        self.assertEqual(task.assignments.count(), 2)
+        self.assertEqual(
+            task.assignments.get(is_group_leader=True).assigned_to,
+            self.dpss,
+        )
+
+    def test_reassignment_transfers_group_leadership(self):
+        now = timezone.now()
+        task = Task.objects.create(
+            title="Returned shared task",
+            created_by=self.ps,
+            department=self.hed,
+            status="RETURNED",
+            start_date=now,
+            due_date=now + timedelta(days=2),
+        )
+        TaskAssignment.objects.create(
+            task=task,
+            assigned_to=self.dpse,
+            assigned_by=self.ps,
+            status="RETURNED",
+        )
+        returned_leader = TaskAssignment.objects.create(
+            task=task,
+            assigned_to=self.dpss,
+            assigned_by=self.ps,
+            status="RETURNED",
+            is_group_leader=True,
+        )
+
+        self.client.force_login(self.ps)
+        response = self.client.post(
+            reverse("reassign_returned_task", args=[task.pk]),
+            {"assigned_to": self.hed_director.pk},
+        )
+        self.assertEqual(response.status_code, 302)
+        returned_leader.refresh_from_db()
+        self.assertFalse(returned_leader.is_group_leader)
+        self.assertTrue(
+            task.assignments.get(assigned_to=self.hed_director).is_group_leader
+        )
+
     def test_deputy_scopes_follow_the_confirmed_ministry_hierarchy(self):
         dpss_ids = self._assignee_ids(self.dpss)
         self.assertIn(self.hed_director.pk, dpss_ids)

@@ -543,6 +543,17 @@
               </div>
             </div>
 
+            <div class="full" id="groupLeaderField">
+              <label>{{ form.group_leader.label }}</label>
+              {{ form.group_leader }}
+              {% if form.group_leader.errors %}
+              <div class="field-error">{{ form.group_leader.errors }}</div>
+              {% endif %}
+              <div class="hint">
+                Required when a task has more than one assignee. The leader remains an assignee and coordinates the group.
+              </div>
+            </div>
+
             <div class="full">
               <label>Attachment</label>
               {{ form.attachment }}
@@ -628,6 +639,7 @@
 
       checkbox.addEventListener("change", function () {
         refreshSelectedState();
+        syncGroupLeaderChoices();
       });
 
       item.addEventListener("click", function (event) {
@@ -654,6 +666,30 @@
         });
       };
     }
+  }
+
+  function syncGroupLeaderChoices() {
+    const leaderField = document.getElementById("id_group_leader");
+    if (!leaderField) return;
+
+    const previousValue = leaderField.value;
+    const selectedMembers = Array.from(
+      document.querySelectorAll('#memberList input[name="assigned_users"]:checked')
+    );
+    leaderField.innerHTML = '<option value="">Select the group leader</option>';
+
+    selectedMembers.forEach(function (checkbox) {
+      const item = checkbox.closest(".member-item");
+      const name = item ? item.querySelector(".member-name") : null;
+      const option = document.createElement("option");
+      option.value = checkbox.value;
+      option.textContent = name ? name.textContent.trim() : checkbox.value;
+      option.selected = checkbox.value === previousValue;
+      leaderField.appendChild(option);
+    });
+
+    leaderField.disabled = selectedMembers.length < 2;
+    if (selectedMembers.length < 2) leaderField.value = "";
   }
 
   function renderStaff(staff) {
@@ -694,6 +730,7 @@
     });
 
     refreshMemberSelector();
+    syncGroupLeaderChoices();
   }
 
   function loadStaff() {
@@ -822,6 +859,7 @@
     setupDateField("id_start_date");
     setupDateField("id_due_date");
     refreshMemberSelector();
+    syncGroupLeaderChoices();
     setupDepartmentEngine();
 
     const departmentField = document.getElementById("id_department");

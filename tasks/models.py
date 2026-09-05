@@ -263,6 +263,7 @@ class TaskAssignment(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="assignments")
     assigned_to = models.ForeignKey(User, on_delete=models.CASCADE, related_name="task_assignments")
     assigned_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="task_assignments_made")
+    is_group_leader = models.BooleanField(default=False, db_index=True)
 
     status = models.CharField(max_length=20, choices=ASSIGNMENT_STATUS_CHOICES, default="ASSIGNED")
 
@@ -281,6 +282,13 @@ class TaskAssignment(models.Model):
 
     class Meta:
         unique_together = ("task", "assigned_to")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["task"],
+                condition=models.Q(is_group_leader=True),
+                name="unique_group_leader_per_task",
+            ),
+        ]
 
     @property
     def effective_progress(self):
