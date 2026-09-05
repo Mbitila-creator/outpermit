@@ -8,6 +8,7 @@ from .access import (
     executive_assignee_queryset,
     executive_department_codes,
     profile_role_code,
+    task_approver_queryset,
 )
 
 
@@ -21,6 +22,48 @@ class UserChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj):
         full_name = f"{obj.first_name} {obj.last_name}".strip()
         return full_name if full_name else obj.username
+
+
+class TaskProposalForm(forms.ModelForm):
+    approver = UserChoiceField(
+        queryset=User.objects.none(),
+        label="Leader to approve this task",
+        empty_label="Select Head of Unit, Assistant Director or Director",
+    )
+
+    class Meta:
+        model = Task
+        fields = [
+            "title", "description", "priority", "start_date", "due_date",
+            "attachment", "approver",
+        ]
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 5}),
+            "start_date": forms.DateTimeInput(
+                attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
+            ),
+            "due_date": forms.DateTimeInput(
+                attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user")
+        super().__init__(*args, **kwargs)
+        self.fields["start_date"].input_formats = ["%Y-%m-%dT%H:%M"]
+        self.fields["due_date"].input_formats = ["%Y-%m-%dT%H:%M"]
+        self.fields["approver"].queryset = task_approver_queryset(self.user)
+
+    def clean(self):
+        cleaned = super().clean()
+        start = cleaned.get("start_date")
+        due = cleaned.get("due_date")
+        approver = cleaned.get("approver")
+        if start and due and due < start:
+            self.add_error("due_date", "Due date cannot be before start date.")
+        if approver and not task_approver_queryset(self.user).filter(pk=approver.pk).exists():
+            self.add_error("approver", "Select a leader within your reporting hierarchy.")
+        return cleaned
 
 
 class TaskCreateForm(forms.ModelForm):

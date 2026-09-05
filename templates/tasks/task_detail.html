@@ -483,6 +483,8 @@
               <strong>Title:</strong> {{ task.title }}<br>
               <strong>Description:</strong> {{ task.description|default:"N/A" }}<br>
               <strong>Created by:</strong> {{ task.created_by.get_full_name|default:task.created_by.username }}<br>
+              {% if task.proposed_by %}<strong>Originally proposed by:</strong> {{ task.proposed_by.get_full_name|default:task.proposed_by.username }}<br>{% endif %}
+              {% if task.approver %}<strong>Selected approver:</strong> {{ task.approver.get_full_name|default:task.approver.username }}<br><strong>Approval status:</strong> {{ task.get_approval_status_display }}<br>{% endif %}
               <strong>Task Unit:</strong> {{ task.department_unit.name|default:task.department.name|default:"N/A" }}<br>
               <strong>Priority:</strong> <span class="badge">{{ task.get_priority_display }}</span><br>
               <strong>Status:</strong>
@@ -501,6 +503,22 @@
               <br><strong>{{ saved_role_reason_label }} note updated at:</strong> {{ task.management_note_updated_at }}
               {% endif %}
             </div>
+
+            {% if task.approval_status == "PENDING" and task.approver == request.user %}
+            <div class="manager-note-box">
+              <div class="manager-note-title">Task Approval Required</div>
+              <div class="manager-note-text">Approve to become the task owner and automatically assign it to {{ task.proposed_by.get_full_name|default:task.proposed_by.username }}.</div>
+              <form method="post" action="{% url 'decide_task_proposal' task.pk %}" style="margin-top:12px">
+                {% csrf_token %}
+                <label for="decision_note"><strong>Decision note (optional)</strong></label>
+                <textarea id="decision_note" name="decision_note" rows="3" style="width:100%;margin:7px 0"></textarea>
+                <button class="btn btn-primary" type="submit" name="action" value="approve">Approve Task</button>
+                <button class="btn btn-danger" type="submit" name="action" value="reject">Reject Task</button>
+              </form>
+            </div>
+            {% elif task.approval_decision_note %}
+            <div class="manager-note-box"><div class="manager-note-title">Approval Decision Note</div><div class="manager-note-text">{{ task.approval_decision_note }}</div></div>
+            {% endif %}
 
             {% if task.management_note %}
             <div class="manager-note-box">

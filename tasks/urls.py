@@ -9,6 +9,7 @@ urlpatterns = [
     path("", views.task_dashboard, name="task_dashboard"),
     path("my/", views.my_tasks, name="my_tasks"),
     path("create/", views.create_task, name="create_task"),
+    path("propose/", views.propose_task, name="propose_task"),
     path("analytics/", views.task_analytics, name="task_analytics"),
 
     # --------------------------------------------------
@@ -47,6 +48,11 @@ urlpatterns = [
         "task/<int:pk>/",
         views.task_detail,
         name="task_detail"
+    ),
+    path(
+        "task/<int:pk>/approval/",
+        views.decide_task_proposal,
+        name="decide_task_proposal",
     ),
     path(
         "task/<int:pk>/delete/",

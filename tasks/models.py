@@ -6,6 +6,12 @@ from django.utils import timezone
 
 
 class Task(models.Model):
+    APPROVAL_STATUS_CHOICES = [
+        ("NOT_REQUIRED", "Approval not required"),
+        ("PENDING", "Pending approval"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+    ]
     PRIORITY_CHOICES = [
         ("LOW", "Low"),
         ("MEDIUM", "Medium"),
@@ -26,6 +32,20 @@ class Task(models.Model):
     description = models.TextField(blank=True)
 
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="created_tasks")
+    proposed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="proposed_tasks",
+    )
+    approver = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="task_approval_requests",
+    )
+    approval_status = models.CharField(
+        max_length=20, choices=APPROVAL_STATUS_CHOICES,
+        default="NOT_REQUIRED", db_index=True,
+    )
+    approved_at = models.DateTimeField(blank=True, null=True)
+    approval_decision_note = models.TextField(blank=True)
 
     department = models.ForeignKey(
         Department,

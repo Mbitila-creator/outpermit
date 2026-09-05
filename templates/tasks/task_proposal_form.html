@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Propose a Task</title>
+  <style>
+    :root{--navy:#0b3a69;--blue:#0b5ed7;--bg:#f4f7fb;--muted:#607087}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:#17263c}.top{background:linear-gradient(120deg,var(--navy),#145b91);color:#fff;padding:28px}.top div,.wrap{max-width:900px;margin:auto}.top h1{margin:0 0 7px}.wrap{padding:26px 18px}.notice,.card{background:#fff;border:1px solid #d7e1eb;border-radius:14px;padding:20px;margin-bottom:18px}.notice{background:#eaf4ff;color:#173b67}.field{margin-bottom:17px}.field label{display:block;font-weight:700;margin-bottom:6px}.field input,.field select,.field textarea{width:100%;padding:11px;border:1px solid #b9c9d9;border-radius:8px;background:#fff}.errorlist{color:#a61b1b}.meta{color:var(--muted);line-height:1.5}.actions{display:flex;gap:10px}.btn{padding:11px 16px;border:0;border-radius:8px;text-decoration:none;font-weight:700}.primary{background:var(--blue);color:#fff}.secondary{background:#e5e7eb;color:#17263c}
+  </style>
+</head>
+<body>
+<header class="top"><div><h1>Propose a Task</h1><p>Create a task for yourself and select a leader to approve it.</p></div></header>
+<main class="wrap">
+  <section class="notice">
+    <strong>How it works</strong>
+    <p>After approval, the selected leader becomes the task owner and you are automatically assigned to perform it.</p>
+    <div class="meta">Department: {{ profile.department.name|default:"Not assigned" }}{% if profile.department_unit %}<br>Unit: {{ profile.department_unit.name }}{% endif %}</div>
+  </section>
+  <section class="card">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      {% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}</div>{% endfor %}
+      <div class="actions"><a class="btn secondary" href="{% url 'task_dashboard' %}">Back</a><button class="btn primary" type="submit">Submit for Approval</button></div>
+    </form>
+  </section>
+</main>
+</body>
+</html>

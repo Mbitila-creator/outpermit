@@ -43,6 +43,75 @@ def _leadership_query():
     )
 
 
+def task_approver_queryset(user):
+    """Leaders in the staff member's actual reporting hierarchy."""
+    profile = getattr(user, "profile", None)
+    if not profile or not profile.department_id:
+        return User.objects.none()
+
+    department_id = profile.department_id
+    department_unit_id = profile.department_unit_id
+    requester_role = profile_role_code(profile)
+    task_module_roles = set(user.module_role_assignments.filter(
+        module="TASK", is_active=True
+    ).values_list("role_code", flat=True))
+    for candidate_role in ("DIRECTOR", "ASSISTANT_DIRECTOR", "HEAD_OF_UNIT"):
+        if candidate_role in task_module_roles:
+            requester_role = candidate_role
+            break
+    if requester_role in EXECUTIVE_TASK_ROLES or requester_role == "DIRECTOR":
+        return User.objects.none()
+    leaders = User.objects.filter(is_active=True).exclude(pk=user.pk).filter(
+        _leadership_query(), profile__department_id=department_id
+    )
+
+    head_filter = Q(pk=getattr(profile, "head_of_unit_id", None))
+    if department_unit_id:
+        head_filter |= Q(
+            profile__department_unit_id=department_unit_id,
+            profile__role="HEAD_OF_UNIT",
+        ) | Q(
+            profile__department_unit_id=department_unit_id,
+            profile__approval_role__code="HEAD_OF_UNIT",
+        )
+
+    assistant_filter = Q(profile__role="ASSISTANT_DIRECTOR") | Q(
+        profile__approval_role__code="ASSISTANT_DIRECTOR"
+    ) | Q(
+        module_role_assignments__module="TASK",
+        module_role_assignments__role_code="ASSISTANT_DIRECTOR",
+        module_role_assignments__is_active=True,
+    )
+    if department_unit_id:
+        assistant_filter &= (
+            Q(profile__department_unit_id=department_unit_id)
+            | Q(
+                profile__department__code="DSTI",
+                username__in=DSTI_LEGACY_ASSISTANT_USERNAMES,
+            )
+        )
+
+    director_filter = Q(profile__role="DIRECTOR") | Q(
+        profile__approval_role__code="DIRECTOR"
+    ) | Q(
+        module_role_assignments__module="TASK",
+        module_role_assignments__role_code="DIRECTOR",
+        module_role_assignments__is_active=True,
+    )
+
+    allowed_filter = director_filter
+    if requester_role != "ASSISTANT_DIRECTOR":
+        allowed_filter |= assistant_filter
+    if requester_role not in {"HEAD_OF_UNIT", "ASSISTANT_DIRECTOR"}:
+        allowed_filter |= head_filter
+
+    return leaders.filter(
+        allowed_filter
+    ).select_related(
+        "profile", "profile__approval_role", "profile__department_unit"
+    ).distinct().order_by("first_name", "last_name", "username")
+
+
 def profile_role_code(profile):
     approval_role = getattr(profile, "approval_role", None)
     code = getattr(approval_role, "code", None) or getattr(profile, "role", "")

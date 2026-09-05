@@ -65,6 +65,7 @@ class TaskAdmin(admin.ModelAdmin):
     list_display = (
         "title",
         "created_by",
+        "approval_status",
         "department_unit",
         "priority",
         "status",
@@ -100,6 +101,7 @@ class TaskAdmin(admin.ModelAdmin):
         "updated_at",
         "completed_at",
         "management_note_updated_at",
+        "approved_at",
         "is_overdue_display",
     )
 
@@ -107,6 +109,11 @@ class TaskAdmin(admin.ModelAdmin):
         "title",
         "description",
         "created_by",
+        "proposed_by",
+        "approver",
+        "approval_status",
+        "approved_at",
+        "approval_decision_note",
         "department",
         "department_unit",
         "priority",

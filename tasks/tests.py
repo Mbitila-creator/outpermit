@@ -12,7 +12,7 @@ from permits.models import (
     ModuleRoleAssignment,
 )
 
-from .forms import TaskCreateForm
+from .forms import TaskCreateForm, TaskProposalForm
 from .models import Task, TaskAssignment
 from .views import _get_visible_task_scope
 
@@ -186,3 +186,90 @@ class ExecutiveTaskAccessTests(TestCase):
         self.client.force_login(self.ps)
         self.assertEqual(self.client.get(reverse("task_dashboard")).status_code, 200)
         self.assertEqual(self.client.get(reverse("task_analytics")).status_code, 200)
+
+
+class StaffTaskProposalTests(TestCase):
+    def setUp(self):
+        self.department = Department.objects.create(
+            code="TEST", name="Test Division"
+        )
+        self.unit = DepartmentUnit.objects.create(
+            department=self.department, code="TESTU", name="Test Unit"
+        )
+        self.staff = self._user("task-proposer", "REQUESTER")
+        self.head = self._user("task-head", "HEAD_OF_UNIT")
+        self.director = self._user("task-director", "DIRECTOR", unit=None)
+        self.outside_department = Department.objects.create(
+            code="OTHER", name="Other Division"
+        )
+        self.outside_director = self._user(
+            "outside-director", "DIRECTOR", department=self.outside_department,
+            unit=None,
+        )
+        self.staff.profile.head_of_unit = self.head
+        self.staff.profile.save(update_fields=["head_of_unit"])
+
+    def _user(self, username, role, department=None, unit="default"):
+        user = User.objects.create_user(username=username, password="safe-pass")
+        user.profile.role = role
+        user.profile.department = department or self.department
+        user.profile.department_unit = self.unit if unit == "default" else unit
+        user.profile.save()
+        return user
+
+    def _proposal_data(self, approver):
+        now = timezone.localtime().replace(second=0, microsecond=0)
+        return {
+            "title": "Prepare monthly technical note",
+            "description": "Compile and submit the unit technical note.",
+            "priority": "MEDIUM",
+            "start_date": now.strftime("%Y-%m-%dT%H:%M"),
+            "due_date": (now + timedelta(days=3)).strftime("%Y-%m-%dT%H:%M"),
+            "approver": approver.pk,
+        }
+
+    def test_approver_choices_are_limited_to_reporting_hierarchy(self):
+        ids = set(
+            TaskProposalForm(user=self.staff).fields["approver"].queryset
+            .values_list("pk", flat=True)
+        )
+        self.assertIn(self.head.pk, ids)
+        self.assertIn(self.director.pk, ids)
+        self.assertNotIn(self.outside_director.pk, ids)
+
+    def test_staff_proposal_approval_transfers_ownership_and_assigns_creator(self):
+        self.client.force_login(self.staff)
+        response = self.client.post(reverse("create_task"), self._proposal_data(self.head))
+        self.assertEqual(response.status_code, 302)
+        task = Task.objects.get(title="Prepare monthly technical note")
+        self.assertEqual(task.created_by, self.staff)
+        self.assertEqual(task.proposed_by, self.staff)
+        self.assertEqual(task.approver, self.head)
+        self.assertEqual(task.approval_status, "PENDING")
+        self.assertFalse(task.assignments.exists())
+
+        self.client.force_login(self.head)
+        response = self.client.post(
+            reverse("decide_task_proposal", args=[task.pk]),
+            {"action": "approve", "decision_note": "Approved for implementation."},
+        )
+        self.assertEqual(response.status_code, 302)
+        task.refresh_from_db()
+        self.assertEqual(task.created_by, self.head)
+        self.assertEqual(task.approval_status, "APPROVED")
+        assignment = task.assignments.get()
+        self.assertEqual(assignment.assigned_to, self.staff)
+        self.assertEqual(assignment.assigned_by, self.head)
+
+    def test_unselected_leader_cannot_approve_proposal(self):
+        self.client.force_login(self.staff)
+        self.client.post(reverse("create_task"), self._proposal_data(self.head))
+        task = Task.objects.get(title="Prepare monthly technical note")
+        self.client.force_login(self.director)
+        response = self.client.post(
+            reverse("decide_task_proposal", args=[task.pk]), {"action": "approve"}
+        )
+        self.assertEqual(response.status_code, 403)
+        task.refresh_from_db()
+        self.assertEqual(task.approval_status, "PENDING")
+        self.assertFalse(task.assignments.exists())

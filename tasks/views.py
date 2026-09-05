@@ -17,6 +17,7 @@ from system_admin.models import SystemSetting
 from .models import Task, TaskAssignment, TaskUpdate
 from .forms import (
     TaskCreateForm,
+    TaskProposalForm,
     TaskUpdateForm,
     TaskManagementNoteForm,
     TaskReturnForm,
@@ -26,6 +27,7 @@ from .access import (
     EXECUTIVE_TASK_ROLES,
     executive_assignee_queryset,
     executive_department_codes,
+    task_approver_queryset,
 )
 
 
@@ -162,6 +164,10 @@ def _is_head_of_unit(user):
 
 
 def _can_create_task(user):
+    return bool(user.is_authenticated and user.is_active)
+
+
+def _can_create_and_assign_task(user):
     return _get_user_role(user) in [
         "ADMIN",
         "DIRECTOR",
@@ -309,6 +315,9 @@ def _can_view_task(user, task):
     if task.created_by == user:
         return True
 
+    if task.proposed_by_id == user.id or task.approver_id == user.id:
+        return True
+
     # A user can always view a task directly assigned to them.
     if task.assignments.filter(assigned_to=user).exists():
         return True
@@ -388,6 +397,8 @@ def _can_view_task(user, task):
 
 
 def _can_manage_task(user, task):
+    if task.approval_status == "PENDING":
+        return False
     if task.status == "COMPLETED" or (task.progress_percent or 0) >= 100:
         return False
 
@@ -1092,11 +1103,15 @@ def _get_visible_task_scope(
 
     direct_task_access = (
         Q(created_by=user)
+        | Q(proposed_by=user)
+        | Q(approver=user)
         | Q(assignments__assigned_to=user)
     )
 
     direct_assignment_access = (
         Q(task__created_by=user)
+        | Q(task__proposed_by=user)
+        | Q(task__approver=user)
         | Q(assigned_to=user)
     )
 
@@ -1353,6 +1368,9 @@ def task_dashboard(request):
     )
 
     created_tasks = visible_tasks.filter(created_by=request.user)
+    pending_approvals = visible_tasks.filter(
+        approver=request.user, approval_status="PENDING"
+    ).order_by("-created_at")
     pending_tasks = visible_tasks.filter(status="PENDING")
     on_hold_tasks = visible_tasks.filter(status="ON_HOLD")
     cancelled_tasks = visible_tasks.filter(status="CANCELLED")
@@ -1385,7 +1403,10 @@ def task_dashboard(request):
         ),
         "recent_assignments": visible_assignments.order_by("-assigned_at")[:10],
         "recent_created_tasks": created_tasks.order_by("-created_at")[:10],
+        "pending_approvals": pending_approvals[:10],
+        "pending_approval_count": pending_approvals.count(),
         "show_director_analytics": show_director_analytics,
+        "can_propose_task": task_approver_queryset(request.user).exists(),
     }
 
     if show_director_analytics:
@@ -1656,6 +1677,34 @@ def create_task(request):
         )
 
     profile = _get_profile(request.user)
+    direct_creation = _can_create_and_assign_task(request.user)
+
+    if not direct_creation:
+        if request.method == "POST":
+            proposal_form = TaskProposalForm(
+                request.POST, request.FILES, user=request.user
+            )
+            if proposal_form.is_valid():
+                task = proposal_form.save(commit=False)
+                task.created_by = request.user
+                task.proposed_by = request.user
+                task.department = profile.department
+                task.department_unit = profile.department_unit
+                task.approval_status = "PENDING"
+                task.status = "PENDING"
+                task.progress_percent = 0
+                task.save()
+                messages.success(
+                    request,
+                    "Task submitted to your selected leader for approval.",
+                )
+                return redirect("task_detail", pk=task.pk)
+        else:
+            proposal_form = TaskProposalForm(user=request.user)
+        return render(request, "tasks/task_proposal_form.html", {
+            "form": proposal_form,
+            "profile": profile,
+        })
 
     # Keep the existing parameters for compatibility
     selected_unit = request.GET.get("unit_name", "").strip()
@@ -1808,6 +1857,87 @@ def create_task(request):
             "form": form,
         }
     )
+
+
+@login_required
+def propose_task(request):
+    setting = _get_system_setting()
+    if not setting.allow_task_creation:
+        messages.error(request, "Task creation is currently disabled.")
+        return redirect("task_dashboard")
+    profile = _get_profile(request.user)
+    if not task_approver_queryset(request.user).exists():
+        return HttpResponseForbidden("No higher task approver is available in your reporting hierarchy.")
+    if request.method == "POST":
+        form = TaskProposalForm(request.POST, request.FILES, user=request.user)
+        if form.is_valid():
+            task = form.save(commit=False)
+            task.created_by = request.user
+            task.proposed_by = request.user
+            task.department = profile.department
+            task.department_unit = profile.department_unit
+            task.approval_status = "PENDING"
+            task.status = "PENDING"
+            task.progress_percent = 0
+            task.save()
+            messages.success(request, "Task submitted to your selected leader for approval.")
+            return redirect("task_detail", pk=task.pk)
+    else:
+        form = TaskProposalForm(user=request.user)
+    return render(request, "tasks/task_proposal_form.html", {
+        "form": form, "profile": profile,
+    })
+
+
+@login_required
+def decide_task_proposal(request, pk):
+    task = get_object_or_404(
+        Task.objects.select_related("proposed_by", "approver"), pk=pk
+    )
+    if request.method != "POST":
+        return HttpResponseForbidden("Task approval decisions must be submitted securely.")
+    if task.approval_status != "PENDING" or task.approver_id != request.user.id:
+        return HttpResponseForbidden("You are not the selected approver for this task.")
+
+    action = request.POST.get("action", "").strip().lower()
+    note = request.POST.get("decision_note", "").strip()
+    if action not in {"approve", "reject"}:
+        messages.error(request, "Select Approve or Reject.")
+        return redirect("task_detail", pk=task.pk)
+
+    with transaction.atomic():
+        task = Task.objects.select_for_update().get(pk=task.pk)
+        if task.approval_status != "PENDING" or task.approver_id != request.user.id:
+            return HttpResponseForbidden("This approval request is no longer pending.")
+        task.approval_decision_note = note
+        if action == "approve":
+            if not task.proposed_by_id:
+                messages.error(request, "The task proposer account is unavailable.")
+                return redirect("task_detail", pk=task.pk)
+            task.created_by = request.user
+            task.approval_status = "APPROVED"
+            task.approved_at = timezone.now()
+            task.status = "PENDING"
+            task.save()
+            TaskAssignment.objects.create(
+                task=task,
+                assigned_to=task.proposed_by,
+                assigned_by=request.user,
+                status="ASSIGNED",
+                progress_percent=0,
+                carried_forward_progress=0,
+            )
+            messages.success(
+                request,
+                "Task approved. Ownership transferred to you and the task was assigned to its creator.",
+            )
+        else:
+            task.approval_status = "REJECTED"
+            task.status = "CANCELLED"
+            task.approved_at = None
+            task.save()
+            messages.success(request, "Task proposal rejected.")
+    return redirect("task_detail", pk=task.pk)
 
 
 # --------------------------------------------------

@@ -736,6 +736,7 @@
       {% if can_create_task %}
       <a href="{% url 'create_task' %}">Create Task</a>
       {% endif %}
+      {% if can_propose_task and role != "REQUESTER" %}<a href="{% url 'propose_task' %}">Propose Task for Myself</a>{% endif %}
 
       {% if show_director_analytics %}
       <a href="{% url 'task_analytics' %}">Analytics</a>
@@ -788,6 +789,7 @@
     </div>
 
     <div class="stats">
+      {% if pending_approval_count %}<a href="#pending-task-approvals" class="stat-link"><div class="stat-card"><div class="stat-icon">✅</div><div class="stat-label">Awaiting My Approval</div><div class="stat-value">{{ pending_approval_count }}</div></div></a>{% endif %}
       <a href="{% url 'my_tasks' %}" class="stat-link">
         <div class="stat-card">
           <div class="stat-icon">📋</div>
@@ -854,6 +856,9 @@
     </div>
 
     <div class="grid">
+      {% if pending_approvals %}
+      <div class="card" id="pending-task-approvals"><div class="card-header"><span>Tasks Awaiting My Approval</span></div><div class="card-body"><div class="list">{% for task in pending_approvals %}<div class="item"><div class="item-title">{{ task.title }}</div><div class="item-meta">Proposed by: {{ task.proposed_by.get_full_name|default:task.proposed_by.username }}<br>Due: {{ task.due_date|default:"Not specified" }}</div><a class="btn btn-primary" href="{% url 'task_detail' task.pk %}">Review</a></div>{% endfor %}</div></div></div>
+      {% endif %}
       <div class="card">
         <div class="card-header">
           <span>Recent Visible Assignments</span>
