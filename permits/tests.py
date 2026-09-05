@@ -10,7 +10,7 @@ from events.auth import EventRole, event_role, has_event_role
 from finance.views import get_user_role as get_finance_role
 from tasks.views import _get_user_role as get_task_role
 
-from .forms import AdminUserUpdateForm
+from .forms import AdminUserCreateForm, AdminUserUpdateForm
 from .models import (
     ApprovalRole,
     Department,
@@ -312,6 +312,21 @@ class ExecutivePermitApprovalRoutingTests(TestCase):
         self.assertEqual(req.executive_approval_chain, ["DPS_BE", "PERMANENT_SECRETARY"])
         self.assertEqual(req.director, self.dps_be)
 
+    def test_ps_direct_head_without_subunit_routes_directly_to_ps(self):
+        department, _ = Department.objects.update_or_create(
+            code="PMU", defaults={"name": "Procurement Management Unit"}
+        )
+        head_role, _ = ApprovalRole.objects.update_or_create(
+            code="HEAD_OF_UNIT",
+            defaults={"name": "Head of Unit", "is_active": True},
+        )
+        head = self._user("pmu-head", head_role, department)
+        req = _apply_permit_workflow_routing(
+            self._request(head), head.profile
+        )
+        self.assertEqual(req.executive_approval_chain, ["PERMANENT_SECRETARY"])
+        self.assertEqual(req.director, self.ps)
+
 
 class ModuleRoleAssignmentTests(TestCase):
     def setUp(self):
@@ -394,6 +409,54 @@ class ModuleRoleAssignmentTests(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn("department", form.errors)
+
+
+class DirectToPsHeadAccountFormTests(TestCase):
+    def setUp(self):
+        self.pmu = Department.objects.create(
+            code="PMU", name="Procurement Management Unit"
+        )
+        self.regular_department = Department.objects.create(
+            code="REG", name="Regular Division"
+        )
+
+    def _data(self, department, create=False):
+        data = {
+            "first_name": "Unit",
+            "last_name": "Head",
+            "email": "head@example.test",
+            "employee_id": "H001",
+            "check_number": "1001",
+            "phone_number": "0712345678",
+            "department": department.pk,
+            "department_unit": "",
+            "head_of_unit": "",
+            "role": "HEAD_OF_UNIT",
+            "event_role": [],
+            "finance_role": [],
+            "task_role": [],
+            "is_staff": "",
+        }
+        if create:
+            data.update({
+                "username": "pmu-head",
+                "password": "safe-password",
+                "confirm_password": "safe-password",
+            })
+        return data
+
+    def test_ps_direct_head_can_be_created_without_department_unit(self):
+        form = AdminUserCreateForm(data=self._data(self.pmu, create=True))
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_ps_direct_head_can_be_updated_without_department_unit(self):
+        form = AdminUserUpdateForm(data=self._data(self.pmu))
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_ordinary_head_still_requires_department_unit(self):
+        form = AdminUserUpdateForm(data=self._data(self.regular_department))
+        self.assertFalse(form.is_valid())
+        self.assertIn("department_unit", form.errors)
 
 
 class AdministrationCentreTests(TestCase):

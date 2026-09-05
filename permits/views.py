@@ -1228,6 +1228,14 @@ def _apply_permit_workflow_routing(req, profile):
 
     # A HOU request starts at its unit Assistant Director.
     if requester_role == "HEAD_OF_UNIT":
+        if (
+            profile.department.code in DIRECT_TO_PS_DEPARTMENTS
+            and not profile.department_unit_id
+        ):
+            return _assign_executive_chain(
+                req,
+                ["PERMANENT_SECRETARY"],
+            )
         req.director = assistant_director or department_director
         req.status = "PENDING_DIRECTOR"
         return req

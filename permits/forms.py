@@ -17,6 +17,22 @@ from .module_roles import (
 )
 
 
+PS_DIRECT_REPORT_DEPARTMENT_CODES = {
+    "FAU", "AHRM", "GCU", "IAU", "ICTU", "LSU", "PMU", "DPP", "MEU",
+}
+
+
+def _head_of_unit_requires_department_unit(role, department):
+    """PS-direct organizational heads are attached to the Department itself."""
+    return (
+        role == "HEAD_OF_UNIT"
+        and (
+            not department
+            or department.code not in PS_DIRECT_REPORT_DEPARTMENT_CODES
+        )
+    )
+
+
 def _blocking_statuses():
     return [
         "PENDING_HOU",
@@ -535,7 +551,10 @@ class AdminUserCreateForm(forms.Form):
         if password and confirm_password and password != confirm_password:
             self.add_error("confirm_password", "Passwords do not match.")
 
-        if role == "HEAD_OF_UNIT" and not department_unit:
+        if (
+            _head_of_unit_requires_department_unit(role, department)
+            and not department_unit
+        ):
             self.add_error(
                 "department_unit",
                 "Head of Unit must have a department unit assigned."
@@ -600,7 +619,10 @@ class AdminUserUpdateForm(forms.Form):
             for field in ("event_role", "finance_role", "task_role")
         )
 
-        if role == "HEAD_OF_UNIT" and not department_unit:
+        if (
+            _head_of_unit_requires_department_unit(role, department)
+            and not department_unit
+        ):
             self.add_error(
                 "department_unit",
                 "Head of Unit must have a department unit assigned."
