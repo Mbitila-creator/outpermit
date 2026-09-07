@@ -1,29 +1,20 @@
-from django.conf import settings
-from django.core.mail import send_mail
+from .notification_service import queue_user_notification
 
 
 def send_email_notification(user, subject, message, fail_silently=True):
     if not user or not getattr(user, "email", None):
         return False
-
-    send_mail(
-        subject,
-        message,
-        getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@example.com"),
-        [user.email],
-        fail_silently=fail_silently,
+    notifications = queue_user_notification(
+        user, "GENERAL", subject, message, channels={"EMAIL"}, send_now=True
     )
-
-    return True
+    return bool(notifications and notifications[0].status == "SENT")
 
 
 def notify_user(user, subject, message):
-    return send_email_notification(
-        user=user,
-        subject=subject,
-        message=message,
-        fail_silently=True,
-    )
+    if not user:
+        return False
+    records = queue_user_notification(user, "GENERAL", subject, message)
+    return any(record.status == "SENT" for record in records)
 
 
 def notify_many_users(users, subject, message):

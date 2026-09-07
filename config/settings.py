@@ -194,6 +194,14 @@ BREVO_API_URL = os.getenv(
     "https://api.brevo.com/v3/smtp/email",
 )
 BREVO_TIMEOUT = int(os.getenv("BREVO_TIMEOUT", str(EMAIL_TIMEOUT)))
+NOTIFICATION_CHANNELS = {
+    value.strip().upper()
+    for value in os.getenv("NOTIFICATION_CHANNELS", "EMAIL").split(",")
+    if value.strip()
+}
+SMS_BACKEND = os.getenv("SMS_BACKEND", "core.sms_backends.DisabledSMSBackend")
+SMS_FROM = os.getenv("SMS_FROM", "")
+NOTIFICATION_MAX_ATTEMPTS = int(os.getenv("NOTIFICATION_MAX_ATTEMPTS", "3"))
 
 
 # File upload limits
