@@ -1,11 +1,50 @@
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import EmailMessage
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 
 from .email_backends import BrevoEmailBackend
+from .database import database_config
+
+
+class DatabaseConfigurationTests(SimpleTestCase):
+    def test_sqlite_is_the_safe_default(self):
+        config = database_config({}, Path("/tmp/outpermit"))
+
+        self.assertEqual(config["ENGINE"], "django.db.backends.sqlite3")
+        self.assertEqual(config["NAME"], Path("/tmp/outpermit/db.sqlite3"))
+
+    def test_mysql_uses_explicit_environment_values(self):
+        config = database_config(
+            {
+                "DB_ENGINE": "mysql",
+                "DB_NAME": "outpermit_mysql",
+                "DB_USER": "outpermit_user",
+                "DB_PASSWORD": "local-secret",
+                "DB_HOST": "127.0.0.1",
+                "DB_PORT": "3306",
+            },
+            Path("/tmp/outpermit"),
+        )
+
+        self.assertEqual(config["ENGINE"], "django.db.backends.mysql")
+        self.assertEqual(config["NAME"], "outpermit_mysql")
+        self.assertEqual(config["USER"], "outpermit_user")
+        self.assertEqual(config["OPTIONS"]["charset"], "utf8mb4")
+
+    def test_mysql_rejects_missing_credentials(self):
+        with self.assertRaisesMessage(
+            ImproperlyConfigured,
+            "DB_NAME, DB_USER, DB_PASSWORD",
+        ):
+            database_config(
+                {"DB_ENGINE": "mysql"},
+                Path("/tmp/outpermit"),
+            )
 
 
 @override_settings(

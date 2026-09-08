@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
                 ('is_active', models.BooleanField(default=True, verbose_name='is active')),
                 ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='created at')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='updated at')),
-                ('text', models.TextField(verbose_name='question')),
+                ('text', models.CharField(max_length=500, verbose_name='question')),
                 ('display_order', models.PositiveIntegerField(default=0, verbose_name='display order')),
                 ('created_by', models.ForeignKey(blank=True, editable=False, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='%(app_label)s_%(class)s_created_records', to=settings.AUTH_USER_MODEL, verbose_name='created by')),
             ],
@@ -87,4 +87,3 @@ class Migration(migrations.Migration):
             constraint=models.UniqueConstraint(fields=('topic', 'text'), name='unique_guiding_question_per_topic'),
         ),
     ]
-

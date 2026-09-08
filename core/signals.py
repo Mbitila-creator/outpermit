@@ -8,7 +8,9 @@ from .notification_service import queue_user_notification
 
 
 @receiver(pre_save, sender=Task)
-def remember_task_approval_status(sender, instance, **kwargs):
+def remember_task_approval_status(sender, instance, raw=False, **kwargs):
+    if raw:
+        return
     instance._notification_previous_approval = None
     if instance.pk:
         instance._notification_previous_approval = sender.objects.filter(
@@ -17,7 +19,9 @@ def remember_task_approval_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=Task)
-def notify_task_approval(sender, instance, created, **kwargs):
+def notify_task_approval(sender, instance, created, raw=False, **kwargs):
+    if raw:
+        return
     previous = getattr(instance, "_notification_previous_approval", None)
     if instance.approval_status == "PENDING" and instance.approver_id and (created or previous != "PENDING"):
         queue_user_notification(
@@ -37,7 +41,9 @@ def notify_task_approval(sender, instance, created, **kwargs):
 
 
 @receiver(pre_save, sender=FinanceRequest)
-def remember_finance_status(sender, instance, **kwargs):
+def remember_finance_status(sender, instance, raw=False, **kwargs):
+    if raw:
+        return
     instance._notification_previous_status = None
     if instance.pk:
         instance._notification_previous_status = sender.objects.filter(
@@ -46,7 +52,9 @@ def remember_finance_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=TaskAssignment)
-def notify_task_assignment(sender, instance, created, **kwargs):
+def notify_task_assignment(sender, instance, created, raw=False, **kwargs):
+    if raw:
+        return
     if created:
         queue_user_notification(
             instance.assigned_to, "TASK_ASSIGNED", "New task assigned",
@@ -55,7 +63,9 @@ def notify_task_assignment(sender, instance, created, **kwargs):
 
 
 @receiver(post_save, sender=FinanceRequest)
-def notify_finance_request_change(sender, instance, created, **kwargs):
+def notify_finance_request_change(sender, instance, created, raw=False, **kwargs):
+    if raw:
+        return
     previous = getattr(instance, "_notification_previous_status", None)
     if (
         instance.requested_by_id

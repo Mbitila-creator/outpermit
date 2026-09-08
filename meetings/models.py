@@ -727,6 +727,9 @@ class MeetingResourceBooking(BaseModel):
     confirmed_at = models.DateTimeField(
         _("confirmed at"), null=True, blank=True,
     )
+    active_unique_marker = models.BooleanField(
+        null=True, editable=False,
+    )
 
     class Meta:
         verbose_name = _("meeting resource booking")
@@ -734,11 +737,7 @@ class MeetingResourceBooking(BaseModel):
         ordering = ["meeting", "resource__name_sw"]
         constraints = [
             models.UniqueConstraint(
-                fields=["meeting", "resource"],
-                condition=Q(
-                    is_active=True,
-                    status__in=["REQUESTED", "CONFIRMED"],
-                ),
+                fields=["meeting", "resource", "active_unique_marker"],
                 name="unique_active_resource_per_meeting",
             ),
         ]
@@ -793,6 +792,13 @@ class MeetingResourceBooking(BaseModel):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
+        self.active_unique_marker = (
+            True
+            if self.is_active and self.status in {self.Status.REQUESTED, self.Status.CONFIRMED}
+            else None
+        )
+        if kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"active_unique_marker"}
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -862,7 +868,7 @@ class MeetingAttendee(BaseModel):
         max_length=150,
         blank=True,
     )
-    email = models.EmailField(_("email address"), blank=True)
+    email = models.EmailField(_("email address"), blank=True, null=True)
     phone_number = models.CharField(
         _("phone number"),
         max_length=30,
@@ -923,12 +929,10 @@ class MeetingAttendee(BaseModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["meeting", "user"],
-                condition=Q(user__isnull=False),
                 name="unique_internal_attendee_per_meeting",
             ),
             models.UniqueConstraint(
                 fields=["meeting", "email"],
-                condition=~Q(email=""),
                 name="unique_attendee_email_per_meeting",
             ),
         ]
@@ -951,6 +955,7 @@ class MeetingAttendee(BaseModel):
                 self.full_name = self.user.get_full_name().strip() or self.user.username
             if not self.email:
                 self.email = self.user.email
+        self.email = self.email.strip() if self.email else None
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -975,6 +980,9 @@ class MeetingDocumentAcknowledgement(BaseModel):
         _("acknowledged at"),
         default=timezone.now,
     )
+    active_unique_marker = models.BooleanField(
+        null=True, editable=False,
+    )
 
     class Meta:
         verbose_name = _("meeting document acknowledgement")
@@ -982,8 +990,7 @@ class MeetingDocumentAcknowledgement(BaseModel):
         ordering = ["-acknowledged_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["document", "attendee"],
-                condition=Q(is_active=True),
+                fields=["document", "attendee", "active_unique_marker"],
                 name="unique_active_meeting_document_ack",
             ),
         ]
@@ -1005,6 +1012,9 @@ class MeetingDocumentAcknowledgement(BaseModel):
             })
 
     def save(self, *args, **kwargs):
+        self.active_unique_marker = True if self.is_active else None
+        if kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"active_unique_marker"}
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -1497,4 +1507,3 @@ class MeetingCommunicationLog(BaseModel):
 
     def __str__(self):
         return f"{self.meeting.reference_number} - {self.recipient_email}"
-

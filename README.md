@@ -34,7 +34,7 @@ functions in one role-aware system.
 ## Technology
 
 - Python and Django 4.2
-- SQLite by default
+- SQLite by default, with environment-controlled MySQL/MariaDB support
 - ReportLab and pypdf for PDF processing
 - openpyxl for spreadsheet import/export
 - Pillow and qrcode for images and QR codes
@@ -97,6 +97,62 @@ pip install -r requirements.txt
 ```bash
 python manage.py migrate
 python manage.py createsuperuser
+```
+
+### Local XAMPP MySQL/MariaDB setup
+
+The MacBook development environment can use XAMPP MariaDB without changing
+PythonAnywhere. SQLite remains the default unless `DB_ENGINE=mysql` is set.
+
+1. Start **MySQL Database** in XAMPP Manager.
+2. Create the database and local account in phpMyAdmin or the XAMPP MySQL
+   client:
+
+```sql
+CREATE DATABASE outpermit_mysql
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'outpermit_user'@'localhost'
+  IDENTIFIED BY 'REPLACE_WITH_A_STRONG_PASSWORD';
+CREATE USER 'outpermit_user'@'127.0.0.1'
+  IDENTIFIED BY 'REPLACE_WITH_A_STRONG_PASSWORD';
+GRANT ALL PRIVILEGES ON outpermit_mysql.*
+  TO 'outpermit_user'@'localhost';
+GRANT ALL PRIVILEGES ON outpermit_mysql.*
+  TO 'outpermit_user'@'127.0.0.1';
+FLUSH PRIVILEGES;
+```
+
+3. Install dependencies, create a private environment file and load it:
+
+```bash
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.mysql.example .env
+# Edit .env and replace DB_PASSWORD.
+set -a
+source .env
+set +a
+```
+
+4. Confirm MySQL is selected, create its schema and start Django:
+
+```bash
+python manage.py shell -c \
+  "from django.conf import settings; print(settings.DATABASES['default']['ENGINE'])"
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py check --database default
+python manage.py runserver
+```
+
+The expected engine is `django.db.backends.mysql`. The `.env` file and database
+dumps are intentionally excluded from Git. Migrations recreate the complete
+database structure for another developer or deployment expert.
+
+To return a terminal session to SQLite:
+
+```bash
+unset DB_ENGINE DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT DB_CONN_MAX_AGE
 ```
 
 ### 5. Start the development server

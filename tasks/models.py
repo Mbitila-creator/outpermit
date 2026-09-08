@@ -264,6 +264,7 @@ class TaskAssignment(models.Model):
     assigned_to = models.ForeignKey(User, on_delete=models.CASCADE, related_name="task_assignments")
     assigned_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="task_assignments_made")
     is_group_leader = models.BooleanField(default=False, db_index=True)
+    group_leader_unique_marker = models.BooleanField(null=True, editable=False)
 
     status = models.CharField(max_length=20, choices=ASSIGNMENT_STATUS_CHOICES, default="ASSIGNED")
 
@@ -284,8 +285,7 @@ class TaskAssignment(models.Model):
         unique_together = ("task", "assigned_to")
         constraints = [
             models.UniqueConstraint(
-                fields=["task"],
-                condition=models.Q(is_group_leader=True),
+                fields=["task", "group_leader_unique_marker"],
                 name="unique_group_leader_per_task",
             ),
         ]
@@ -293,6 +293,12 @@ class TaskAssignment(models.Model):
     @property
     def effective_progress(self):
         return min(100, (self.carried_forward_progress or 0) + (self.progress_percent or 0))
+
+    def save(self, *args, **kwargs):
+        self.group_leader_unique_marker = True if self.is_group_leader else None
+        if kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"group_leader_unique_marker"}
+        return super().save(*args, **kwargs)
 
     @property
     def remaining_progress(self):

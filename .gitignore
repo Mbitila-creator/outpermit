@@ -1,0 +1,23 @@
+# Local secrets and database exports
+.env
+.env.*
+!.env.mysql.example
+database/*.sql
+database/*.dump
+local-backups/
+
+# Local runtime data
+*.sqlite3
+media/system_backups/
+
+# Python and editor artifacts
+__pycache__/
+*.py[cod]
+.DS_Store
+.coverage
+.pytest_cache/
+
+# Virtual environments and generated static files
+venv/
+.venv/
+staticfiles/

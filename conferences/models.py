@@ -82,7 +82,7 @@ class ConferenceGuidingTopic(BaseModel):
 
 class ConferenceGuidingQuestion(BaseModel):
     topic = models.ForeignKey(ConferenceGuidingTopic, related_name="questions", on_delete=models.CASCADE, verbose_name=_("guiding subtopic"))
-    text = models.TextField(_("question"))
+    text = models.CharField(_("question"), max_length=500)
     display_order = models.PositiveIntegerField(_("display order"), default=0)
 
     class Meta:
@@ -865,17 +865,14 @@ class ConferenceCertificate(BaseModel):
         constraints = [
             models.UniqueConstraint(
                 fields=("event", "recipient_type", "participant_submission"),
-                condition=models.Q(participant_submission__isnull=False),
                 name="unique_participant_conference_certificate",
             ),
             models.UniqueConstraint(
                 fields=("event", "recipient_type", "paper"),
-                condition=models.Q(paper__isnull=False),
                 name="unique_presenter_conference_certificate",
             ),
             models.UniqueConstraint(
                 fields=("event", "recipient_type", "reviewer"),
-                condition=models.Q(reviewer__isnull=False),
                 name="unique_reviewer_conference_certificate",
             ),
         ]

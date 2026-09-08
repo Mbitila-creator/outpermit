@@ -476,12 +476,16 @@ class ModuleRoleAssignment(models.Model):
 
 
 @receiver(post_save, sender=User)
-def create_user_profile(sender, instance, created, **kwargs):
+def create_user_profile(sender, instance, created, raw=False, **kwargs):
+    if raw:
+        return
     if created:
         UserProfile.objects.create(user=instance)
 
 
 @receiver(post_save, sender=User)
-def save_user_profile(sender, instance, **kwargs):
+def save_user_profile(sender, instance, raw=False, **kwargs):
+    if raw:
+        return
     profile, created = UserProfile.objects.get_or_create(user=instance)
     profile.save()
