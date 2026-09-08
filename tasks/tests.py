@@ -315,6 +315,15 @@ class StaffTaskProposalTests(TestCase):
         self.staff.profile.head_of_unit = self.head
         self.staff.profile.save(update_fields=["head_of_unit"])
 
+    def test_proposal_page_closes_both_native_datetime_pickers(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse("propose_task"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'setupDateField("id_start_date")')
+        self.assertContains(response, 'setupDateField("id_due_date")')
+        self.assertContains(response, '["input", "change"]')
+
     def _user(self, username, role, department=None, unit="default"):
         user = User.objects.create_user(username=username, password="safe-pass")
         user.profile.role = role
