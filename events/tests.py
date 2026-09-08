@@ -606,6 +606,24 @@ class DepartmentEventAccessTests(TestCase):
         self.assertEqual(created.owning_department, self.dhe)
         self.assertNotIn(created, events_visible_to(self._staff("dsti-other", self.dsti)))
 
+    def test_department_event_form_closes_all_datetime_pickers(self):
+        user = self._staff("event-date-admin", self.dsti)
+        user.profile.role = "EVENT_ADMIN"
+        user.profile.save(update_fields=["role"])
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("events:department_event_create"))
+
+        self.assertEqual(response.status_code, 200)
+        for field_id in (
+            "id_registration_opens_at",
+            "id_registration_closes_at",
+            "id_starts_at",
+            "id_ends_at",
+        ):
+            self.assertContains(response, f'"{field_id}"')
+        self.assertContains(response, '["input", "change"]')
+
     def test_event_administrator_can_create_event_with_manually_entered_venue(self):
         user = self._staff("manual-venue-admin", self.dsti)
         user.profile.role = "EVENT_ADMIN"
