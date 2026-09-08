@@ -267,6 +267,32 @@ class ExecutiveTaskAccessTests(TestCase):
         self.assertEqual(self.client.get(reverse("task_dashboard")).status_code, 200)
         self.assertEqual(self.client.get(reverse("task_analytics")).status_code, 200)
 
+    def test_dashboard_task_cards_open_the_matching_task_list(self):
+        now = timezone.now()
+        overdue_task = Task.objects.create(
+            title="Visible unassigned overdue task",
+            created_by=self.ps,
+            department=self.hed,
+            start_date=now - timedelta(days=3),
+            due_date=now - timedelta(days=1),
+        )
+        self.client.force_login(self.ps)
+
+        dashboard = self.client.get(reverse("task_dashboard"))
+        self.assertContains(
+            dashboard,
+            f'{reverse("my_tasks")}?view=tasks&amp;status=OVERDUE',
+        )
+
+        task_list = self.client.get(
+            reverse("my_tasks"),
+            {"view": "tasks", "status": "OVERDUE"},
+        )
+        self.assertEqual(task_list.status_code, 200)
+        self.assertEqual(task_list.context["view_mode"], "tasks")
+        self.assertIn(overdue_task, task_list.context["task_rows"])
+        self.assertContains(task_list, overdue_task.title)
+
 
 class StaffTaskProposalTests(TestCase):
     def setUp(self):

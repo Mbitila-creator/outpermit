@@ -1598,6 +1598,30 @@ def task_dashboard(request):
 @login_required
 def my_tasks(request):
     data = _get_filtered_assignments(request)
+    view_mode = request.GET.get("view", "assignments").strip().lower()
+    if view_mode not in {"tasks", "assignments"}:
+        view_mode = "assignments"
+
+    task_rows = Task.objects.none()
+    if view_mode == "tasks":
+        task_rows, _ = _get_visible_task_scope(request.user)
+        task_rows = task_rows.select_related(
+            "created_by", "department", "department_unit", "approver"
+        ).prefetch_related("assignments__assigned_to")
+
+        task_status = request.GET.get("task_status", "").strip().upper()
+        status = request.GET.get("status", "").strip().upper()
+        if status == "OVERDUE":
+            task_rows = task_rows.filter(
+                due_date__lt=timezone.now()
+            ).exclude(status__in=["COMPLETED", "CANCELLED"])
+        elif task_status:
+            task_rows = task_rows.filter(status=task_status)
+
+        if request.GET.get("created_by") == "me":
+            task_rows = task_rows.filter(created_by=request.user)
+
+        task_rows = task_rows.order_by("-updated_at")
 
     context = {
         "assignments": data["assignments"],
@@ -1623,6 +1647,8 @@ def my_tasks(request):
         ),
         "profile": data["profile"],
         "allow_task_export": _get_system_setting().allow_task_export,
+        "view_mode": view_mode,
+        "task_rows": task_rows,
     }
 
     return render(

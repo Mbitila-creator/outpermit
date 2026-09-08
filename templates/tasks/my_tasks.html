@@ -353,8 +353,8 @@
 </head>
 <body>
   <div class="topbar">
-    <h1>My Tasks</h1>
-    <p>View tasks available to your role and access level.</p>
+    <h1>{% if view_mode == "tasks" %}Task List{% else %}Assignment List{% endif %}</h1>
+    <p>View tasks and assignments available to your role and access level.</p>
 
     <div class="nav">
       <a href="{% url 'system_home' %}">Home</a>
@@ -380,6 +380,11 @@
     </div>
 
     <div class="card">
+      <div class="filters">
+        <a href="{% url 'my_tasks' %}?view=tasks" class="filter-link {% if view_mode == 'tasks' %}active{% endif %}">Tasks</a>
+        <a href="{% url 'my_tasks' %}?view=assignments" class="filter-link {% if view_mode == 'assignments' %}active{% endif %}">Assignments</a>
+      </div>
+      {% if view_mode == "assignments" %}
       <div class="filters">
         <a href="{% url 'my_tasks' %}" class="filter-link {% if not selected_status %}active{% endif %}">All</a>
         <a href="{% url 'my_tasks' %}?status=ACCEPTED" class="filter-link {% if selected_status == 'ACCEPTED' %}active{% endif %}">Accepted</a>
@@ -476,8 +481,33 @@
         </div>
       </div>
       {% endif %}
+      {% endif %}
 
       <div class="body">
+        {% if view_mode == "tasks" %}
+          {% if task_rows %}
+          <div class="table-wrap">
+            <table class="tasks-table">
+              <thead><tr><th>Title</th><th>Created By</th><th>Department / Unit</th><th>Priority</th><th>Status</th><th>Progress</th><th>Due Date</th><th>Assignees</th><th class="text-center">Action</th></tr></thead>
+              <tbody>
+              {% for task in task_rows %}
+                <tr>
+                  <td class="title-cell"><strong>{{ task.title }}</strong>{% if task.is_overdue %}<div class="overdue-text">Overdue</div>{% endif %}</td>
+                  <td>{{ task.created_by.get_full_name|default:task.created_by.username }}</td>
+                  <td>{{ task.department.code|default:"—" }}{% if task.department_unit %}<br>{{ task.department_unit.name }}{% endif %}</td>
+                  <td><span class="badge">{{ task.get_priority_display }}</span></td>
+                  <td><span class="badge {% if task.status == 'COMPLETED' %}badge-success{% elif task.is_overdue %}badge-danger{% elif task.status == 'IN_PROGRESS' %}badge-warning{% else %}badge-muted{% endif %}">{{ task.get_status_display }}</span></td>
+                  <td>{{ task.progress_percent }}%</td>
+                  <td>{{ task.due_date|date:"d M Y H:i"|default:"—" }}</td>
+                  <td>{% for assignment in task.assignments.all %}{{ assignment.assigned_to.get_full_name|default:assignment.assigned_to.username }}{% if not forloop.last %}, {% endif %}{% empty %}Not assigned{% endfor %}</td>
+                  <td class="text-center"><a href="{% url 'task_detail' task.pk %}" class="btn btn-primary">Open</a></td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}<div class="empty">No tasks match this dashboard card.</div>{% endif %}
+        {% else %}
         {% if assignments %}
           <div class="table-wrap">
             <table class="tasks-table">
@@ -588,6 +618,7 @@
           </div>
         {% else %}
           <div class="empty">No tasks found for this filter.</div>
+        {% endif %}
         {% endif %}
       </div>
     </div>
