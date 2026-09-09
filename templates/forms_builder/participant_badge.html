@@ -34,9 +34,7 @@
 
         <article class="participant-badge{% if event.category.is_conference %} conference-participant-badge{% endif %}" aria-label="{% translate 'Participant badge' %}">
             <header class="badge-header">
-                {% if event.logo %}
-                    <img src="{{ event.logo.url }}" alt="{{ event.code }}">
-                {% endif %}
+                <img src="{{ badge_logo_url }}" alt="{{ event.code }}">
 
                 <div>
                     <span class="badge-event-code">{{ event.code }}</span>
@@ -51,15 +49,13 @@
             </header>
 
             <div class="badge-body" style="position: relative; overflow: hidden;">
-                {% if event.logo %}
-                    <img
-                        class="badge-logo-watermark"
-                        src="{{ event.logo.url }}"
-                        alt=""
-                        aria-hidden="true"
-                        style="position: absolute; z-index: 0; top: 50%; left: 50%; width: 58%; height: 72%; transform: translate(-50%, -50%); object-fit: contain; opacity: .055; pointer-events: none;"
-                    >
-                {% endif %}
+                <img
+                    class="badge-logo-watermark"
+                    src="{{ badge_logo_url }}"
+                    alt=""
+                    aria-hidden="true"
+                    style="position: absolute; z-index: 0; top: 50%; left: 50%; width: 58%; height: 72%; transform: translate(-50%, -50%); object-fit: contain; opacity: .055; pointer-events: none;"
+                >
                 <p class="badge-type">{% translate "PARTICIPANT" %}</p>
 
                 <div class="badge-person-details">
@@ -131,4 +127,3 @@
         });
     </script>
 {% endblock %}
-

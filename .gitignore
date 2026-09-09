@@ -8,7 +8,7 @@ local-backups/
 
 # Local runtime data
 *.sqlite3
-media/system_backups/
+media/
 
 # Python and editor artifacts
 __pycache__/
@@ -18,6 +18,6 @@ __pycache__/
 .pytest_cache/
 
 # Virtual environments and generated static files
-venv/
-.venv/
+venv*/
+.venv*/
 staticfiles/

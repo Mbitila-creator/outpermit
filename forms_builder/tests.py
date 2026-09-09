@@ -1485,3 +1485,31 @@ class WEUUTzEvaluationSetupTests(TestCase):
             kwargs={"participant_token": registration.participant_token},
         )
         self.assertNotContains(portal_response, certificate_url)
+
+    def test_participant_badge_uses_static_logo_when_uploaded_logo_is_missing(self):
+        self.event.badge_enabled = True
+        self.event.logo.name = "events/logos/missing-imported-logo.png"
+        self.event.save(update_fields=["badge_enabled", "logo", "updated_at"])
+        registration_form = EventForm.objects.create(
+            event=self.event,
+            name_sw="Usajili",
+            name_en="Registration",
+            form_type=EventForm.FormType.REGISTRATION,
+            is_published=True,
+        )
+        registration = FormSubmission.objects.create(
+            event_form=registration_form,
+            is_complete=True,
+        )
+
+        response = self.client.get(
+            reverse(
+                "forms_builder:participant_badge",
+                kwargs={"participant_token": registration.participant_token},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["badge_logo_url"], "/static/logo/moest_logo.png")
+        self.assertContains(response, 'src="/static/logo/moest_logo.png"', count=2)
+        self.assertNotContains(response, "missing-imported-logo.png")

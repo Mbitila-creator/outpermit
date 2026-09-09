@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q, Count, Avg
-from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -2298,6 +2298,21 @@ def task_detail(request, pk):
     }
 
     return render(request, "tasks/task_detail.html", context)
+
+
+@login_required
+def task_update_attachment(request, pk, update_id):
+    task = get_object_or_404(Task, pk=pk)
+    if not _can_view_task(request.user, task):
+        return HttpResponseForbidden("You are not allowed to view this task.")
+    update = get_object_or_404(TaskUpdate, pk=update_id, task=task)
+    if not update.attachment:
+        raise Http404("Attachment not found.")
+    return FileResponse(
+        update.attachment.open("rb"),
+        as_attachment=True,
+        filename=update.attachment.name.rsplit("/", 1)[-1],
+    )
 
 
 # --------------------------------------------------

@@ -10,6 +10,7 @@ from django.utils.translation import gettext_lazy as _
 from core.models import BaseModel
 from events.models import Event
 from forms_builder.models import FormSubmission
+from core.file_security import document_upload_validator
 
 
 LEARNING_CATEGORY_CODES = {"SEMINAR", "WORKSHOP", "TRAINING"}
@@ -117,7 +118,7 @@ class LearningSession(BaseModel):
     )
     material = models.FileField(
         upload_to="learning-events/materials/", blank=True, null=True,
-        validators=[FileExtensionValidator(["pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "zip"])],
+        validators=[document_upload_validator],
     )
     is_published = models.BooleanField(default=False)
     display_order = models.PositiveIntegerField(default=0)
@@ -346,7 +347,7 @@ class WorkshopActivitySubmission(BaseModel):
     activity = models.ForeignKey(WorkshopActivity, related_name="submissions", on_delete=models.CASCADE)
     enrollment = models.ForeignKey(LearningEnrollment, related_name="workshop_submissions", on_delete=models.CASCADE)
     response = models.TextField(blank=True)
-    attachment = models.FileField(upload_to="learning-events/workshop-outputs/", blank=True, null=True)
+    attachment = models.FileField(upload_to="learning-events/workshop-outputs/", validators=[document_upload_validator], blank=True, null=True)
     score = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     feedback = models.TextField(blank=True)
     submitted_at = models.DateTimeField(default=timezone.now)

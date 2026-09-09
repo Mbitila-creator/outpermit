@@ -361,7 +361,7 @@
       <a href="{% url 'requester_dashboard' %}">Permits</a>
       <a href="{% url 'task_dashboard' %}">Tasks Dashboard</a>
       <a href="{% url 'my_tasks' %}?scope=mine">My Tasks</a>
-      <a href="{% url 'logout' %}">Logout</a>
+      {% include "includes/logout_button.html" %}
     </div>
   </div>
 

@@ -12,6 +12,7 @@ from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
@@ -1934,13 +1935,25 @@ def get_badge_submission(participant_token):
 @require_http_methods(["GET"])
 def participant_badge(request, participant_token):
     submission = get_badge_submission(participant_token)
+    event = submission.event_form.event
+    badge_logo_url = static("logo/moest_logo.png")
+
+    if event.logo:
+        try:
+            if event.logo.storage.exists(event.logo.name):
+                badge_logo_url = event.logo.url
+        except (OSError, ValueError):
+            # A database import can retain an uploaded logo name without the
+            # corresponding media file. The badge must still remain printable.
+            pass
 
     return render(
         request,
         "forms_builder/participant_badge.html",
         {
             "submission": submission,
-            "event": submission.event_form.event,
+            "event": event,
+            "badge_logo_url": badge_logo_url,
         },
     )
 

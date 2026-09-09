@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from core.references import generate_reference
+from core.file_security import document_upload_validator
 
 
 class Department(models.Model):
@@ -240,12 +241,14 @@ class ExternalWorkRequest(models.Model):
 
     task_approval_file = models.FileField(
         upload_to="task_approvals/",
+        validators=[document_upload_validator],
         blank=True,
         null=True
     )
 
     report_file = models.FileField(
         upload_to="reports/",
+        validators=[document_upload_validator],
         blank=True,
         null=True
     )

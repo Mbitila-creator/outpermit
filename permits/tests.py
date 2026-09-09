@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.core.cache import cache
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from datetime import timedelta
@@ -10,7 +11,7 @@ from events.auth import EventRole, event_role, has_event_role
 from finance.views import get_user_role as get_finance_role
 from tasks.views import _get_user_role as get_task_role
 
-from .forms import AdminUserCreateForm, AdminUserUpdateForm
+from .forms import AdminPasswordResetForm, AdminUserCreateForm, AdminUserUpdateForm
 from .models import (
     ApprovalRole,
     Department,
@@ -717,3 +718,60 @@ class PrimaryRoleDisplayTests(TestCase):
         self.assertContains(response, "Primary role:")
         self.assertContains(response, "Permanent Secretary")
         self.assertNotContains(response, "PERMANENT_SECRETARY")
+
+
+class AuthenticationSecurityTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            username="security-user",
+            password="A-secure-test-password-938!",
+        )
+
+    def tearDown(self):
+        cache.clear()
+
+    def test_logout_requires_post(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("logout")).status_code, 405)
+        response = self.client.post(reverse("logout"))
+        self.assertRedirects(response, reverse("login"))
+
+    @override_settings(LOGIN_THROTTLE_ATTEMPTS=2, LOGIN_THROTTLE_WINDOW_SECONDS=60)
+    def test_repeated_login_failures_are_throttled(self):
+        credentials = {"username": self.user.username, "password": "wrong"}
+        self.assertEqual(self.client.post(reverse("login"), credentials).status_code, 200)
+        self.assertEqual(self.client.post(reverse("login"), credentials).status_code, 200)
+        response = self.client.post(reverse("login"), credentials)
+        self.assertEqual(response.status_code, 429)
+        self.assertContains(response, "Too many failed sign-in attempts", status_code=429)
+
+    def test_admin_password_reset_rejects_weak_password(self):
+        form = AdminPasswordResetForm(
+            {"new_password": "password", "confirm_password": "password"},
+            user=self.user,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("new_password", form.errors)
+
+
+class ActingOfficerScopeSecurityTests(TestCase):
+    def setUp(self):
+        self.department_a = Department.objects.create(code="SECA", name="Security A")
+        self.department_b = Department.objects.create(code="SECB", name="Security B")
+        self.requester = User.objects.create_user(username="scope-requester")
+        self.same_department = User.objects.create_user(username="scope-same")
+        self.other_department = User.objects.create_user(username="scope-other")
+        self.requester.profile.department = self.department_a
+        self.requester.profile.save(update_fields=["department"])
+        self.same_department.profile.department = self.department_a
+        self.same_department.profile.save(update_fields=["department"])
+        self.other_department.profile.department = self.department_b
+        self.other_department.profile.save(update_fields=["department"])
+        self.client.force_login(self.requester)
+
+    def test_staff_details_are_limited_to_same_department(self):
+        allowed = self.client.get(reverse("acting_officer_details", args=[self.same_department.pk]))
+        denied = self.client.get(reverse("acting_officer_details", args=[self.other_department.pk]))
+        self.assertEqual(allowed.status_code, 200)
+        self.assertEqual(denied.status_code, 403)

@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models, transaction
+from core.file_security import document_upload_validator
 
 User = settings.AUTH_USER_MODEL
 
@@ -138,6 +139,7 @@ class MinuteSheet(TimeStampedModel):
 
     attachment = models.FileField(
         upload_to="finance/minute_sheets/",
+        validators=[document_upload_validator],
         null=True,
         blank=True,
     )
@@ -890,6 +892,7 @@ class Retirement(TimeStampedModel):
 
     supporting_file = models.FileField(
         upload_to="finance/retirements/supporting_docs/",
+        validators=[document_upload_validator],
         null=True,
         blank=True,
     )
@@ -984,6 +987,7 @@ class RetirementLine(models.Model):
 
     attachment = models.FileField(
         upload_to="finance/retirements/",
+        validators=[document_upload_validator],
         null=True,
         blank=True,
     )
@@ -1032,7 +1036,7 @@ class FinanceDocument(models.Model):
         max_length=30,
         choices=DOCUMENT_TYPE_CHOICES,
     )
-    file = models.FileField(upload_to="finance/documents/")
+    file = models.FileField(upload_to="finance/documents/", validators=[document_upload_validator])
 
     uploaded_by = models.ForeignKey(
         User,

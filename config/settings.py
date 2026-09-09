@@ -14,24 +14,44 @@ import os
 from email.utils import formataddr, parseaddr
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 from .database import database_config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-t$)n!tuw1_r(e_fnyvtmoi5$p3e%k84@mou#1fft20vk!c8&n='
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+def env_list(name, default=""):
+    return [value.strip() for value in os.getenv(name, default).split(",") if value.strip()]
 
-ALLOWED_HOSTS = ["*"]
-# OR
-# ALLOWED_HOSTS = ['192.168.0.11', '127.0.0.1', 'localhost']
+
+DEBUG = env_bool("DJANGO_DEBUG", True)
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "").strip()
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY must be configured when DJANGO_DEBUG is false."
+        )
+    SECRET_KEY = "django-insecure-local-development-only-change-before-production"
+
+ALLOWED_HOSTS = env_list(
+    "DJANGO_ALLOWED_HOSTS",
+    "localhost,127.0.0.1,[::1],testserver" if DEBUG else "",
+)
+if not DEBUG and not ALLOWED_HOSTS:
+    raise ImproperlyConfigured(
+        "DJANGO_ALLOWED_HOSTS must be configured when DJANGO_DEBUG is false."
+    )
+
+CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
 
 # Application definition
@@ -62,6 +82,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'config.middleware.ContentSecurityPolicyMiddleware',
+    'config.middleware.PrivateMediaAccessMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -72,6 +94,42 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# Secure defaults activate automatically whenever production disables DEBUG.
+# Individual values remain configurable for reverse proxies and staged rollout.
+SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", not DEBUG)
+SESSION_COOKIE_SECURE = env_bool("DJANGO_SESSION_COOKIE_SECURE", not DEBUG)
+CSRF_COOKIE_SECURE = env_bool("DJANGO_CSRF_COOKIE_SECURE", not DEBUG)
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+SECURE_HSTS_SECONDS = int(os.getenv(
+    "DJANGO_SECURE_HSTS_SECONDS",
+    "31536000" if not DEBUG else "0",
+))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
+    "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS",
+    not DEBUG,
+)
+SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", False)
+SECURE_REFERRER_POLICY = "same-origin"
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+
+if env_bool("DJANGO_BEHIND_HTTPS_PROXY", False):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+CONTENT_SECURITY_POLICY = os.getenv(
+    "DJANGO_CONTENT_SECURITY_POLICY",
+    (
+        "default-src 'self'; base-uri 'self'; object-src 'none'; "
+        "frame-ancestors 'none'; form-action 'self'; "
+        "img-src 'self' data: blob:; font-src 'self' data:; "
+        "style-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline'"
+    ),
+).strip()
 
 ROOT_URLCONF = 'config.urls'
 
@@ -145,6 +203,12 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+PRIVATE_MEDIA_PREFIXES = (
+    "task_files/", "task_updates/", "task_cross_department_requests/",
+    "task_approvals/", "reports/", "finance/", "payments/",
+    "form_submissions/files/", "meetings/", "conferences/papers/",
+    "conferences/presentations/", "system_backups/",
+)
 
 
 # Email notifications default to the console locally. Production can use SMTP
@@ -205,6 +269,24 @@ NOTIFICATION_MAX_ATTEMPTS = int(os.getenv("NOTIFICATION_MAX_ATTEMPTS", "3"))
 # Helps avoid upload problems for approval documents and reports
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760   # 10 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760   # 10 MB
+
+# Authentication abuse controls. The default local-memory cache protects a
+# single process; production should configure a shared cache for multiple workers.
+LOGIN_THROTTLE_ATTEMPTS = int(os.getenv("LOGIN_THROTTLE_ATTEMPTS", "5"))
+LOGIN_THROTTLE_SECONDS = int(os.getenv("LOGIN_THROTTLE_SECONDS", "900"))
+LOGIN_THROTTLE_WINDOW_SECONDS = LOGIN_THROTTLE_SECONDS
+SESSION_COOKIE_AGE = int(os.getenv("DJANGO_SESSION_COOKIE_AGE", "28800"))
+SESSION_EXPIRE_AT_BROWSER_CLOSE = env_bool("DJANGO_SESSION_EXPIRE_AT_BROWSER_CLOSE", True)
+
+_cache_location = os.getenv("DJANGO_CACHE_LOCATION", "").strip()
+if _cache_location:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+            "LOCATION": _cache_location,
+            "TIMEOUT": LOGIN_THROTTLE_SECONDS,
+        }
+    }
 
 
 # Default primary key field type

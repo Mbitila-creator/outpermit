@@ -38,6 +38,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from core.workflow import get_first_approver_for_requester, get_director_for_department
 from core.notifications import notify_user
 from core.audit import log_action
+from core.login_security import clear_login_failures, login_is_blocked, record_login_failure
 from forms_builder.services import generate_qr_png
 
 from .models import (
@@ -1439,11 +1440,17 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect("system_home")
 
-    form = LoginForm(request, data=request.POST or None)
-
     if request.method == "POST":
+        username = request.POST.get("username", "")
+        if login_is_blocked(request, username):
+            form = LoginForm(request, data=request.POST)
+            form.add_error(None, "Too many failed sign-in attempts. Please wait and try again.")
+            return render(request, "permits/login.html", {"form": form}, status=429)
+
+        form = LoginForm(request, data=request.POST)
         if form.is_valid():
             user = form.get_user()
+            clear_login_failures(request, username)
             login(request, user)
 
             log_action(
@@ -1456,6 +1463,9 @@ def login_view(request):
             )
 
             return redirect("system_home")
+        record_login_failure(request, username)
+    else:
+        form = LoginForm(request)
     return render(request, "permits/login.html", {"form": form})
 
 
@@ -1618,6 +1628,8 @@ def role_redirect(request):
 
 
 
+@login_required
+@require_POST
 def logout_view(request):
 
     log_action(
@@ -1645,6 +1657,14 @@ def acting_officer_details(request, user_id):
         return JsonResponse({"error": "Officer not found."}, status=404)
 
     profile = getattr(officer, "profile", None)
+    requester_profile = getattr(request.user, "profile", None)
+    if not _admin_allowed(request.user) and _get_user_role(request.user) not in EXECUTIVE_APPROVER_ROLES:
+        if (
+            not requester_profile
+            or not profile
+            or requester_profile.department_id != profile.department_id
+        ):
+            return JsonResponse({"error": "Officer is outside your department."}, status=403)
 
     return JsonResponse({
         "id": officer.id,
@@ -2186,7 +2206,7 @@ def reset_user_password(request, user_id):
     target_user = get_object_or_404(User, pk=user_id)
 
     if request.method == "POST":
-        form = AdminPasswordResetForm(request.POST)
+        form = AdminPasswordResetForm(request.POST, user=target_user)
 
         if form.is_valid():
             target_user.set_password(form.cleaned_data["new_password"])
@@ -2204,7 +2224,7 @@ def reset_user_password(request, user_id):
             messages.success(request, "Password reset successfully.")
             return redirect("user_management")
     else:
-        form = AdminPasswordResetForm()
+        form = AdminPasswordResetForm(user=target_user)
 
     return render(
         request,

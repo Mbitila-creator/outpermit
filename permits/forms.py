@@ -1,4 +1,5 @@
 from django import forms
+from django.contrib.auth import password_validation
 from django.forms import inlineformset_factory
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import AuthenticationForm
@@ -536,6 +537,11 @@ class AdminUserCreateForm(forms.Form):
 
         return username
 
+    def clean_password(self):
+        password = self.cleaned_data["password"]
+        password_validation.validate_password(password)
+        return password
+
     def clean(self):
         cleaned_data = super().clean()
         password = cleaned_data.get("password")
@@ -647,6 +653,15 @@ class AdminPasswordResetForm(forms.Form):
     new_password = forms.CharField(widget=forms.PasswordInput)
     confirm_password = forms.CharField(widget=forms.PasswordInput)
 
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+
+    def clean_new_password(self):
+        password = self.cleaned_data["new_password"]
+        password_validation.validate_password(password, self.user)
+        return password
+
     def clean(self):
         cleaned_data = super().clean()
         p1 = cleaned_data.get("new_password")
@@ -674,6 +689,11 @@ class UserPasswordChangeForm(forms.Form):
             raise forms.ValidationError("Current password is incorrect.")
 
         return current_password
+
+    def clean_new_password(self):
+        password = self.cleaned_data["new_password"]
+        password_validation.validate_password(password, self.user)
+        return password
 
     def clean(self):
         cleaned_data = super().clean()

@@ -745,7 +745,7 @@
       <a href="{% url 'task_analytics' %}">Analytics</a>
       {% endif %}
 
-      <a href="{% url 'logout' %}">Logout</a>
+      {% include "includes/logout_button.html" %}
     </div>
   </div>
 

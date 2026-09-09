@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from permits.models import Department, DepartmentUnit
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from core.file_security import document_upload_validator
 
 
 class Task(models.Model):
@@ -94,7 +95,7 @@ class Task(models.Model):
     )
     management_note_role = models.CharField(max_length=100, blank=True)
 
-    attachment = models.FileField(upload_to="task_files/", blank=True, null=True)
+    attachment = models.FileField(upload_to="task_files/", validators=[document_upload_validator], blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True, db_index=True)
@@ -376,7 +377,7 @@ class CrossDepartmentTaskRequest(models.Model):
     start_date = models.DateTimeField(blank=True, null=True)
     due_date = models.DateTimeField(blank=True, null=True)
     attachment = models.FileField(
-        upload_to="task_cross_department_requests/", blank=True, null=True
+        upload_to="task_cross_department_requests/", validators=[document_upload_validator], blank=True, null=True
     )
     requesting_department = models.ForeignKey(
         Department, on_delete=models.PROTECT,
@@ -457,7 +458,7 @@ class TaskUpdate(models.Model):
     comment = models.TextField()
     progress_percent = models.PositiveIntegerField(default=0)
 
-    attachment = models.FileField(upload_to="task_updates/", blank=True, null=True)
+    attachment = models.FileField(upload_to="task_updates/", validators=[document_upload_validator], blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 

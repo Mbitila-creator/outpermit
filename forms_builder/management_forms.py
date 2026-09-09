@@ -3,6 +3,7 @@ import json
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
+from core.file_security import SecureFileValidator
 
 from .display_logic import (
     MULTI_VALUE_OPERATORS,
@@ -89,6 +90,7 @@ class QuestionnaireExcelImportForm(forms.Form):
     excel_file = forms.FileField(
         label="Completed Excel template",
         help_text="Upload the .xlsx template generated for this form.",
+        validators=[SecureFileValidator({".xlsx"})],
     )
 
     def clean_excel_file(self):

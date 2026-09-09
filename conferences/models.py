@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from core.models import BaseModel
 from events.models import Event
 from forms_builder.models import FormSubmission
+from core.file_security import document_upload_validator
 
 
 class ConferenceSession(BaseModel):
@@ -460,7 +461,7 @@ class ConferencePaper(BaseModel):
     document = models.FileField(
         _("abstract or paper document"), upload_to="conferences/papers/%Y/%m/",
         blank=True, null=True,
-        validators=[FileExtensionValidator(("pdf", "doc", "docx"))],
+        validators=[document_upload_validator],
     )
     status = models.CharField(
         _("review status"), max_length=30, choices=Status.choices,
@@ -722,7 +723,7 @@ class ConferencePresentation(BaseModel):
     slides = models.FileField(
         _("presentation slides"), upload_to="conferences/presentations/%Y/%m/",
         blank=True, null=True,
-        validators=[FileExtensionValidator(("pdf", "ppt", "pptx"))],
+        validators=[document_upload_validator],
     )
     presenter_notes = models.TextField(_("presenter notes"), blank=True)
     manager_notes = models.TextField(_("manager notes"), blank=True)

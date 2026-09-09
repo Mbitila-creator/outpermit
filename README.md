@@ -33,8 +33,8 @@ functions in one role-aware system.
 
 ## Technology
 
-- Python and Django 4.2
-- SQLite by default, with environment-controlled MySQL/MariaDB support
+- Python 3.10+ and Django 5.2 LTS
+- SQLite by default, with environment-controlled MySQL 8.0.11+ or MariaDB 10.5+ support
 - ReportLab and pypdf for PDF processing
 - openpyxl for spreadsheet import/export
 - Pillow and qrcode for images and QR codes
@@ -101,8 +101,13 @@ python manage.py createsuperuser
 
 ### Local XAMPP MySQL/MariaDB setup
 
-The MacBook development environment can use XAMPP MariaDB without changing
+The MacBook development environment can use XAMPP MariaDB 10.5 or newer without changing
 PythonAnywhere. SQLite remains the default unless `DB_ENGINE=mysql` is set.
+
+> The previously tested XAMPP MariaDB 10.4.28 installation is too old for
+> Django 5.2. Upgrade MariaDB before enabling MySQL with this release. The
+> supported production driver is `mysqlclient`, not the PyMySQL compatibility
+> shim.
 
 1. Start **MySQL Database** in XAMPP Manager.
 2. Create the database and local account in phpMyAdmin or the XAMPP MySQL
@@ -182,6 +187,9 @@ python manage.py collectstatic --noinput
 
 Never commit the local `db.sqlite3`, virtual environment, provider credentials,
 uploaded media or generated static files.
+
+Production security configuration and deployment checks are documented in
+[`SECURITY.md`](SECURITY.md).
 
 ## Roles and organizational access
 

@@ -53,6 +53,11 @@ urlpatterns = [
         name="task_detail"
     ),
     path(
+        "task/<int:pk>/updates/<int:update_id>/attachment/",
+        views.task_update_attachment,
+        name="task_update_attachment",
+    ),
+    path(
         "task/<int:pk>/approval/",
         views.decide_task_proposal,
         name="decide_task_proposal",

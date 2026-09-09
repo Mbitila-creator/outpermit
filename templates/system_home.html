@@ -136,7 +136,7 @@
 
     <div class="top-actions">
       <a href="{% url 'change_my_password' %}">Change Password</a>
-      <a href="{% url 'logout' %}">Logout</a>
+      {% include "includes/logout_button.html" %}
     </div>
   </div>
 

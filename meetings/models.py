@@ -12,6 +12,7 @@ from django.utils.translation import gettext_lazy as _
 
 from core.models import BaseModel
 from events.models import Event
+from core.file_security import document_upload_validator
 
 
 MAX_MEETING_DOCUMENT_SIZE = 20 * 1024 * 1024
@@ -204,6 +205,7 @@ class Meeting(BaseModel):
     minutes_document = models.FileField(
         _("signed minutes document"),
         upload_to="meetings/minutes/%Y/%m/",
+        validators=[document_upload_validator],
         null=True,
         blank=True,
     )
@@ -561,6 +563,7 @@ class MeetingDocument(BaseModel):
     file = models.FileField(
         _("document file"),
         upload_to=meeting_document_upload_path,
+        validators=[document_upload_validator],
         max_length=500,
     )
     original_filename = models.CharField(
@@ -1329,6 +1332,7 @@ class MeetingActionProgressUpdate(BaseModel):
     evidence_file = models.FileField(
         _("supporting evidence"),
         upload_to=meeting_action_evidence_upload_path,
+        validators=[document_upload_validator],
         max_length=500,
         blank=True,
     )

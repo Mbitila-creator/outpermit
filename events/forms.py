@@ -1,6 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from core.file_security import SecureFileValidator
 
 from .models import Event
 
@@ -27,6 +28,7 @@ class SpecialEventParticipantImportForm(forms.Form):
         label="Researcher Excel file",
         help_text="Upload a complete .xlsx file containing researchers and publications.",
         widget=forms.ClearableFileInput(attrs={"accept": ".xlsx"}),
+        validators=[SecureFileValidator({".xlsx"}, max_size=5 * 1024 * 1024)],
     )
 
     def __init__(self, *args, user=None, **kwargs):

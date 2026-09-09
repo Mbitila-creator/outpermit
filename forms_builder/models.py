@@ -8,6 +8,7 @@ from django.utils.text import slugify
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from core.file_security import document_upload_validator
 
 from core.models import BaseModel
 from events.models import Event
@@ -1288,7 +1289,7 @@ class Payment(BaseModel):
         _("transaction reference"), max_length=100, blank=True, null=True,
     )
     paid_at = models.DateTimeField(_("paid at"), null=True, blank=True)
-    proof = models.FileField(_("payment proof"), upload_to="payments/%Y/%m/", blank=True)
+    proof = models.FileField(_("payment proof"), upload_to="payments/%Y/%m/", validators=[document_upload_validator], blank=True)
     status = models.CharField(
         _("payment status"), max_length=20, choices=Status.choices,
         default=Status.PENDING, db_index=True,
@@ -1789,6 +1790,7 @@ class FormAnswer(BaseModel):
     uploaded_file = models.FileField(
         _("uploaded file"),
         upload_to="form_submissions/files/",
+        validators=[document_upload_validator],
         null=True,
         blank=True,
     )

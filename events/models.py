@@ -9,6 +9,7 @@ from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
 from core.models import BaseModel, Council
+from core.file_security import pdf_upload_validator
 
 
 def special_event_researcher_identity(full_name, institution):
@@ -566,7 +567,7 @@ class EventTimetable(BaseModel):
     pdf_file = models.FileField(
         _("PDF timetable"),
         upload_to="events/timetables/",
-        validators=[FileExtensionValidator(["pdf"])],
+        validators=[pdf_upload_validator],
     )
     public_token = models.UUIDField(
         _("public token"),
