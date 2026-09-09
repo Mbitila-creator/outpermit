@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -17,6 +18,47 @@ from .forms import (
 )
 from .models import Task, TaskAssignment, CrossDepartmentTaskRequest
 from .views import _get_visible_task_scope
+
+
+class TaskAssignmentNormalizationTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username="normalized-owner")
+        self.first = User.objects.create_user(username="normalized-first")
+        self.second = User.objects.create_user(username="normalized-second")
+        self.task = Task.objects.create(
+            title="Normalized team",
+            created_by=self.owner,
+        )
+
+    def test_group_leader_marker_is_synchronized_on_save(self):
+        assignment = TaskAssignment.objects.create(
+            task=self.task,
+            assigned_to=self.first,
+            assigned_by=self.owner,
+            is_group_leader=True,
+        )
+        assignment.refresh_from_db()
+        self.assertIs(assignment.group_leader_unique_marker, True)
+
+        assignment.is_group_leader = False
+        assignment.save(update_fields=["is_group_leader"])
+        assignment.refresh_from_db()
+        self.assertIsNone(assignment.group_leader_unique_marker)
+
+    def test_database_rejects_a_second_group_leader(self):
+        TaskAssignment.objects.create(
+            task=self.task,
+            assigned_to=self.first,
+            assigned_by=self.owner,
+            is_group_leader=True,
+        )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            TaskAssignment.objects.create(
+                task=self.task,
+                assigned_to=self.second,
+                assigned_by=self.owner,
+                is_group_leader=True,
+            )
 
 
 class ExecutiveTaskAccessTests(TestCase):

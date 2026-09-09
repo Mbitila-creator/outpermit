@@ -12,7 +12,6 @@ from core.file_security import document_upload_validator
 class Department(models.Model):
     name = models.CharField(max_length=200, unique=True)
     code = models.CharField(max_length=20, unique=True)
-    has_units = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -24,6 +23,11 @@ class Department(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.name}"
+
+    @property
+    def has_units(self):
+        """Derive unit availability instead of storing duplicated state."""
+        return self.units.filter(is_active=True).exists()
 
 
 class DepartmentUnit(models.Model):
@@ -49,9 +53,6 @@ class DepartmentUnit(models.Model):
 
     def save(self, *args, **kwargs):
         self.code = self.code.upper().strip()
-        if self.department:
-            self.department.has_units = True
-            self.department.save(update_fields=["has_units"])
         super().save(*args, **kwargs)
 
     def clean(self):

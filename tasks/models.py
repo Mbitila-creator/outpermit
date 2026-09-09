@@ -295,12 +295,6 @@ class TaskAssignment(models.Model):
     def effective_progress(self):
         return min(100, (self.carried_forward_progress or 0) + (self.progress_percent or 0))
 
-    def save(self, *args, **kwargs):
-        self.group_leader_unique_marker = True if self.is_group_leader else None
-        if kwargs.get("update_fields") is not None:
-            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"group_leader_unique_marker"}
-        return super().save(*args, **kwargs)
-
     @property
     def remaining_progress(self):
         return max(0, 100 - (self.carried_forward_progress or 0))
@@ -315,6 +309,15 @@ class TaskAssignment(models.Model):
 
     def save(self, *args, **kwargs):
         now = timezone.now()
+
+        # MariaDB does not support conditional unique constraints.  Keep this
+        # nullable marker synchronized so the database-level unique constraint
+        # still permits many members but only one leader for each task.
+        self.group_leader_unique_marker = True if self.is_group_leader else None
+        if kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | {
+                "group_leader_unique_marker",
+            }
 
         self.carried_forward_progress = max(0, min(self.carried_forward_progress or 0, 100))
         self.progress_percent = max(0, self.progress_percent or 0)

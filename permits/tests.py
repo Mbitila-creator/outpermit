@@ -775,3 +775,20 @@ class ActingOfficerScopeSecurityTests(TestCase):
         denied = self.client.get(reverse("acting_officer_details", args=[self.other_department.pk]))
         self.assertEqual(allowed.status_code, 200)
         self.assertEqual(denied.status_code, 403)
+
+
+class DepartmentNormalizationTests(TestCase):
+    def test_has_units_is_derived_from_active_related_units(self):
+        department = Department.objects.create(code="NORM", name="Normalization")
+        self.assertFalse(department.has_units)
+
+        unit = DepartmentUnit.objects.create(
+            department=department,
+            code="ACTIVE",
+            name="Active Unit",
+        )
+        self.assertTrue(department.has_units)
+
+        unit.is_active = False
+        unit.save(update_fields=["is_active"])
+        self.assertFalse(department.has_units)
