@@ -94,6 +94,19 @@
             </div>
 
             <div class="success-actions">
+                {% if can_open_badge %}
+                    <a href="{% url 'forms_builder:participant_badge' submission.participant_token %}" class="submit-button success-link">
+                        {% translate "View participant badge" %}
+                    </a>
+                {% endif %}
+                {% if timetable %}
+                    <a href="{% url 'events:public_event_timetable' event.slug timetable.public_token %}" class="submit-button success-link">
+                        {% translate "View timetable" %}
+                    </a>
+                    <a href="{% url 'events:public_event_timetable_download' event.slug timetable.public_token %}" class="secondary-success-link">
+                        {% translate "Download PDF" %}
+                    </a>
+                {% endif %}
                 {% if not is_evaluation %}
                     {% if event.payment_enabled and can_access_payment %}
                     <a href="{% url 'forms_builder:participant_payment' submission.participant_token %}" class="submit-button success-link">{% translate "Submit payment" %}</a>

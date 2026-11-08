@@ -17,6 +17,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from django.utils.translation import gettext as _
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 
@@ -1609,6 +1610,7 @@ def public_event_form(request, event_slug, form_slug):
     )
 
 
+@never_cache
 def submission_success(request, reference_number):
     submission = get_object_or_404(
         FormSubmission.objects.select_related(
@@ -1620,24 +1622,42 @@ def submission_success(request, reference_number):
         is_complete=True,
     )
 
+    event_form = submission.event_form
+    event = event_form.event
+    is_evaluation = event_form.form_type == EventForm.FormType.EVALUATION
+    is_recent_submitter = (
+        request.session.get("recent_submissions", {}).get(submission.reference_number)
+        == str(submission.participant_token)
+    )
+    show_participant_resources = (
+        is_recent_submitter
+        and submission.is_active
+        and event_form.form_type in (
+            EventForm.FormType.REGISTRATION,
+            EventForm.FormType.EXHIBITOR,
+            EventForm.FormType.SPEAKER,
+        )
+    )
+    timetable = None
+    if show_participant_resources and event.is_active and event.is_public:
+        timetable = EventTimetable.objects.filter(
+            event=event, is_active=True, is_published=True
+        ).exclude(pdf_file="").first()
+
     return render(
         request,
         "forms_builder/submission_success.html",
         {
             "submission": submission,
-            "event_form": submission.event_form,
-            "event": submission.event_form.event,
-            "is_evaluation": (
-                submission.event_form.form_type
-                == EventForm.FormType.EVALUATION
-            ),
-            "can_access_payment": (
-                request.session.get("recent_submissions", {}).get(
-                    submission.reference_number
-                ) == str(submission.participant_token)
-            ),
+            "event_form": event_form,
+            "event": event,
+            "is_evaluation": is_evaluation,
+            "can_access_payment": is_recent_submitter,
+            "can_open_badge": show_participant_resources and event.badge_enabled,
+            "timetable": timetable,
         },
     )
+
 
 
 @require_http_methods(["GET"])
