@@ -234,7 +234,7 @@
                         </p>
                     {% endif %}
 
-                    {% if event.category.is_conference %}
+                    {% if event.category.is_conference and event.code|upper != "ASMF" %}
                         <a class="form-programme-link" href="{% url 'conferences:public_programme' event.slug %}">
                             {% translate "View conference programme" %}
                         </a>
